@@ -1,0 +1,79 @@
+/* 设计 token：与 docs/DESIGN-01 保持一致 */
+:root {
+  --font-ui: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC",
+    "Noto Sans CJK SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-read: var(--font-ui);
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", "Courier New", monospace;
+
+  --canvas: #f7f6f3;
+  --surface: #ffffff;
+  --surface-sunken: #f1efea;
+  --surface-hover: #eae7e0;
+  --surface-active: #e4efec;
+  --row-active: #faf9f6;
+
+  --border: #e2ded6;
+  --border-strong: #cfcac0;
+
+  --text-primary: #1f1e1c;
+  --text-secondary: #5c5a55;
+  --text-tertiary: #75716a;
+
+  --accent: #14655c;
+  --accent-hover: #0f544c;
+  --accent-soft: #e4efec;
+  --focus: rgba(20, 101, 92, 0.38);
+
+  --success: #2f6b42;
+  --warning: #8a5a0f;
+  --danger: #a83a2e;
+
+  --code-bg: #f4f2ed;
+  --code-border: #e6e2da;
+
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+
+  --shadow-card: 0 1px 2px rgba(31, 30, 28, 0.04);
+  --shadow-chip: 0 1px 2px rgba(31, 30, 28, 0.08);
+  --shadow-overlay: 0 2px 4px rgba(31, 30, 28, 0.06), 0 16px 40px -10px rgba(31, 30, 28, 0.2);
+
+  --rail-w: 260px;
+  --tabbar-h: 42px;
+  --toolbar-h: 42px;
+  --statusbar-h: 24px;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #141312;
+  --surface: #1b1a18;
+  --surface-sunken: #171615;
+  --surface-hover: #26241f;
+  --surface-active: #1e302c;
+  --row-active: #211f1c;
+
+  --border: #302d28;
+  --border-strong: #423e37;
+
+  --text-primary: #e9e6e0;
+  --text-secondary: #a8a49c;
+  --text-tertiary: #8b867d;
+
+  --accent: #7fc9b9;
+  --accent-hover: #9ad8ca;
+  --accent-soft: #1e302c;
+  --focus: rgba(127, 201, 185, 0.42);
+
+  --success: #7dbd92;
+  --warning: #d3a355;
+  --danger: #e08a7c;
+
+  --code-bg: #161514;
+  --code-border: #2a2722;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-overlay: 0 2px 4px rgba(0, 0, 0, 0.4), 0 20px 48px -12px rgba(0, 0, 0, 0.65);
+}

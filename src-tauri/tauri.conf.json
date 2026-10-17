@@ -4,17 +4,19 @@
   "version": "0.1.0",
   "identifier": "com.iife_.md-rust",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
         "title": "md-rust",
-        "width": 800,
-        "height": 600
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 600
       }
     ],
     "security": {
