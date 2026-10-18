@@ -1,41 +1,43 @@
 <script setup lang="ts">
-import {
-  activate,
-  closeTab,
-  newDoc,
-  state,
-  toggleEditorMode,
-  toggleReadonly,
-  toggleTheme,
-} from "../store";
+import { activate, closeTab, newDoc, state, toggleTheme } from "../store";
 import Icon from "./Icon.vue";
 </script>
 
 <template>
   <div class="tabbar" role="tablist" aria-label="已打开的文件">
+    <button
+      v-if="state.railCollapsed"
+      class="tool-btn rail-toggle"
+      title="展开目录 Ctrl+\"
+      aria-label="展开目录"
+      @click="state.railCollapsed = false"
+    >
+      <Icon name="panel" :size="15" />
+    </button>
+
     <div
       v-for="tab in state.tabs"
       :key="tab.path"
       class="tab"
-      :class="{ active: tab.path === state.activePath }"
+      :class="{ active: tab.path === state.activePath, dirty: tab.dirty }"
       role="tab"
       :aria-selected="tab.path === state.activePath"
       :title="tab.path"
       @click="activate(tab.path)"
     >
       <Icon name="file" :size="14" />
-      <span class="name">{{ tab.name }}</span>
       <span v-if="tab.dirty" class="dot" title="未保存" />
+      <span class="name">{{ tab.name }}</span>
       <button class="close" aria-label="关闭文件" title="关闭 Ctrl+W" @click.stop="closeTab(tab.path)">
         <Icon name="close" :size="11" />
       </button>
     </div>
 
+    <button class="tab-new" title="新建文档 Ctrl+N" aria-label="新建文档" @click="newDoc">
+      <Icon name="plus" :size="15" />
+    </button>
+
     <div class="tabbar-actions">
-      <button class="tool-btn" title="新建文档 Ctrl+N" aria-label="新建文档" @click="newDoc">
-        <Icon name="plus" :size="15" />
-      </button>
-      <span class="tool-sep" />
       <button
         class="tool-btn"
         :aria-pressed="state.outlineOpen"
@@ -44,31 +46,6 @@ import Icon from "./Icon.vue";
         @click="state.outlineOpen = !state.outlineOpen"
       >
         <Icon name="outline" :size="15" />
-      </button>
-      <button
-        class="tool-btn mode-btn"
-        :title="
-          state.editorMode === 'rich'
-            ? '当前：语雀式富文本（保存会重排格式）· 点击切回源码模式'
-            : '当前：源码模式（保存字节不变）· 点击切到语雀式富文本'
-        "
-        aria-label="切换编辑模式"
-        :aria-pressed="state.editorMode === 'rich'"
-        @click="toggleEditorMode"
-      >
-        <Icon :name="state.editorMode === 'rich' ? 'code' : 'render'" :size="15" />
-        <span class="mode-label">{{ state.editorMode === "rich" ? "富文本" : "源码" }}</span>
-      </button>
-      <span v-if="state.editorMode === 'source'" class="tool-sep" />
-      <button
-        v-if="state.editorMode === 'source'"
-        class="tool-btn"
-        :aria-pressed="state.readonly"
-        :title="state.readonly ? '当前是阅读态，点击进入编辑（Ctrl+E）' : '切回阅读（Ctrl+E）'"
-        aria-label="阅读或编辑"
-        @click="toggleReadonly"
-      >
-        <Icon :name="state.readonly ? 'eye' : 'pencil'" :size="15" />
       </button>
       <button class="tool-btn" title="切换浅色 / 深色" aria-label="切换主题" @click="toggleTheme">
         <Icon :name="state.theme === 'dark' ? 'sun' : 'moon'" :size="15" />

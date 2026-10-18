@@ -17,17 +17,20 @@ const statusText = computed(() => {
 
 const dotClass = computed(() => (state.saveState === "saved" ? "" : state.saveState));
 const chars = computed(() => state.charCount.toLocaleString("zh-CN"));
-const path = computed(() => state.activePath);
+const path = computed(() => {
+  const full = state.activePath;
+  if (!full) return "";
+  const root = state.root.replace(/[\\/]+$/, "");
+  if (root && full.startsWith(root)) {
+    return full.slice(root.length).replace(/^[\\/]+/, "");
+  }
+  return full;
+});
 </script>
 
 <template>
   <footer class="statusbar" :class="{ dirty: state.saveState === 'dirty' }">
-    <button
-      class="status-group"
-      title="点击立即保存 Ctrl+S"
-      style="background: none; border: 0; padding: 0"
-      @click="saveActive"
-    >
+    <button class="status-btn" title="点击立即保存 Ctrl+S" @click="saveActive">
       <span class="status-dot" :class="dotClass" />
       <span class="status-text" :class="{ error: state.saveState === 'error' }">
         {{ statusText }}
@@ -40,14 +43,14 @@ const path = computed(() => state.activePath);
       <span>{{ chars }} 字</span>
       <template v-if="state.error">
         <span>·</span>
-        <span class="status-text error">{{ state.error }}</span>
+        <span class="status-text error" :title="state.error">{{ state.error }}</span>
       </template>
     </div>
 
     <div class="status-group">
-      <span v-if="path" class="path" :title="path">{{ path }}</span>
+      <span v-if="path" class="path" :title="state.activePath">{{ path }}</span>
       <span v-if="path" class="status-sep" />
-      <span v-if="path">Ln {{ state.cursor.line }}, Col {{ state.cursor.col }}</span>
+      <span v-if="path">行 {{ state.cursor.line }}，列 {{ state.cursor.col }}</span>
       <span v-if="path" class="status-sep" />
       <span>UTF-8</span>
       <span>LF</span>

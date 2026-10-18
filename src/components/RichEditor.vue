@@ -4,6 +4,7 @@ import { Crepe } from "@milkdown/crepe";
 import { lineNumbers } from "@codemirror/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
+import { codeTheme } from "../editor/code-theme";
 import { activeTab, markDirty, state } from "../store";
 
 /**
@@ -57,9 +58,77 @@ async function mount() {
     root: host.value,
     defaultValue: tab.content,
     featureConfigs: {
+      [Crepe.Feature.TopBar]: {
+        headingOptions: [
+          { label: "正文", level: null },
+          { label: "标题 1", level: 1 },
+          { label: "标题 2", level: 2 },
+          { label: "标题 3", level: 3 },
+          { label: "标题 4", level: 4 },
+          { label: "标题 5", level: 5 },
+          { label: "标题 6", level: 6 },
+        ],
+      },
+      // 「/」插入菜单的中文文案（图标沿用默认）
+      [Crepe.Feature.BlockEdit]: {
+        textGroup: {
+          label: "文本",
+          text: { label: "正文" },
+          h1: { label: "标题 1" },
+          h2: { label: "标题 2" },
+          h3: { label: "标题 3" },
+          h4: { label: "标题 4" },
+          h5: { label: "标题 5" },
+          h6: { label: "标题 6" },
+          quote: { label: "引用" },
+          divider: { label: "分割线" },
+        },
+        listGroup: {
+          label: "列表",
+          bulletList: { label: "无序列表" },
+          orderedList: { label: "有序列表" },
+          taskList: { label: "任务列表" },
+        },
+        advancedGroup: {
+          label: "插入",
+          image: { label: "图片" },
+          codeBlock: { label: "代码块" },
+          table: { label: "表格" },
+          math: { label: "公式" },
+        },
+      },
+      [Crepe.Feature.Placeholder]: {
+        text: "开始写作，输入 / 唤起插入菜单",
+        mode: "block",
+      },
+      // 选中文字后的气泡工具栏（这些文案是 title / aria-label）
+      [Crepe.Feature.Toolbar]: {
+        boldLabel: "加粗",
+        italicLabel: "斜体",
+        strikethroughLabel: "删除线",
+        codeLabel: "行内代码",
+        linkLabel: "链接",
+        latexLabel: "公式",
+        aiLabel: "AI",
+      },
+      [Crepe.Feature.ImageBlock]: {
+        inlineUploadButton: "上传",
+        inlineConfirmButton: "确定",
+        inlineUploadPlaceholderText: "或粘贴图片链接",
+        blockUploadButton: "上传图片",
+        blockConfirmButton: "确定",
+        blockCaptionPlaceholderText: "写图注",
+        blockUploadPlaceholderText: "或粘贴图片链接",
+      },
       [Crepe.Feature.CodeMirror]: {
-        // 代码块内显示行号，和源码模式保持一致
+        // 代码块内显示行号，配色换成项目自己的低饱和色板
         extensions: [lineNumbers()],
+        theme: codeTheme,
+        copyText: "复制",
+        searchPlaceholder: "搜索语言",
+        noResultText: "没有匹配的语言",
+        previewLabel: "预览",
+        previewLoading: "加载中…",
       },
     },
     features: {
@@ -76,8 +145,7 @@ async function mount() {
       [Crepe.Feature.Cursor]: true,
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.LinkTooltip]: false,
-    },
-  });
+    },  });
 
   let ready = false;
 

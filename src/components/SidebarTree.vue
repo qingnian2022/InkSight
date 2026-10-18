@@ -43,7 +43,7 @@ function onRow(node: FsNode) {
         class="tree-row"
         role="treeitem"
         :aria-expanded="row.node.isDir ? state.expanded.has(row.node.path) : undefined"
-        :class="{ selected: row.node.path === state.activePath }"
+        :class="{ selected: row.node.path === state.activePath, dir: row.node.isDir }"
         :style="{ paddingLeft: `${6 + row.depth * 18}px` }"
         @click="onRow(row.node)"
       >
@@ -67,10 +67,15 @@ function onRow(node: FsNode) {
       </div>
 
       <div v-if="!state.root" class="tree-empty">
-        还没有打开知识库。点左上角选择文件夹，里面的 .md 文件会直接出现在这里。
+        <Icon name="folder" :size="22" />
+        <p>还没有打开知识库</p>
+        <span>选择一个文件夹，里面的 .md 会出现在这里。</span>
+        <button class="tree-empty-btn" @click="pickVault">选择文件夹</button>
       </div>
       <div v-else-if="!visibleRows.length" class="tree-empty">
-        这个文件夹里还没有 Markdown 文件。
+        <Icon name="file" :size="20" />
+        <p>这个文件夹还是空的</p>
+        <span>新建一篇 Markdown，或把已有的文件放进来。</span>
       </div>
     </div>
 

@@ -14,7 +14,6 @@ import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 
 const LS_VAULT = "md-rust.vault";
 const LS_THEME = "md-rust.theme";
-const LS_EDITOR_MODE = "md-rust.editor-mode";
 
 export type EditorMode = "source" | "rich";
 
@@ -25,7 +24,7 @@ export const state = reactive({
   tabs: [] as Tab[],
   activePath: "",
   theme: "light" as "light" | "dark",
-  editorMode: "source" as EditorMode,
+  editorMode: "rich" as EditorMode,
   sourceMode: false,
   readonly: true,
   railCollapsed: false,
@@ -110,13 +109,8 @@ export function toggleTheme() {
 export function setEditorMode(mode: EditorMode) {
   if (state.editorMode === mode) return;
   state.editorMode = mode;
-  localStorage.setItem(LS_EDITOR_MODE, mode);
   // 富文本模式本身就是所见即所得，不存在独立的阅读态
   if (mode === "rich") state.readonly = false;
-}
-
-export function toggleEditorMode() {
-  setEditorMode(state.editorMode === "rich" ? "source" : "rich");
 }
 
 export async function refresh() {
@@ -186,6 +180,11 @@ export async function activate(path: string) {
   state.activePath = path;
   state.readonly = state.editorMode === "source";
   state.saveState = "saved";
+  const tab = state.tabs.find((t) => t.path === path);
+  if (tab) {
+    state.charCount = tab.content.replace(/\s+/g, "").length;
+    state.cursor = { line: 1, col: 1 };
+  }
 }
 
 export async function closeTab(path: string) {
@@ -200,6 +199,8 @@ export async function closeTab(path: string) {
     const next = state.tabs[index] ?? state.tabs[index - 1] ?? null;
     state.activePath = next?.path ?? "";
     state.saveState = "saved";
+    state.charCount = next ? next.content.replace(/\s+/g, "").length : 0;
+    state.cursor = { line: 1, col: 1 };
   }
 }
 
@@ -310,8 +311,6 @@ export function updateCursor(line: number, col: number) {
 export async function init() {
   const theme = localStorage.getItem(LS_THEME);
   setTheme(theme === "dark" ? "dark" : "light");
-
-  state.editorMode = localStorage.getItem(LS_EDITOR_MODE) === "rich" ? "rich" : "source";
 
   const saved = localStorage.getItem(LS_VAULT);
   if (saved) {

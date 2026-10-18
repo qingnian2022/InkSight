@@ -8,6 +8,13 @@ body,
   height: 100%;
 }
 
+.sidebar,
+.tabbar,
+.statusbar,
+.milkdown-top-bar {
+  user-select: none;
+}
+
 body {
   margin: 0;
   font-family: var(--font-ui);
@@ -47,8 +54,8 @@ svg {
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) var(--statusbar-h);
-  gap: 10px;
-  padding: 10px;
+  gap: 12px;
+  padding: 12px;
   transition: grid-template-columns 160ms ease;
 }
 
@@ -72,6 +79,7 @@ svg {
   background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   transition: opacity 140ms ease, transform 140ms ease;
 }
@@ -82,20 +90,22 @@ svg {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 6px 0 8px;
+  padding: 0 8px 0 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .vault-switch {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
+  gap: 7px;
+  height: 32px;
   padding: 0 8px;
   border-radius: var(--r-md);
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  max-width: 130px;
+  max-width: 148px;
   flex: none;
   transition: background 140ms ease;
 }
@@ -122,15 +132,15 @@ svg {
 .tree {
   flex: 1;
   overflow-y: auto;
-  padding: 0 6px 12px;
+  padding: 2px 8px 14px;
 }
 
 .tree-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding-right: 8px;
+  gap: 8px;
+  height: 32px;
+  padding-right: 10px;
   border-radius: var(--r-md);
   font-size: 13px;
   color: var(--text-secondary);
@@ -146,12 +156,26 @@ svg {
 .tree-row.selected {
   background: var(--surface-active);
   color: var(--accent);
+  font-weight: 600;
+}
+
+/* 文件夹略重一档，让层级一眼看出来 */
+.tree-row.dir .label {
   font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tree-row.dir.selected .label {
+  color: var(--accent);
+}
+
+.tree-row.selected svg {
+  color: var(--accent);
 }
 
 .tree-row .twisty {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
   color: var(--text-tertiary);
@@ -170,35 +194,92 @@ svg {
   transform: rotate(90deg);
 }
 
+/* 文件夹和文件图标都收一档亮度，把注意力留给文字 */
+.tree-row > svg {
+  color: var(--text-tertiary);
+  opacity: 0.9;
+}
+
 .tree-row .label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .tree-row .pen {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--warning);
   margin-left: auto;
 }
 
 .tree-empty {
-  padding: 24px 12px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px 12px;
+  text-align: center;
   font-size: 12px;
   line-height: 1.7;
   color: var(--text-tertiary);
 }
 
+.tree-empty > svg {
+  color: var(--border-strong);
+  margin-bottom: 4px;
+}
+
+.tree-empty p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.tree-empty span {
+  max-width: 190px;
+}
+
+.tree-empty .tree-empty-btn {
+  margin-top: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.tree-empty .tree-empty-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
 .rail-footer {
   flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
   border-top: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 0 12px;
   font-size: 11px;
   color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rail-footer::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex: none;
 }
 
 /* ---------- 右侧主区 ---------- */
@@ -219,8 +300,8 @@ svg {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
+  gap: 6px;
+  padding: 0 10px;
   background: var(--surface-sunken);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
@@ -232,14 +313,19 @@ svg {
   height: 0;
 }
 
+.rail-toggle {
+  flex: none;
+  margin-right: 2px;
+}
+
 .tab {
   display: flex;
   align-items: center;
   gap: 7px;
-  height: 30px;
-  min-width: 132px;
-  max-width: 210px;
-  padding: 0 6px 0 11px;
+  height: 32px;
+  min-width: 138px;
+  max-width: 220px;
+  padding: 0 6px 0 10px;
   font-size: 12.5px;
   color: var(--text-secondary);
   background: transparent;
@@ -277,14 +363,15 @@ svg {
 }
 
 .tab .close {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin-left: auto;
   display: grid;
   place-items: center;
   border-radius: var(--r-sm);
   color: var(--text-tertiary);
   opacity: 0;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
 .tab:hover .close,
@@ -297,11 +384,30 @@ svg {
   color: var(--text-primary);
 }
 
+/* 新建紧跟标签，右侧两个按钮始终贴到最右 */
+.tab-new {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  color: var(--text-tertiary);
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.tab-new:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
 .tabbar-actions {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 2px;
+  margin-left: auto;
+  padding: 0 0 0 4px;
   flex: none;
 }
 
@@ -627,45 +733,72 @@ svg {
   inset: 0;
   display: grid;
   place-content: center;
-  gap: 10px;
+  justify-items: center;
+  gap: 0;
   padding: 40px;
   text-align: center;
   background: var(--surface);
 }
 
+.empty-mark {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-xl);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 .empty-state h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
 .empty-state p {
-  margin: 0;
+  margin: 10px 0 0;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--text-tertiary);
-  max-width: 380px;
+  max-width: 420px;
 }
 
 .empty-state .primary-btn {
   justify-self: center;
-  margin-top: 6px;
-  height: 34px;
-  padding: 0 16px;
+  margin-top: 22px;
+  height: 36px;
+  padding: 0 18px;
   border-radius: var(--r-md);
   background: var(--accent);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
+  transition: background 140ms ease, transform 140ms ease;
 }
 
 .empty-state .primary-btn:hover {
   background: var(--accent-hover);
 }
 
+.empty-state .primary-btn:active {
+  transform: translateY(1px);
+}
+
 :root[data-theme="dark"] .empty-state .primary-btn {
   color: #10201c;
+}
+
+.empty-state .empty-hint {
+  margin-top: 16px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  opacity: 0.75;
 }
 
 /* ---------- 大纲抽屉 ---------- */
@@ -674,7 +807,7 @@ svg {
   top: calc(var(--tabbar-h) + var(--toolbar-h));
   right: 0;
   bottom: 0;
-  width: 264px;
+  width: 272px;
   background: var(--surface);
   border-left: 1px solid var(--border);
   border-top: 1px solid var(--border);
@@ -697,25 +830,26 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 0 14px;
+  padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 
 .outline {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 8px;
+  padding: 10px 8px 16px;
 }
 
 .outline-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 9px;
+  gap: 9px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: var(--r-md);
   font-size: 12.5px;
   color: var(--text-secondary);
@@ -731,7 +865,7 @@ svg {
 
 .outline-item .bar {
   width: 2px;
-  height: 12px;
+  height: 14px;
   border-radius: 1px;
   background: var(--border-strong);
   flex: none;
@@ -743,24 +877,30 @@ svg {
 }
 
 .outline-item.lv1 {
-  padding-left: 9px;
+  padding-left: 10px;
 }
 
 .outline-item.lv2 {
-  padding-left: 24px;
+  padding-left: 26px;
 }
 
 .outline-item.lv3 {
-  padding-left: 40px;
+  padding-left: 42px;
 }
 
 .outline-item.lv1 .label {
   font-weight: 600;
+  color: var(--text-primary);
+}
+
+.outline-item.lv1 .bar {
+  background: var(--accent);
 }
 
 .outline-empty {
   padding: 18px 10px;
   font-size: 12px;
+  line-height: 1.75;
   color: var(--text-tertiary);
 }
 
@@ -769,12 +909,28 @@ svg {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 8px;
+  gap: 16px;
+  padding: 0 6px;
   background: transparent;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-tertiary);
   user-select: none;
+}
+
+.status-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  color: inherit;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.status-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
 }
 
 .status-group {
@@ -792,6 +948,8 @@ svg {
 .status-group .path {
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 340px;
+  color: var(--text-secondary);
 }
 
 .status-dot {
@@ -816,6 +974,10 @@ svg {
 
 .status-text.error {
   color: var(--danger);
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-sep {
@@ -828,18 +990,45 @@ svg {
 /* ---------- 滚动条 ---------- */
 .tree::-webkit-scrollbar,
 .outline::-webkit-scrollbar,
-.editor-host .cm-scroller::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.milkdown::-webkit-scrollbar,
+.editor-host .cm-scroller::-webkit-scrollbar,
+.milkdown-code-block .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tree::-webkit-scrollbar-track,
+.outline::-webkit-scrollbar-track,
+.milkdown::-webkit-scrollbar-track,
+.editor-host .cm-scroller::-webkit-scrollbar-track,
+.milkdown-code-block .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .tree::-webkit-scrollbar-thumb,
 .outline::-webkit-scrollbar-thumb,
-.editor-host .cm-scroller::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+.milkdown::-webkit-scrollbar-thumb,
+.editor-host .cm-scroller::-webkit-scrollbar-thumb,
+.milkdown-code-block .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.tree::-webkit-scrollbar-thumb:hover,
+.outline::-webkit-scrollbar-thumb:hover,
+.milkdown::-webkit-scrollbar-thumb:hover,
+.editor-host .cm-scroller::-webkit-scrollbar-thumb:hover,
+.milkdown-code-block .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+  background-clip: content-box;
+}
+
+.tree::-webkit-scrollbar-corner,
+.milkdown::-webkit-scrollbar-corner,
+.editor-host .cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .tree::-webkit-scrollbar-thumb:hover,
@@ -1166,10 +1355,13 @@ svg {
 .rich-editor .milkdown .ProseMirror {
   max-width: 720px;
   margin: 0 auto;
-  padding: 48px 28px 40vh;
+  padding: 44px 28px 32vh;
   min-height: 60vh;
   color: var(--text-primary);
   caret-color: var(--accent);
+  font-size: 16px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
 }
 
 .rich-editor .milkdown .ProseMirror:focus,
@@ -1177,12 +1369,389 @@ svg {
   outline: none;
 }
 
+.rich-editor .milkdown .ProseMirror ::selection {
+  background: var(--accent-soft);
+}
+
+/* ---- 正文排版：标题阶梯、引用、列表、表格都收到一套节奏里 ---- */
+
+.rich-editor .milkdown .ProseMirror h1,
+.rich-editor .milkdown .ProseMirror h2,
+.rich-editor .milkdown .ProseMirror h3,
+.rich-editor .milkdown .ProseMirror h4,
+.rich-editor .milkdown .ProseMirror h5,
+.rich-editor .milkdown .ProseMirror h6 {
+  margin: 1.55em 0 0.55em;
+  padding: 0;
+  font-family: var(--font-read);
+  font-weight: 600;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.rich-editor .milkdown .ProseMirror h1 {
+  font-size: 2em;
+  margin-top: 0.35em;
+}
+
+.rich-editor .milkdown .ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.rich-editor .milkdown .ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+.rich-editor .milkdown .ProseMirror h4 {
+  font-size: 1.0625em;
+}
+
+.rich-editor .milkdown .ProseMirror h5 {
+  font-size: 0.9375em;
+}
+
+.rich-editor .milkdown .ProseMirror h6 {
+  font-size: 0.875em;
+  color: var(--text-secondary);
+}
+
+.rich-editor .milkdown .ProseMirror p {
+  margin: 0.55em 0;
+  padding: 0;
+  line-height: 1.75;
+  font-size: 1em;
+}
+
+.rich-editor .milkdown .ProseMirror strong {
+  font-weight: 600;
+}
+
+.rich-editor .milkdown .ProseMirror blockquote {
+  margin: 1.2em 0;
+  padding: 0.5em 1.1em 0.5em 1.2em;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  box-sizing: border-box;
+}
+
+.rich-editor .milkdown .ProseMirror blockquote::before {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.rich-editor .milkdown .ProseMirror blockquote p {
+  margin: 0.2em 0;
+  padding: 0;
+}
+
+.rich-editor .milkdown .ProseMirror blockquote p:first-child {
+  margin-top: 0;
+}
+
+.rich-editor .milkdown .ProseMirror blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Crepe 的列表是 flex 结构：圆点独占 24px + 10px gap，这里收紧 */
+.rich-editor .milkdown .milkdown-list-item-block {
+  padding-left: 0.15em;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block > .list-item {
+  gap: 6px;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li {
+  gap: 6px;
+  line-height: 1.75;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper,
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  width: 18px;
+  height: 28px;
+  padding: 0;
+  line-height: 28px;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper {
+  justify-content: flex-start;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+/* 列表项内部的段落不要再带段落间距，否则每行会松成两倍 */
+.rich-editor .milkdown .milkdown-list-item-block .children p {
+  margin: 0;
+  padding: 0;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper svg {
+  fill: var(--text-tertiary);
+}
+
+.rich-editor .milkdown .ProseMirror table {
+  border-collapse: collapse;
+  width: auto;
+  max-width: 100%;
+  margin: 1.2em 0;
+  font-size: 0.9375em;
+  line-height: 1.6;
+}
+
+.rich-editor .milkdown .ProseMirror table th,
+.rich-editor .milkdown .ProseMirror table td {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rich-editor .milkdown .ProseMirror table th {
+  background: var(--surface-sunken);
+  font-weight: 600;
+}
+
+.rich-editor .milkdown .ProseMirror table tr:nth-child(2n) {
+  background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
+}
+
+.rich-editor .milkdown .ProseMirror table tr:hover {
+  background: var(--surface-hover);
+}
+
+.rich-editor .milkdown .ProseMirror :not(pre) > code {
+  padding: 2px 5px;
+  border: none;
+  border-radius: var(--r-xs);
+  background: var(--code-bg);
+  color: var(--syn-number);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.rich-editor .milkdown .ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: text-decoration-color 140ms ease;
+}
+
+.rich-editor .milkdown .ProseMirror a:hover {
+  text-decoration-color: var(--accent);
+}
+
+.rich-editor .milkdown .ProseMirror hr {
+  height: 1px;
+  padding: 0;
+  margin: 2em 0;
+  background: var(--border);
+}
+
+.rich-editor .milkdown .ProseMirror img {
+  max-width: 100%;
+  border-radius: var(--r-md);
+}
+
 /* 顶部工具栏与项目自身的工具栏对齐 */
 .rich-editor .milkdown .milkdown-top-bar {
   min-height: var(--toolbar-h);
-  padding: 0 10px;
+  padding: 0 14px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+}
+
+.rich-editor .milkdown .milkdown-top-bar {
+  flex-wrap: nowrap;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-inner {
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-inner::-webkit-scrollbar {
+  height: 0;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-selector {
+  padding: 0 2px;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button {
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border-radius: var(--r-md);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button:hover {
+  background: var(--surface-hover);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-label {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-chevron {
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-chevron svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  stroke: var(--text-tertiary);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-divider {
+  height: 18px;
+  margin: 0 8px;
+  background: var(--border);
+}
+
+/* Crepe 默认把图标染成 outline（浅褐灰），这里提到正文次级色 */
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--r-md);
+  justify-content: center;
+  transition: background 140ms ease;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:hover {
+  background: var(--surface-hover);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  fill: var(--text-secondary);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item.active {
+  background: var(--accent-soft);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item.active svg {
+  color: var(--accent);
+  fill: var(--accent);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-dropdown {
+  top: calc(100% + 6px);
+  padding: 6px;
+  min-width: 148px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-option {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+
+/* ---- 「/」插入菜单：收成和项目一致的紧凑面板 ---- */
+
+.rich-editor .milkdown .milkdown-slash-menu {
+  min-width: 240px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  overflow: hidden;
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .tab-group {
+  padding: 8px 8px 0;
+  border-bottom: none;
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .tab-group ul {
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .tab-group ul li {
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .tab-group ul li.selected {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-chip);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-groups {
+  padding: 4px 6px 6px;
+  max-height: 340px;
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group h6 {
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li {
+  min-width: 0;
+  padding: 7px 8px;
+  gap: 10px;
+  border-radius: var(--r-sm);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover {
+  background: var(--surface-hover);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  fill: var(--text-secondary);
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li > span {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.rich-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group + .menu-group::before {
+  margin: 4px 8px;
+  background: var(--border);
 }
 
 /* 模式切换按钮 */
@@ -1274,10 +1843,10 @@ svg {
   background: var(--border-strong);
 }
 
-/* ---- 富文本模式的代码块：和源码模式统一成卡片 + 顶栏 ---- */
+/* ---- 富文本代码块：卡片 + 顶栏（左语言 / 右复制）+ 行号 ---- */
 
 .rich-editor .milkdown .milkdown-code-block {
-  margin: 16px 0;
+  margin: 18px 0;
   padding: 0;
   border: 1px solid var(--code-border);
   border-radius: var(--r-md);
@@ -1290,10 +1859,14 @@ svg {
   outline-offset: 1px;
 }
 
+/* 顶栏：比代码区亮一档，把操作区和正文分开 */
 .rich-editor .milkdown .milkdown-code-block .tools {
-  min-height: 32px;
-  padding: 5px 8px 5px 12px;
-  background: var(--code-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 8px 0 12px;
+  background: color-mix(in srgb, var(--code-bg) 78%, var(--text-primary) 6%);
   border-bottom: 1px solid var(--code-border);
   border-radius: var(--r-md) var(--r-md) 0 0;
 }
@@ -1305,23 +1878,49 @@ svg {
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .language-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
-  padding: 2px 6px;
+  padding: 3px 6px;
   background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 11.5px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  border-radius: var(--r-sm);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .language-button:hover {
   background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .language-button .expand-icon {
+  display: inline-flex;
+  opacity: 0.55;
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .language-button .expand-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button {
-  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
   padding: 0 10px;
   border: 1px solid var(--code-border);
   border-radius: 999px;
@@ -1330,6 +1929,9 @@ svg {
   font-family: var(--font-ui);
   font-size: 11.5px;
   font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button:hover {
@@ -1337,25 +1939,42 @@ svg {
   color: var(--text-primary);
 }
 
-.rich-editor .milkdown .milkdown-code-block .cm-editor {
-  padding: 6px 0 8px;
-  background: transparent;
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group .milkdown-icon {
+  display: inline-flex;
 }
 
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group .milkdown-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.rich-editor .milkdown .milkdown-code-block .codemirror-host {
+  padding: 9px 0 11px;
+}
+
+/* 代码块进入视口前 Crepe 只渲染一个 <pre> 占位，这里让它看起来仍像代码卡片 */
+.rich-editor .milkdown .milkdown-code-block .milkdown-code-block-placeholder {
+  margin: 0;
+  padding: 14px 16px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* 行号和代码之间留一点呼吸 */
 .rich-editor .milkdown .milkdown-code-block .cm-gutters {
+  padding-right: 10px;
+}
+
+/* 折叠箭头在代码块里没有意义（Crepe 自带的 foldGutter） */
+.rich-editor .milkdown .milkdown-code-block .cm-foldGutter {
+  display: none !important;
+}
+
+.rich-editor .milkdown .milkdown-code-block .cm-editor {
   background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  padding-left: 12px;
-}
-
-.rich-editor .milkdown .milkdown-code-block .cm-lineNumbers .cm-gutterElement {
-  opacity: 0.55;
-  font-size: 11.5px;
-  min-width: 18px;
-}
-
-.rich-editor .milkdown .milkdown-code-block .cm-activeLine,
-.rich-editor .milkdown .milkdown-code-block .cm-activeLineGutter {
-  background: transparent !important;
 }

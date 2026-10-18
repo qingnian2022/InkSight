@@ -40,19 +40,20 @@
   --syn-type: #4a5b8c;
   --syn-punct: #6b675f;
 
+  --r-xs: 4px;
   --r-sm: 6px;
   --r-md: 9px;
   --r-lg: 14px;
   --r-xl: 18px;
 
-  --shadow-card: 0 1px 2px rgba(31, 30, 28, 0.04);
+  --shadow-card: 0 1px 2px rgba(31, 30, 28, 0.05), 0 1px 1px rgba(31, 30, 28, 0.03);
   --shadow-chip: 0 1px 2px rgba(31, 30, 28, 0.08);
-  --shadow-overlay: 0 2px 4px rgba(31, 30, 28, 0.06), 0 16px 40px -10px rgba(31, 30, 28, 0.2);
+  --shadow-overlay: 0 2px 6px rgba(31, 30, 28, 0.06), 0 20px 48px -12px rgba(31, 30, 28, 0.22);
 
-  --rail-w: 260px;
-  --tabbar-h: 42px;
-  --toolbar-h: 42px;
-  --statusbar-h: 24px;
+  --rail-w: 256px;
+  --tabbar-h: 46px;
+  --toolbar-h: 46px;
+  --statusbar-h: 30px;
 }
 
 :root[data-theme="dark"] {
