@@ -92,137 +92,144 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onDocumentClick)
 </script>
 
 <template>
-  <div class="editor-toolbar" role="toolbar" aria-label="格式工具栏">
-    <div ref="pickerRef" class="block-picker">
+  <div class="md-toolbar" role="toolbar" aria-label="格式工具栏">
+    <div class="md-toolbar-left">
+      <div ref="pickerRef" class="block-picker">
+        <button
+          class="md-tb-item md-tb-text"
+          :aria-expanded="menuOpen"
+          title="段落样式"
+          @click="menuOpen = !menuOpen"
+        >
+          <span class="md-tb-label">{{ currentBlockLabel }}</span>
+          <Icon name="chevron" :size="11" />
+        </button>
+
+        <div v-if="menuOpen" class="block-menu">
+          <button
+            v-for="item in blockMenu"
+            :key="item.value"
+            class="block-menu-item"
+            :class="[`is-${item.value}`, { active: state.blockType === item.value }]"
+            @click="applyBlock(item)"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
+
+      <span class="md-tb-divider" />
+
       <button
-        class="tool-btn block-btn"
-        :aria-expanded="menuOpen"
-        title="段落样式"
-        @click="menuOpen = !menuOpen"
+        class="md-tb-item"
+        :class="{ active: isMark('strong') }"
+        title="加粗 Ctrl+B"
+        aria-label="加粗"
+        @click="formatCommands.bold"
       >
-        <span class="block-label">{{ currentBlockLabel }}</span>
-        <Icon name="chevron" :size="12" />
+        <Icon name="bold" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: isMark('emphasis') }"
+        title="斜体 Ctrl+I"
+        aria-label="斜体"
+        @click="formatCommands.italic"
+      >
+        <Icon name="italic" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: isMark('strike') }"
+        title="删除线"
+        aria-label="删除线"
+        @click="formatCommands.strike"
+      >
+        <Icon name="strike" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: isMark('inlineCode') }"
+        title="行内代码"
+        aria-label="行内代码"
+        @click="formatCommands.code"
+      >
+        <Icon name="code-inline" :size="20" />
+      </button>
+      <button class="md-tb-item" title="链接 Ctrl+K" aria-label="链接" @click="formatCommands.link">
+        <Icon name="link" :size="20" />
       </button>
 
-      <div v-if="menuOpen" class="block-menu">
-        <button
-          v-for="item in blockMenu"
-          :key="item.value"
-          class="block-menu-item"
-          :class="[`is-${item.value}`, { active: state.blockType === item.value }]"
-          @click="applyBlock(item)"
-        >
-          {{ item.label }}
-        </button>
-      </div>
+      <span class="md-tb-divider" />
+
+      <button
+        class="md-tb-item"
+        :class="{ active: state.blockType === 'bullet' }"
+        title="无序列表"
+        aria-label="无序列表"
+        @click="formatCommands.ul"
+      >
+        <Icon name="ul" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: state.blockType === 'ordered' }"
+        title="有序列表"
+        aria-label="有序列表"
+        @click="formatCommands.ol"
+      >
+        <Icon name="ol" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: state.blockType === 'task' }"
+        title="任务列表"
+        aria-label="任务列表"
+        @click="formatCommands.task"
+      >
+        <Icon name="task" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: state.blockType === 'quote' }"
+        title="引用"
+        aria-label="引用"
+        @click="formatCommands.quote"
+      >
+        <Icon name="quote" :size="20" />
+      </button>
+      <button
+        class="md-tb-item"
+        :class="{ active: state.blockType === 'code' }"
+        title="代码块"
+        aria-label="代码块"
+        @click="formatCommands.codeBlock"
+      >
+        <Icon name="code" :size="20" />
+      </button>
+      <button class="md-tb-item" title="分割线" aria-label="分割线" @click="formatCommands.rule">
+        <Icon name="rule" :size="20" />
+      </button>
+
+      <span class="md-tb-divider" />
+
+      <button
+        class="md-tb-item"
+        title="插入图片（复制到知识库 assets）"
+        aria-label="插入图片"
+        @click="insertImage"
+      >
+        <Icon name="image" :size="20" />
+      </button>
     </div>
 
-    <span class="tool-sep" />
-
-    <button
-      class="tool-btn"
-      :aria-pressed="isMark('strong')"
-      title="加粗 Ctrl+B"
-      aria-label="加粗"
-      @click="formatCommands.bold"
-    >
-      <span class="glyph b">B</span>
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="isMark('emphasis')"
-      title="斜体 Ctrl+I"
-      aria-label="斜体"
-      @click="formatCommands.italic"
-    >
-      <span class="glyph i">I</span>
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="isMark('strike')"
-      title="删除线"
-      aria-label="删除线"
-      @click="formatCommands.strike"
-    >
-      <span class="glyph s">S</span>
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="isMark('inlineCode')"
-      title="行内代码"
-      aria-label="行内代码"
-      @click="formatCommands.code"
-    >
-      <span class="glyph m">&lt;/&gt;</span>
-    </button>
-    <button class="tool-btn" title="链接 Ctrl+K" aria-label="链接" @click="formatCommands.link">
-      <Icon name="link" :size="15" />
-    </button>
-
-    <span class="tool-sep" />
-
-    <button
-      class="tool-btn"
-      :aria-pressed="state.blockType === 'bullet'"
-      title="无序列表"
-      aria-label="无序列表"
-      @click="formatCommands.ul"
-    >
-      <Icon name="ul" :size="15" />
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="state.blockType === 'ordered'"
-      title="有序列表"
-      aria-label="有序列表"
-      @click="formatCommands.ol"
-    >
-      <Icon name="ol" :size="15" />
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="state.blockType === 'task'"
-      title="任务列表"
-      aria-label="任务列表"
-      @click="formatCommands.task"
-    >
-      <Icon name="task" :size="15" />
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="state.blockType === 'quote'"
-      title="引用"
-      aria-label="引用"
-      @click="formatCommands.quote"
-    >
-      <Icon name="quote" :size="15" />
-    </button>
-    <button
-      class="tool-btn"
-      :aria-pressed="state.blockType === 'code'"
-      title="代码块"
-      aria-label="代码块"
-      @click="formatCommands.codeBlock"
-    >
-      <Icon name="code" :size="15" />
-    </button>
-    <button class="tool-btn" title="分割线" aria-label="分割线" @click="formatCommands.rule">
-      <Icon name="rule" :size="15" />
-    </button>
-
-    <span class="tool-sep" />
-
-    <button class="tool-btn" title="插入图片（复制到知识库 assets）" aria-label="插入图片" @click="insertImage">
-      <Icon name="image" :size="15" />
-    </button>
-
-    <span class="toolbar-spacer" />
-
-    <button class="tool-btn" title="撤销 Ctrl+Z" aria-label="撤销" @click="doUndo">
-      <Icon name="undo" :size="15" />
-    </button>
-    <button class="tool-btn" title="重做 Ctrl+Shift+Z" aria-label="重做" @click="doRedo">
-      <Icon name="redo" :size="15" />
-    </button>
+    <div class="md-toolbar-right">
+      <button class="md-tb-item" title="撤销 Ctrl+Z" aria-label="撤销" @click="doUndo">
+        <Icon name="undo" :size="20" />
+      </button>
+      <button class="md-tb-item" title="重做 Ctrl+Shift+Z" aria-label="重做" @click="doRedo">
+        <Icon name="redo" :size="20" />
+      </button>
+    </div>
   </div>
 </template>

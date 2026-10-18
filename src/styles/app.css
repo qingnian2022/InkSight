@@ -990,29 +990,116 @@ svg {
   background: var(--surface-sunken);
 }
 
+/* 代码块：整行背景拼成一张卡片，首尾行负责圆角和上下边框 */
 .editor-host .cm-codeblock {
   background: var(--code-bg);
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.7;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-shadow:
+    inset 1px 0 var(--code-border),
+    inset -1px 0 var(--code-border);
 }
 
 .editor-host .cm-codeblock-start {
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  padding-top: 6px;
+  border-radius: 0;
+  padding-top: 12px;
+  box-shadow:
+    inset 1px 0 var(--code-border),
+    inset -1px 0 var(--code-border),
+    inset 0 1px var(--code-border);
 }
 
 .editor-host .cm-codeblock-end {
-  border-radius: 0 0 var(--r-lg) var(--r-lg);
-  padding-bottom: 6px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  padding-bottom: 4px;
+  box-shadow:
+    inset 1px 0 var(--code-border),
+    inset -1px 0 var(--code-border),
+    inset 0 -1px var(--code-border);
 }
 
-.editor-host .cm-code-fence {
+/* ---- 代码块顶栏：左边语言，右边复制 ---- */
+
+.editor-host .cm-line:has(.cm-code-bar) {
+  line-height: 32px;
+}
+
+/* CM6 在 widget 前后各插一个 widgetBuffer 占位图，块级 widget 会把它们顶成两行 */
+.editor-host .cm-line:has(.cm-code-bar) .cm-widgetBuffer,
+.editor-host .cm-line:has(.cm-code-bar) br {
+  display: none;
+}
+
+.editor-host .cm-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-bottom: none;
+  border-radius: var(--r-md) var(--r-md) 0 0;
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 18px;
-  height: 18px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.editor-host .cm-code-lang {
+  letter-spacing: 0.04em;
+}
+
+.editor-host .cm-code-copy {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--code-border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.editor-host .cm-code-copy:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.editor-host .cm-code-copy[data-state="done"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--code-border));
+}
+
+/* 行号：代码行逐行自增，每个代码块首行重置 */
+.editor-host .cm-codeblock {
+  counter-increment: code-line;
+}
+
+.editor-host .cm-codeblock-start {
+  counter-reset: code-line;
+}
+
+.editor-host .cm-codeblock::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 1.7em;
+  margin-right: 14px;
+  text-align: right;
   color: var(--text-tertiary);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.editor-host .cm-codeblock-end::before {
+  content: none;
 }
 
 .editor-host .cm-image-widget {
@@ -1029,4 +1116,246 @@ svg {
 .editor-host .cm-link {
   color: var(--accent);
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* ---- 语雀式富文本编辑（Milkdown Crepe）----
+   把 crepe 的调色板映射到项目 token，深浅色自动跟随，不需要引用 frame-dark。 */
+
+.rich-editor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.rich-editor .milkdown {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  background: transparent;
+
+  --crepe-font-default: var(--font-read);
+  --crepe-font-title: var(--font-read);
+  --crepe-font-code: var(--font-mono);
+  --crepe-base-font-size: 16px;
+
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--text-primary);
+  --crepe-color-surface: var(--surface);
+  --crepe-color-surface-low: var(--surface-sunken);
+  --crepe-color-on-surface: var(--text-primary);
+  --crepe-color-on-surface-variant: var(--text-secondary);
+  --crepe-color-outline: var(--border-strong);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: var(--border);
+  --crepe-color-on-secondary: var(--text-primary);
+  --crepe-color-inverse: var(--text-primary);
+  --crepe-color-on-inverse: var(--surface);
+  --crepe-color-inline-code: var(--danger);
+  --crepe-color-error: var(--danger);
+  --crepe-color-hover: var(--surface-hover);
+  --crepe-color-selected: var(--surface-active);
+  --crepe-color-inline-area: var(--surface-sunken);
+  --crepe-shadow-1: var(--shadow-chip);
+  --crepe-shadow-2: var(--shadow-overlay);
+}
+
+.rich-editor .milkdown .ProseMirror {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 28px 40vh;
+  min-height: 60vh;
+  color: var(--text-primary);
+  caret-color: var(--accent);
+}
+
+.rich-editor .milkdown .ProseMirror:focus,
+.rich-editor .milkdown .ProseMirror:focus-visible {
+  outline: none;
+}
+
+/* 顶部工具栏与项目自身的工具栏对齐 */
+.rich-editor .milkdown .milkdown-top-bar {
+  min-height: var(--toolbar-h);
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* 模式切换按钮 */
+.mode-btn {
+  padding: 0 8px;
+}
+
+.mode-btn .mode-label {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.mode-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---- 工具栏：照 md-editor-v3 的分组与图标按钮重做 ---- */
+
+.md-toolbar {
+  height: var(--toolbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.md-toolbar-left,
+.md-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.md-tb-item svg {
+  stroke-width: 2;
+}
+
+.md-tb-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 4px;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.md-tb-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.md-tb-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.md-tb-item:active {
+  background: var(--border);
+}
+
+.md-tb-text {
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.md-tb-label {
+  max-width: 58px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-tb-divider {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 7px;
+  background: var(--border-strong);
+}
+
+/* ---- 富文本模式的代码块：和源码模式统一成卡片 + 顶栏 ---- */
+
+.rich-editor .milkdown .milkdown-code-block {
+  margin: 16px 0;
+  padding: 0;
+  border: 1px solid var(--code-border);
+  border-radius: var(--r-md);
+  background: var(--code-bg);
+  overflow: visible;
+}
+
+.rich-editor .milkdown .milkdown-code-block.selected {
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools {
+  min-height: 32px;
+  padding: 5px 8px 5px 12px;
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--code-border);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+
+/* 它的工具按钮默认 opacity: 0（hover 才出现），这里改成常显 */
+.rich-editor .milkdown .milkdown-code-block .tools .language-button,
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button {
+  opacity: 1;
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .language-button {
+  margin: 0;
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  border-radius: var(--r-sm);
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .language-button:hover {
+  background: var(--surface-hover);
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--code-border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.rich-editor .milkdown .milkdown-code-block .cm-editor {
+  padding: 6px 0 8px;
+  background: transparent;
+}
+
+.rich-editor .milkdown .milkdown-code-block .cm-gutters {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  padding-left: 12px;
+}
+
+.rich-editor .milkdown .milkdown-code-block .cm-lineNumbers .cm-gutterElement {
+  opacity: 0.55;
+  font-size: 11.5px;
+  min-width: 18px;
+}
+
+.rich-editor .milkdown .milkdown-code-block .cm-activeLine,
+.rich-editor .milkdown .milkdown-code-block .cm-activeLineGutter {
+  background: transparent !important;
 }

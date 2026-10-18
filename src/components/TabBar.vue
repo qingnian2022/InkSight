@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { activate, closeTab, newDoc, state, toggleReadonly, toggleTheme } from "../store";
+import {
+  activate,
+  closeTab,
+  newDoc,
+  state,
+  toggleEditorMode,
+  toggleReadonly,
+  toggleTheme,
+} from "../store";
 import Icon from "./Icon.vue";
 </script>
 
@@ -38,6 +46,22 @@ import Icon from "./Icon.vue";
         <Icon name="outline" :size="15" />
       </button>
       <button
+        class="tool-btn mode-btn"
+        :title="
+          state.editorMode === 'rich'
+            ? '当前：语雀式富文本（保存会重排格式）· 点击切回源码模式'
+            : '当前：源码模式（保存字节不变）· 点击切到语雀式富文本'
+        "
+        aria-label="切换编辑模式"
+        :aria-pressed="state.editorMode === 'rich'"
+        @click="toggleEditorMode"
+      >
+        <Icon :name="state.editorMode === 'rich' ? 'code' : 'render'" :size="15" />
+        <span class="mode-label">{{ state.editorMode === "rich" ? "富文本" : "源码" }}</span>
+      </button>
+      <span v-if="state.editorMode === 'source'" class="tool-sep" />
+      <button
+        v-if="state.editorMode === 'source'"
         class="tool-btn"
         :aria-pressed="state.readonly"
         :title="state.readonly ? '当前是阅读态，点击进入编辑（Ctrl+E）' : '切回阅读（Ctrl+E）'"

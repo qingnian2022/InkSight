@@ -14,6 +14,9 @@ import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 
 const LS_VAULT = "md-rust.vault";
 const LS_THEME = "md-rust.theme";
+const LS_EDITOR_MODE = "md-rust.editor-mode";
+
+export type EditorMode = "source" | "rich";
 
 export const state = reactive({
   root: "",
@@ -22,6 +25,7 @@ export const state = reactive({
   tabs: [] as Tab[],
   activePath: "",
   theme: "light" as "light" | "dark",
+  editorMode: "source" as EditorMode,
   sourceMode: false,
   readonly: true,
   railCollapsed: false,
@@ -98,6 +102,23 @@ export function toggleTheme() {
   setTheme(state.theme === "dark" ? "light" : "dark");
 }
 
+/**
+ * 切换编辑内核。
+ * source = CodeMirror 6 + 装饰器（保真：保存字节不变）
+ * rich   = Milkdown Crepe 块级编辑（语雀式：全程不见标记，但保存会重排）
+ */
+export function setEditorMode(mode: EditorMode) {
+  if (state.editorMode === mode) return;
+  state.editorMode = mode;
+  localStorage.setItem(LS_EDITOR_MODE, mode);
+  // 富文本模式本身就是所见即所得，不存在独立的阅读态
+  if (mode === "rich") state.readonly = false;
+}
+
+export function toggleEditorMode() {
+  setEditorMode(state.editorMode === "rich" ? "source" : "rich");
+}
+
 export async function refresh() {
   if (!state.root) return;
   try {
@@ -151,7 +172,7 @@ export async function openDoc(node: FsNode) {
       dirty: false,
     });
     state.activePath = node.path;
-    state.readonly = true;
+    state.readonly = state.editorMode === "source";
     state.saveState = "saved";
     state.charCount = content.replace(/\s+/g, "").length;
   } catch (err) {
@@ -163,7 +184,7 @@ export async function activate(path: string) {
   if (state.activePath === path) return;
   await flush();
   state.activePath = path;
-  state.readonly = true;
+  state.readonly = state.editorMode === "source";
   state.saveState = "saved";
 }
 
@@ -270,8 +291,9 @@ export async function flush() {
   if (tab?.dirty) await saveTab(tab);
 }
 
-/** 阅读 / 编辑切换；切回阅读前先把改动写盘。 */
+/** 阅读 / 编辑切换；切回阅读前先把改动写盘。富文本模式没有阅读态。 */
 export async function toggleReadonly() {
+  if (state.editorMode === "rich") return;
   if (!state.readonly) {
     await flush();
     state.readonly = true;
@@ -288,6 +310,8 @@ export function updateCursor(line: number, col: number) {
 export async function init() {
   const theme = localStorage.getItem(LS_THEME);
   setTheme(theme === "dark" ? "dark" : "light");
+
+  state.editorMode = localStorage.getItem(LS_EDITOR_MODE) === "rich" ? "rich" : "source";
 
   const saved = localStorage.getItem(LS_VAULT);
   if (saved) {

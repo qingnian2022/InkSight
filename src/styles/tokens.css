@@ -28,8 +28,17 @@
   --warning: #8a5a0f;
   --danger: #a83a2e;
 
-  --code-bg: #f4f2ed;
-  --code-border: #e6e2da;
+  --code-bg: #f1eee7;
+  --code-border: #d9d3c5;
+
+  /* 代码块语法配色：低饱和，和米色 / 墨绿的主色对齐 */
+  --syn-keyword: #14655c;
+  --syn-string: #8a5a0f;
+  --syn-number: #a83a2e;
+  --syn-comment: #9c978c;
+  --syn-function: #2f5c8a;
+  --syn-type: #4a5b8c;
+  --syn-punct: #6b675f;
 
   --r-sm: 6px;
   --r-md: 9px;
@@ -70,8 +79,16 @@
   --warning: #d3a355;
   --danger: #e08a7c;
 
-  --code-bg: #161514;
-  --code-border: #2a2722;
+  --code-bg: #1d1c19;
+  --code-border: #332f28;
+
+  --syn-keyword: #7fc9b9;
+  --syn-string: #d3a355;
+  --syn-number: #e08a7c;
+  --syn-comment: #7d786f;
+  --syn-function: #8fb3d9;
+  --syn-type: #a8b4d8;
+  --syn-punct: #a8a49c;
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);

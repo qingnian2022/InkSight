@@ -27,19 +27,55 @@ class RuleWidget extends WidgetType {
 }
 
 class FenceWidget extends WidgetType {
-  constructor(readonly lang: string) {
+  constructor(
+    readonly lang: string,
+    readonly source: string,
+  ) {
     super();
   }
 
   eq(other: FenceWidget) {
-    return other.lang === this.lang;
+    return other.lang === this.lang && other.source === this.source;
+  }
+
+  /** 让点击事件落到按钮上，而不是被编辑器吞掉 */
+  ignoreEvent() {
+    return false;
   }
 
   toDOM() {
-    const div = document.createElement("div");
-    div.className = "cm-code-fence";
-    div.textContent = this.lang || "code";
-    return div;
+    const bar = document.createElement("div");
+    bar.className = "cm-code-bar";
+
+    const lang = document.createElement("span");
+    lang.className = "cm-code-lang";
+    lang.textContent = this.lang || "plain";
+
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "cm-code-copy";
+    copy.textContent = "复制";
+    copy.addEventListener("mousedown", (e) => e.preventDefault());
+    copy.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void navigator.clipboard.writeText(this.source).then(
+        () => {
+          copy.textContent = "已复制";
+          copy.dataset.state = "done";
+          window.setTimeout(() => {
+            copy.textContent = "复制";
+            delete copy.dataset.state;
+          }, 1200);
+        },
+        () => {
+          copy.textContent = "失败";
+        },
+      );
+    });
+
+    bar.append(lang, copy);
+    return bar;
   }
 }
 
@@ -288,8 +324,14 @@ function build(view: EditorView): DecorationSet {
 
       if (!rangeHasSelection(active, i, end)) {
         const lang = text.replace(/^\s*(```|~~~)/, "").trim();
+        const lastCodeLine = RE_FENCE.test(doc.line(end).text) ? end - 1 : end;
+        const codeSource =
+          lastCodeLine >= i + 1 ? collectLines(doc, i + 1, lastCodeLine) : "";
         ranges.push(
-          Decoration.replace({ widget: new FenceWidget(lang) }).range(line.from, line.to),
+          Decoration.replace({ widget: new FenceWidget(lang, codeSource) }).range(
+            line.from,
+            line.to,
+          ),
         );
         for (let k = i + 1; k <= end; k += 1) {
           const inner = doc.line(k);

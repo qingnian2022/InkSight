@@ -46,7 +46,7 @@ onBeforeUnmount(() => {
     <SidebarTree />
     <div class="main">
       <TabBar />
-      <EditorToolbar />
+      <EditorToolbar v-if="state.editorMode === 'source'" />
       <EditorPane />
       <OutlineDrawer />
     </div>

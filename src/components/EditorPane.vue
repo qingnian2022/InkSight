@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { EditorView } from "@codemirror/view";
 import { createEditorState, editableCompartment } from "../editor/setup";
 import { setView } from "../editor/viewRef";
 import { activeTab, newDoc, pickVault, state } from "../store";
+
+// Crepe 会捎带 @codemirror/language-data 的全部语言包，按需加载以免拖慢首屏
+const RichEditor = defineAsyncComponent(() => import("./RichEditor.vue"));
 
 const host = ref<HTMLElement | null>(null);
 let view: EditorView | null = null;
@@ -12,11 +15,15 @@ function enterEditing() {
   if (state.readonly) state.readonly = false;
 }
 
+function teardown() {
+  setView(null);
+  view?.destroy();
+  view = null;
+}
+
 async function syncEditor() {
-  if (!state.activePath) {
-    view?.destroy();
-    view = null;
-    setView(null);
+  if (!state.activePath || state.editorMode !== "source") {
+    teardown();
     return;
   }
 
@@ -38,15 +45,34 @@ async function syncEditor() {
   view.focus();
 }
 
-onMounted(syncEditor);
+function remountForHotReload() {
+  teardown();
+  void nextTick().then(syncEditor);
+}
+
+onMounted(() => {
+  void syncEditor();
+  window.addEventListener("md-rust:remount-editor", remountForHotReload);
+});
 
 onBeforeUnmount(() => {
-  setView(null);
-  view?.destroy();
-  view = null;
+  window.removeEventListener("md-rust:remount-editor", remountForHotReload);
+  teardown();
 });
 
 watch(() => state.activePath, syncEditor);
+
+watch(
+  () => state.editorMode,
+  async (mode) => {
+    if (mode === "source") {
+      await nextTick();
+      await syncEditor();
+    } else {
+      teardown();
+    }
+  },
+);
 
 watch(
   () => state.readonly,
@@ -60,7 +86,14 @@ watch(
 
 <template>
   <div class="editor-wrap">
-    <div v-if="state.activePath" ref="host" class="editor-host" @mousedown="enterEditing" />
+    <RichEditor v-if="state.activePath && state.editorMode === 'rich'" />
+
+    <div
+      v-else-if="state.activePath"
+      ref="host"
+      class="editor-host"
+      @mousedown="enterEditing"
+    />
 
     <div v-else class="empty-state">
       <h2>{{ state.root ? "还没有打开文档" : "选一个文件夹开始" }}</h2>
