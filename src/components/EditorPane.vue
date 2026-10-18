@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { EditorView } from "@codemirror/view";
-import { createEditorState, renderCompartment } from "../editor/setup";
-import { typoraRendering } from "../editor/typora";
+import { createEditorState, editableCompartment } from "../editor/setup";
 import { setView } from "../editor/viewRef";
 import { activeTab, newDoc, pickVault, state } from "../store";
 
 const host = ref<HTMLElement | null>(null);
 let view: EditorView | null = null;
+
+function enterEditing() {
+  if (state.readonly) state.readonly = false;
+}
 
 async function syncEditor() {
   if (!state.activePath) {
@@ -17,17 +20,20 @@ async function syncEditor() {
     return;
   }
 
+  const tab = activeTab.value;
+  if (!tab) return;
+
   await nextTick();
   if (!host.value) return;
 
   if (!view) {
     view = new EditorView({
-      state: createEditorState(activeTab.value?.content ?? ""),
+      state: createEditorState(tab.content),
       parent: host.value,
     });
     setView(view);
   } else {
-    view.setState(createEditorState(activeTab.value?.content ?? ""));
+    view.setState(createEditorState(tab.content));
   }
   view.focus();
 }
@@ -43,34 +49,31 @@ onBeforeUnmount(() => {
 watch(() => state.activePath, syncEditor);
 
 watch(
-  () => state.sourceMode,
-  (on) => {
+  () => state.readonly,
+  (readonly) => {
     view?.dispatch({
-      effects: renderCompartment.reconfigure(on ? [] : typoraRendering),
+      effects: editableCompartment.reconfigure(EditorView.editable.of(!readonly)),
     });
   },
 );
 </script>
 
 <template>
-  <div v-if="!state.activePath" class="empty-state">
-    <h2>{{ state.root ? "还没有打开文档" : "选一个文件夹开始" }}</h2>
-    <p>
-      {{
-        state.root
-          ? "从左侧目录选择一篇 Markdown，或新建一篇。所有内容直接读写你磁盘上的 .md 文件。"
-          : "md-rust 不建立自己的数据库：选中的文件夹就是知识库，文件就是数据。可以随时用 Git 或别的编辑器打开。"
-      }}
-    </p>
-    <button class="primary-btn" @click="state.root ? newDoc() : pickVault()">
-      {{ state.root ? "新建文档" : "选择知识库文件夹" }}
-    </button>
-  </div>
+  <div class="editor-wrap">
+    <div v-if="state.activePath" ref="host" class="editor-host" @mousedown="enterEditing" />
 
-  <div
-    v-else
-    ref="host"
-    class="editor-host"
-    :class="{ 'source-mode': state.sourceMode }"
-  />
+    <div v-else class="empty-state">
+      <h2>{{ state.root ? "还没有打开文档" : "选一个文件夹开始" }}</h2>
+      <p>
+        {{
+          state.root
+            ? "从左侧目录选择一篇 Markdown，或新建一篇。正文会直接渲染，光标所在行才显示 Markdown 标记。"
+            : "md-rust 不建立自己的数据库：选中的文件夹就是知识库，文件就是数据。可以随时用 Git 或别的编辑器打开。"
+        }}
+      </p>
+      <button class="primary-btn" @click="state.root ? newDoc() : pickVault()">
+        {{ state.root ? "新建文档" : "选择知识库文件夹" }}
+      </button>
+    </div>
+  </div>
 </template>

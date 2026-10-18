@@ -17,6 +17,9 @@ export const renameNode = (path: string, newName: string) =>
 export const trashNode = (root: string, path: string) =>
   invoke<void>("node_trash", { root, path });
 
+export const importAsset = (vault: string, docPath: string, src: string) =>
+  invoke<string>("asset_import", { vault, docPath, src });
+
 export function fileName(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] || path;

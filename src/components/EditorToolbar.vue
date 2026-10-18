@@ -1,0 +1,228 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { open } from "@tauri-apps/plugin-dialog";
+import { errorText, importAsset } from "../api";
+import {
+  doRedo,
+  doUndo,
+  formatCommands,
+  insertBlock,
+  setHeading,
+  setParagraph,
+  toggleLinePrefix,
+} from "../editor/viewRef";
+import { state } from "../store";
+import Icon from "./Icon.vue";
+
+const menuOpen = ref(false);
+const pickerRef = ref<HTMLElement | null>(null);
+
+const blockLabels: Record<string, string> = {
+  paragraph: "正文",
+  h1: "标题 1",
+  h2: "标题 2",
+  h3: "标题 3",
+  h4: "标题 4",
+  h5: "标题 5",
+  h6: "标题 6",
+  quote: "引用",
+  code: "代码块",
+  bullet: "无序列表",
+  ordered: "有序列表",
+  task: "任务列表",
+};
+
+const blockMenu = [
+  { value: "paragraph", label: "正文" },
+  { value: "h1", label: "标题 1" },
+  { value: "h2", label: "标题 2" },
+  { value: "h3", label: "标题 3" },
+  { value: "quote", label: "引用" },
+  { value: "code", label: "代码块" },
+];
+
+const currentBlockLabel = computed(() => blockLabels[state.blockType] ?? "正文");
+const isMark = (name: string) => state.activeMarks.includes(name);
+
+function applyBlock(item: { value: string }) {
+  menuOpen.value = false;
+  if (item.value === "paragraph") {
+    setParagraph();
+    return;
+  }
+  if (item.value.startsWith("h")) {
+    setHeading(Number(item.value.slice(1)));
+    return;
+  }
+  if (item.value === "quote") {
+    toggleLinePrefix("> ");
+    return;
+  }
+  if (item.value === "code") {
+    insertBlock("```\n\n```", 4);
+  }
+}
+
+async function insertImage() {
+  if (!state.root || !state.activePath) return;
+  const picked = await open({
+    multiple: false,
+    title: "选择图片",
+    filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
+  });
+  if (typeof picked !== "string") return;
+  try {
+    const relative = await importAsset(state.root, state.activePath, picked);
+    const snippet = `![](${relative})`;
+    insertBlock(snippet, snippet.length);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+function onDocumentClick(event: MouseEvent) {
+  if (!menuOpen.value) return;
+  if (pickerRef.value && !pickerRef.value.contains(event.target as Node)) {
+    menuOpen.value = false;
+  }
+}
+
+onMounted(() => document.addEventListener("mousedown", onDocumentClick));
+onBeforeUnmount(() => document.removeEventListener("mousedown", onDocumentClick));
+</script>
+
+<template>
+  <div class="editor-toolbar" role="toolbar" aria-label="格式工具栏">
+    <div ref="pickerRef" class="block-picker">
+      <button
+        class="tool-btn block-btn"
+        :aria-expanded="menuOpen"
+        title="段落样式"
+        @click="menuOpen = !menuOpen"
+      >
+        <span class="block-label">{{ currentBlockLabel }}</span>
+        <Icon name="chevron" :size="12" />
+      </button>
+
+      <div v-if="menuOpen" class="block-menu">
+        <button
+          v-for="item in blockMenu"
+          :key="item.value"
+          class="block-menu-item"
+          :class="[`is-${item.value}`, { active: state.blockType === item.value }]"
+          @click="applyBlock(item)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+    </div>
+
+    <span class="tool-sep" />
+
+    <button
+      class="tool-btn"
+      :aria-pressed="isMark('strong')"
+      title="加粗 Ctrl+B"
+      aria-label="加粗"
+      @click="formatCommands.bold"
+    >
+      <span class="glyph b">B</span>
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="isMark('emphasis')"
+      title="斜体 Ctrl+I"
+      aria-label="斜体"
+      @click="formatCommands.italic"
+    >
+      <span class="glyph i">I</span>
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="isMark('strike')"
+      title="删除线"
+      aria-label="删除线"
+      @click="formatCommands.strike"
+    >
+      <span class="glyph s">S</span>
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="isMark('inlineCode')"
+      title="行内代码"
+      aria-label="行内代码"
+      @click="formatCommands.code"
+    >
+      <span class="glyph m">&lt;/&gt;</span>
+    </button>
+    <button class="tool-btn" title="链接 Ctrl+K" aria-label="链接" @click="formatCommands.link">
+      <Icon name="link" :size="15" />
+    </button>
+
+    <span class="tool-sep" />
+
+    <button
+      class="tool-btn"
+      :aria-pressed="state.blockType === 'bullet'"
+      title="无序列表"
+      aria-label="无序列表"
+      @click="formatCommands.ul"
+    >
+      <Icon name="ul" :size="15" />
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="state.blockType === 'ordered'"
+      title="有序列表"
+      aria-label="有序列表"
+      @click="formatCommands.ol"
+    >
+      <Icon name="ol" :size="15" />
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="state.blockType === 'task'"
+      title="任务列表"
+      aria-label="任务列表"
+      @click="formatCommands.task"
+    >
+      <Icon name="task" :size="15" />
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="state.blockType === 'quote'"
+      title="引用"
+      aria-label="引用"
+      @click="formatCommands.quote"
+    >
+      <Icon name="quote" :size="15" />
+    </button>
+    <button
+      class="tool-btn"
+      :aria-pressed="state.blockType === 'code'"
+      title="代码块"
+      aria-label="代码块"
+      @click="formatCommands.codeBlock"
+    >
+      <Icon name="code" :size="15" />
+    </button>
+    <button class="tool-btn" title="分割线" aria-label="分割线" @click="formatCommands.rule">
+      <Icon name="rule" :size="15" />
+    </button>
+
+    <span class="tool-sep" />
+
+    <button class="tool-btn" title="插入图片（复制到知识库 assets）" aria-label="插入图片" @click="insertImage">
+      <Icon name="image" :size="15" />
+    </button>
+
+    <span class="toolbar-spacer" />
+
+    <button class="tool-btn" title="撤销 Ctrl+Z" aria-label="撤销" @click="doUndo">
+      <Icon name="undo" :size="15" />
+    </button>
+    <button class="tool-btn" title="重做 Ctrl+Shift+Z" aria-label="重做" @click="doRedo">
+      <Icon name="redo" :size="15" />
+    </button>
+  </div>
+</template>

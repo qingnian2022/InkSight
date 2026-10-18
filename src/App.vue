@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
 import EditorPane from "./components/EditorPane.vue";
+import EditorToolbar from "./components/EditorToolbar.vue";
 import OutlineDrawer from "./components/OutlineDrawer.vue";
 import SidebarTree from "./components/SidebarTree.vue";
 import StatusBar from "./components/StatusBar.vue";
 import TabBar from "./components/TabBar.vue";
-import Toolbar from "./components/Toolbar.vue";
-import { closeTab, init, newDoc, state } from "./store";
+import { closeTab, init, newDoc, state, toggleReadonly } from "./store";
 
 function onKeydown(event: KeyboardEvent) {
   const mod = event.ctrlKey || event.metaKey;
@@ -22,6 +22,9 @@ function onKeydown(event: KeyboardEvent) {
   } else if (event.key === "\\") {
     event.preventDefault();
     state.railCollapsed = !state.railCollapsed;
+  } else if (key === "e" && !event.shiftKey) {
+    event.preventDefault();
+    void toggleReadonly();
   } else if (key === "o" && event.shiftKey) {
     event.preventDefault();
     state.outlineOpen = !state.outlineOpen;
@@ -43,7 +46,7 @@ onBeforeUnmount(() => {
     <SidebarTree />
     <div class="main">
       <TabBar />
-      <Toolbar />
+      <EditorToolbar />
       <EditorPane />
       <OutlineDrawer />
     </div>

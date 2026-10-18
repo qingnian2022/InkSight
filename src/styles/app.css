@@ -306,7 +306,7 @@ svg {
 }
 
 /* ---------- 工具栏 ---------- */
-.toolbar {
+.editor-toolbar {
   height: var(--toolbar-h);
   flex: none;
   display: flex;
@@ -315,7 +315,85 @@ svg {
   padding: 0 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  z-index: 12;
+}
+
+.block-picker {
+  position: relative;
+  flex: none;
+}
+
+.block-btn {
+  min-width: 88px;
+  justify-content: space-between;
+  padding: 0 8px 0 10px;
+  color: var(--text-primary);
+}
+
+.block-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.block-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 176px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  z-index: 30;
+}
+
+.block-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.block-menu-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.block-menu-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.block-menu-item.is-paragraph {
+  font-size: 13px;
+}
+
+.block-menu-item.is-h1 {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.block-menu-item.is-h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.block-menu-item.is-h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.block-menu-item.is-quote,
+.block-menu-item.is-code {
+  font-size: 13px;
 }
 
 .tool-btn {
@@ -393,8 +471,16 @@ svg {
 }
 
 /* ---------- 编辑区 ---------- */
+.editor-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
 .editor-host {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   position: relative;
@@ -537,12 +623,14 @@ svg {
 
 /* ---------- 空状态 ---------- */
 .empty-state {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-content: center;
   gap: 10px;
   padding: 40px;
   text-align: center;
+  background: var(--surface);
 }
 
 .empty-state h2 {
@@ -780,4 +868,165 @@ svg {
   .sidebar {
     display: none;
   }
+}
+
+/* ---------- md-editor-v3 ---------- */
+.md-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+
+  --md-bk-color: var(--surface);
+  --md-bk-color-outstand: var(--surface-sunken);
+  --md-bk-hover-color: var(--surface-hover);
+  --md-border-color: var(--border);
+  --md-border-active-color: var(--accent);
+  --md-border-hover-color: var(--border-strong);
+  --md-color: var(--text-primary);
+  --md-hover-color: var(--surface-hover);
+  --md-scrollbar-bg-color: transparent;
+  --md-scrollbar-thumb-color: var(--border);
+  --md-scrollbar-thumb-hover-color: var(--border-strong);
+}
+
+.md-preview-pane {
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.md-preview-pane .md-editor {
+  min-height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.md-editor-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.md-editor-pane .md-editor {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+}
+
+/* 正文测量宽度 */
+.md-pane .md-editor-preview-wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 28px 40vh;
+}
+
+.md-pane .md-editor-preview {
+  font-family: var(--font-read);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.md-pane .md-editor-preview h1 {
+  font-size: 28px;
+  line-height: 1.35;
+}
+
+.md-pane .md-editor-preview h2 {
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.md-pane .md-editor-preview h3 {
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* 编辑态文本度量 */
+.md-editor-pane .cm-scroller {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.md-editor-pane .cm-content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 28px 40vh;
+}
+
+/* ---------- Live Preview 装饰 ---------- */
+.editor-host .cm-table-widget {
+  padding: 4px 0 8px;
+}
+
+.editor-host .cm-table-widget table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.editor-host .cm-table-widget th,
+.editor-host .cm-table-widget td {
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.editor-host .cm-table-widget th {
+  background: var(--surface-sunken);
+  font-weight: 600;
+}
+
+.editor-host .cm-table-source {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+}
+
+.editor-host .cm-codeblock {
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.editor-host .cm-codeblock-start {
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding-top: 6px;
+}
+
+.editor-host .cm-codeblock-end {
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  padding-bottom: 6px;
+}
+
+.editor-host .cm-code-fence {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  height: 18px;
+  color: var(--text-tertiary);
+}
+
+.editor-host .cm-image-widget {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.editor-host .cm-image-widget img {
+  max-width: 100%;
+  border-radius: var(--r-md);
+  vertical-align: middle;
+}
+
+.editor-host .cm-link {
+  color: var(--accent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }

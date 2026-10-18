@@ -3,8 +3,8 @@ import { EditorView, drawSelection, keymap, placeholder } from "@codemirror/view
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { markDirty, saveActive, state, updateCursor } from "../store";
-import { formatBold, formatCode, formatItalic, formatStrike, insertLink } from "./commands";
+import { markDirty, saveActive, state } from "../store";
+import { formatCommands, syncEditorFlags } from "./viewRef";
 import { typoraRendering } from "./typora";
 
 const appKeymap = keymap.of([
@@ -16,11 +16,11 @@ const appKeymap = keymap.of([
       return true;
     },
   },
-  { key: "Mod-b", preventDefault: true, run: formatBold },
-  { key: "Mod-i", preventDefault: true, run: formatItalic },
-  { key: "Mod-Shift-s", preventDefault: true, run: formatStrike },
-  { key: "Mod-e", preventDefault: true, run: formatCode },
-  { key: "Mod-k", preventDefault: true, run: insertLink },
+  { key: "Mod-b", preventDefault: true, run: formatCommands.bold },
+  { key: "Mod-i", preventDefault: true, run: formatCommands.italic },
+  { key: "Mod-Shift-s", preventDefault: true, run: formatCommands.strike },
+  { key: "Mod-e", preventDefault: true, run: formatCommands.code },
+  { key: "Mod-k", preventDefault: true, run: formatCommands.link },
   indentWithTab,
 ]);
 
@@ -28,14 +28,15 @@ const syncListener = EditorView.updateListener.of((update) => {
   if (update.docChanged && state.activePath) {
     markDirty(state.activePath, update.state.doc.toString());
   }
-  if (update.selectionSet || update.docChanged) {
+  if (update.docChanged || update.selectionSet) {
+    syncEditorFlags(update.state);
     const head = update.state.selection.main.head;
     const line = update.state.doc.lineAt(head);
-    updateCursor(line.number, head - line.from + 1);
+    state.cursor = { line: line.number, col: head - line.from + 1 };
   }
 });
 
-export const renderCompartment = new Compartment();
+export const editableCompartment = new Compartment();
 
 export function createEditorState(doc: string): EditorState {
   return EditorState.create({
@@ -47,10 +48,11 @@ export function createEditorState(doc: string): EditorState {
       indentOnInput(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       markdown({ base: markdownLanguage, addKeymap: true }),
-      renderCompartment.of(typoraRendering),
+      editableCompartment.of(EditorView.editable.of(!state.readonly)),
+      typoraRendering,
       appKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),
-      placeholder("开始写作。用 # 加空格写标题，用 ** 包住文字加粗。"),
+      placeholder("开始写作。用 # 加空格写标题，光标移开就会渲染。"),
       syncListener,
     ],
   });

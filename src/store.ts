@@ -23,12 +23,15 @@ export const state = reactive({
   activePath: "",
   theme: "light" as "light" | "dark",
   sourceMode: false,
+  readonly: true,
   railCollapsed: false,
   outlineOpen: false,
   saveState: "saved" as SaveState,
   error: "",
   charCount: 0,
   cursor: { line: 1, col: 1 },
+  blockType: "paragraph",
+  activeMarks: [] as string[],
 });
 
 export const activeTab = computed(
@@ -148,6 +151,7 @@ export async function openDoc(node: FsNode) {
       dirty: false,
     });
     state.activePath = node.path;
+    state.readonly = true;
     state.saveState = "saved";
     state.charCount = content.replace(/\s+/g, "").length;
   } catch (err) {
@@ -159,6 +163,7 @@ export async function activate(path: string) {
   if (state.activePath === path) return;
   await flush();
   state.activePath = path;
+  state.readonly = true;
   state.saveState = "saved";
 }
 
@@ -230,6 +235,7 @@ let saveTimer: number | undefined;
 export function markDirty(path: string, content: string) {
   const tab = state.tabs.find((t) => t.path === path);
   if (!tab) return;
+  if (tab.content === content) return;
   tab.content = content;
   tab.dirty = true;
   state.saveState = "dirty";
@@ -262,6 +268,17 @@ export async function flush() {
   window.clearTimeout(saveTimer);
   const tab = activeTab.value;
   if (tab?.dirty) await saveTab(tab);
+}
+
+/** 阅读 / 编辑切换；切回阅读前先把改动写盘。 */
+export async function toggleReadonly() {
+  if (!state.readonly) {
+    await flush();
+    state.readonly = true;
+    return;
+  }
+  if (!state.activePath) return;
+  state.readonly = false;
 }
 
 export function updateCursor(line: number, col: number) {

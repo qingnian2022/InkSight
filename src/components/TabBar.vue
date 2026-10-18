@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { activate, closeTab, newDoc, state } from "../store";
+import { activate, closeTab, newDoc, state, toggleReadonly, toggleTheme } from "../store";
 import Icon from "./Icon.vue";
 </script>
 
@@ -26,6 +26,28 @@ import Icon from "./Icon.vue";
     <div class="tabbar-actions">
       <button class="tool-btn" title="新建文档 Ctrl+N" aria-label="新建文档" @click="newDoc">
         <Icon name="plus" :size="15" />
+      </button>
+      <span class="tool-sep" />
+      <button
+        class="tool-btn"
+        :aria-pressed="state.outlineOpen"
+        title="大纲 Ctrl+Shift+O"
+        aria-label="大纲"
+        @click="state.outlineOpen = !state.outlineOpen"
+      >
+        <Icon name="outline" :size="15" />
+      </button>
+      <button
+        class="tool-btn"
+        :aria-pressed="state.readonly"
+        :title="state.readonly ? '当前是阅读态，点击进入编辑（Ctrl+E）' : '切回阅读（Ctrl+E）'"
+        aria-label="阅读或编辑"
+        @click="toggleReadonly"
+      >
+        <Icon :name="state.readonly ? 'eye' : 'pencil'" :size="15" />
+      </button>
+      <button class="tool-btn" title="切换浅色 / 深色" aria-label="切换主题" @click="toggleTheme">
+        <Icon :name="state.theme === 'dark' ? 'sun' : 'moon'" :size="15" />
       </button>
     </div>
   </div>

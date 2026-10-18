@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { scrollToLine } from "../editor/viewRef";
+import { scrollToHeading } from "../editor/viewRef";
 import { outline, state } from "../store";
 import Icon from "./Icon.vue";
 </script>
@@ -18,7 +18,7 @@ import Icon from "./Icon.vue";
         :key="`${item.line}-${item.text}`"
         class="outline-item"
         :class="`lv${Math.min(item.level, 3)}`"
-        @click="scrollToLine(item.line)"
+        @click="scrollToHeading(item.text)"
       >
         <span class="bar" />
         <span class="label">{{ item.text }}</span>
