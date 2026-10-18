@@ -13,6 +13,7 @@ import {
 } from "../editor/viewRef";
 import { state } from "../store";
 import Icon from "./Icon.vue";
+import WidthPicker from "./WidthPicker.vue";
 
 const menuOpen = ref(false);
 const pickerRef = ref<HTMLElement | null>(null);
@@ -224,6 +225,8 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onDocumentClick)
     </div>
 
     <div class="md-toolbar-right">
+      <WidthPicker />
+      <span class="md-tb-divider" />
       <button class="md-tb-item" title="撤销 Ctrl+Z" aria-label="撤销" @click="doUndo">
         <Icon name="undo" :size="20" />
       </button>

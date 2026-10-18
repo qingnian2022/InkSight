@@ -51,17 +51,26 @@ svg {
 /* ---------- 外壳 ---------- */
 .app {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+
+/* 标题栏之下、状态栏之上的主区域 */
+.app-body {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) var(--statusbar-h);
   gap: 12px;
   padding: 12px;
   transition: grid-template-columns 160ms ease;
 }
 
-.app.rail-collapsed {
+.app.rail-collapsed .app-body {
   --rail-w: 0px;
   column-gap: 0;
+  padding-left: 12px;
 }
 
 .app.rail-collapsed .sidebar {
@@ -69,6 +78,60 @@ svg {
   pointer-events: none;
   transform: translateX(-8px);
   border-width: 0;
+}
+
+/* ---------- 自绘标题栏（系统栏）：深墨绿色带，全主题的识别点 ---------- */
+.titlebar {
+  height: var(--titlebar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--titlebar-bg);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.titlebar-title {
+  padding-left: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--titlebar-fg);
+}
+
+.titlebar-controls {
+  display: flex;
+  height: 100%;
+}
+
+.win-btn {
+  width: 44px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--titlebar-fg);
+  transition: background 120ms ease;
+}
+
+.win-btn:hover {
+  background: var(--titlebar-btn-hover);
+}
+
+.win-btn:active {
+  background: var(--titlebar-btn-active);
+}
+
+/* 关闭按钮遵循 Windows 习惯：悬停变红 */
+.win-close:hover {
+  background: var(--titlebar-close-hover);
+  color: #fff;
+}
+
+.win-close:active {
+  background: var(--titlebar-close-hover);
+  opacity: 0.85;
+  color: #fff;
 }
 
 /* ---------- 左侧目录树 ---------- */
@@ -136,13 +199,14 @@ svg {
 }
 
 .tree-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
+  height: 28px;
   padding-right: 10px;
-  border-radius: var(--r-md);
-  font-size: 13px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
   color: var(--text-secondary);
   white-space: nowrap;
   transition: background 120ms ease, color 120ms ease;
@@ -157,6 +221,19 @@ svg {
   background: var(--surface-active);
   color: var(--accent);
   font-weight: 600;
+}
+
+/* 选中行的品牌色小竖条 */
+.tree-row.selected::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 /* 文件夹略重一档，让层级一眼看出来 */
@@ -293,6 +370,18 @@ svg {
   box-shadow: var(--shadow-card);
   overflow: hidden;
   position: relative;
+}
+
+/* 编辑区 + 常驻大纲栏的横向一行 */
+.ed-row {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.ed-row .editor-wrap {
+  min-width: 0;
 }
 
 .tabbar {
@@ -609,7 +698,7 @@ svg {
 }
 
 .editor-host .cm-content {
-  max-width: 720px;
+  max-width: max(560px, var(--ed-max, 75%));
   width: 100%;
   margin: 0 auto;
   padding: 48px 28px 40vh;
@@ -801,32 +890,31 @@ svg {
   opacity: 0.75;
 }
 
-/* ---------- 大纲抽屉 ---------- */
+/* ---------- 大纲：常驻右栏（方案 C），收起时宽度归零 ---------- */
 .outline-drawer {
-  position: absolute;
-  top: calc(var(--tabbar-h) + var(--toolbar-h));
-  right: 0;
-  bottom: 0;
-  width: 272px;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
-  border-top: 1px solid var(--border);
-  border-radius: var(--r-lg) 0 0 0;
-  box-shadow: var(--shadow-overlay);
-  transform: translateX(100%);
-  transition: transform 160ms ease;
+  width: 240px;
+  flex: none;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  z-index: 20;
+  background: var(--canvas);
+  border-left: 1px solid var(--border);
+  transition: width 160ms ease, opacity 140ms ease;
+  overflow: hidden;
+  z-index: 5;
 }
 
-.outline-drawer.open {
-  transform: translateX(0);
+.outline-drawer:not(.open) {
+  width: 0;
+  border-left-width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .drawer-head {
-  height: var(--toolbar-h);
+  height: 40px;
   flex: none;
+  width: 240px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -841,15 +929,16 @@ svg {
 .outline {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 8px 16px;
+  padding: 8px;
+  width: 240px;
 }
 
 .outline-item {
   display: flex;
   align-items: center;
   gap: 9px;
-  height: 32px;
-  padding: 0 10px;
+  height: 29px;
+  padding: 0 9px;
   border-radius: var(--r-md);
   font-size: 12.5px;
   color: var(--text-secondary);
@@ -906,12 +995,15 @@ svg {
 
 /* ---------- 状态栏 ---------- */
 .statusbar {
-  grid-column: 1 / -1;
+  flex: none;
+  height: var(--statusbar-h);
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 6px;
-  background: transparent;
+  padding: 0 14px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
   font-size: 11.5px;
   color: var(--text-tertiary);
   user-select: none;
@@ -1311,11 +1403,20 @@ svg {
    把 crepe 的调色板映射到项目 token，深浅色自动跟随，不需要引用 frame-dark。 */
 
 .rich-editor {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   overflow: hidden;
+}
+
+/* Crepe 实例的宿主：布局职责在 wrapper 上，实例铺满 */
+.rich-editor-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
 }
 
 .rich-editor .milkdown {
@@ -1353,7 +1454,7 @@ svg {
 }
 
 .rich-editor .milkdown .ProseMirror {
-  max-width: 720px;
+  max-width: max(560px, var(--ed-max, 75%));
   margin: 0 auto;
   padding: 44px 28px 32vh;
   min-height: 60vh;
@@ -1592,6 +1693,7 @@ svg {
   height: 32px;
   padding: 0 8px 0 10px;
   border-radius: var(--r-md);
+  background: transparent;
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button:hover {
@@ -1977,4 +2079,211 @@ svg {
 
 .rich-editor .milkdown .milkdown-code-block .cm-editor {
   background: transparent;
+}
+
+/* ---------- 自定义右键菜单 ---------- */
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 216px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  outline: none;
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 100ms ease;
+}
+
+.ctx-item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-item:hover:not([disabled]),
+.ctx-item:focus-visible:not([disabled]) {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.ctx-item[disabled] {
+  color: var(--text-tertiary);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ctx-item kbd {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.ctx-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--border);
+}
+
+/* ---------- 命名弹窗（新建 / 重命名） ---------- */
+
+.np-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 18, 16, 0.28);
+}
+
+.np-box {
+  width: 340px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+}
+
+.np-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.np-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.np-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.np-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.np-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.np-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.np-btn.primary {
+  background: var(--accent);
+  color: var(--titlebar-fg, #fff);
+  font-weight: 500;
+}
+
+.np-btn.primary:hover {
+  background: var(--accent-hover);
+  color: var(--titlebar-fg, #fff);
+}
+
+.np-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+
+/* ---------- 列宽选择器（两套内核的第二行工具栏共用） ---------- */
+
+.wp-wrap {
+  position: relative;
+}
+
+/* 富文本模式：悬浮在 Crepe 顶栏右端 */
+.rich-editor .wp-wrap {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  z-index: 30;
+}
+
+.wp-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 196px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  z-index: 60;
+}
+
+.wp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.wp-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.wp-item.active {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.wp-check {
+  width: 15px;
+  flex: none;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.wp-item kbd {
+  margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-tertiary);
 }

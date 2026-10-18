@@ -169,6 +169,83 @@ fn doc_create(dir: String, name: String) -> Result<String, String> {
     Ok(target.to_string_lossy().into_owned())
 }
 
+/// 在指定目录下新建文件夹，重名自动加序号。
+#[tauri::command(rename_all = "camelCase")]
+fn dir_create(dir: String, name: String) -> Result<String, String> {
+    let dir_path = PathBuf::from(&dir);
+    if !dir_path.is_dir() {
+        return Err("E_NOT_FOUND: 目录不存在".into());
+    }
+    let target = unique_path(&dir_path, &sanitize_name(&name));
+    std::fs::create_dir_all(&target).map_err(|e| format!("E_IO: {e}"))?;
+    Ok(target.to_string_lossy().into_owned())
+}
+
+/// 复制文件或整个文件夹（递归），副本名自动带「副本」序号，返回新路径。
+#[tauri::command(rename_all = "camelCase")]
+fn node_copy(path: String) -> Result<String, String> {
+    let src = PathBuf::from(&path);
+    if !src.exists() {
+        return Err("E_NOT_FOUND: 目标不存在".into());
+    }
+    let parent = src
+        .parent()
+        .ok_or_else(|| "E_INVALID_ARG: 路径没有父目录".to_string())?;
+    let name = src
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "E_INVALID_ARG: 路径没有文件名".to_string())?;
+    let is_dir = src.is_dir();
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(name);
+    let ext = Path::new(name)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+
+    let dup_name = |i: Option<u32>| -> String {
+        let suffix = match i {
+            None => " 副本".to_string(),
+            Some(n) => format!(" 副本 ({n})"),
+        };
+        if is_dir || ext.is_empty() {
+            format!("{stem}{suffix}")
+        } else {
+            format!("{stem}{suffix}.{ext}")
+        }
+    };
+
+    let mut candidate = parent.join(dup_name(None));
+    let mut i: u32 = 2;
+    while candidate.exists() {
+        candidate = parent.join(dup_name(Some(i)));
+        i += 1;
+    }
+
+    if is_dir {
+        copy_dir_all(&src, &candidate).map_err(|e| format!("E_IO: {e}"))?;
+    } else {
+        std::fs::copy(&src, &candidate).map_err(|e| format!("E_IO: {e}"))?;
+    }
+    Ok(candidate.to_string_lossy().into_owned())
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let to = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&entry.path(), &to)?;
+        } else {
+            std::fs::copy(entry.path(), &to)?;
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command(rename_all = "camelCase")]
 fn node_rename(path: String, new_name: String) -> Result<String, String> {
     let src = PathBuf::from(&path);
@@ -272,6 +349,8 @@ pub fn run() {
             doc_read,
             doc_write,
             doc_create,
+            dir_create,
+            node_copy,
             node_rename,
             node_trash,
             asset_import,

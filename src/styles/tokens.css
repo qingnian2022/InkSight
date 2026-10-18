@@ -1,44 +1,55 @@
-/* 设计 token：与 docs/DESIGN-01 保持一致 */
+/* 设计 token
+   浅色的所有中性色都从主色 --accent 调出（color-mix），
+   换主色时整套 chrome 会自动跟着变，这就是「有设计感」的来源。 */
 :root {
   --font-ui: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC",
     "Noto Sans CJK SC", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-read: var(--font-ui);
   --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", "Courier New", monospace;
 
-  --canvas: #f7f6f3;
+  --accent: #4a5050;
+  --accent-hover: #3b4040;
+  --accent-soft: color-mix(in srgb, var(--accent) 17%, #ffffff);
+
+  /* 层次：画布（最浅的品牌 tint）→ chrome（侧栏/标签栏）→ 正文（纯白） */
+  --canvas: color-mix(in srgb, var(--accent) 6%, #ffffff);
   --surface: #ffffff;
-  --surface-sunken: #f1efea;
-  --surface-hover: #eae7e0;
-  --surface-active: #e4efec;
-  --row-active: #faf9f6;
+  --surface-sunken: color-mix(in srgb, var(--accent) 12%, #ffffff);
+  --surface-hover: color-mix(in srgb, var(--accent) 8%, transparent);
+  --surface-active: color-mix(in srgb, var(--accent) 15%, #ffffff);
+  --row-active: color-mix(in srgb, var(--accent) 5%, #ffffff);
 
-  --border: #e2ded6;
-  --border-strong: #cfcac0;
+  --border: color-mix(in srgb, var(--accent) 16%, #ffffff);
+  --border-strong: color-mix(in srgb, var(--accent) 27%, #ffffff);
 
-  --text-primary: #1f1e1c;
-  --text-secondary: #5c5a55;
-  --text-tertiary: #75716a;
+  --text-primary: #1d2120;
+  --text-secondary: #4b5250;
+  --text-tertiary: #5f6664;
 
-  --accent: #14655c;
-  --accent-hover: #0f544c;
-  --accent-soft: #e4efec;
-  --focus: rgba(20, 101, 92, 0.38);
+  --focus: color-mix(in srgb, var(--accent) 42%, transparent);
 
   --success: #2f6b42;
   --warning: #8a5a0f;
   --danger: #a83a2e;
 
-  --code-bg: #f1eee7;
-  --code-border: #d9d3c5;
+  --code-bg: color-mix(in srgb, var(--accent) 7%, #ffffff);
+  --code-border: color-mix(in srgb, var(--accent) 13%, #ffffff);
 
-  /* 代码块语法配色：低饱和，和米色 / 墨绿的主色对齐 */
-  --syn-keyword: #14655c;
+  /* 代码块语法配色：石墨主 + 赭石 / 砖红点缀（代码是界面里唯一的彩色，刻意的） */
+  --syn-keyword: var(--accent);
   --syn-string: #8a5a0f;
   --syn-number: #a83a2e;
-  --syn-comment: #9c978c;
+  --syn-comment: #6a6f6d;
   --syn-function: #2f5c8a;
   --syn-type: #4a5b8c;
-  --syn-punct: #6b675f;
+  --syn-punct: #5d6260;
+
+  /* 自绘标题栏：石墨色带，是整个主题的识别点 */
+  --titlebar-bg: var(--accent);
+  --titlebar-fg: #f1f4f3;
+  --titlebar-btn-hover: rgba(255, 255, 255, 0.16);
+  --titlebar-btn-active: rgba(255, 255, 255, 0.26);
+  --titlebar-close-hover: #e5484d;
 
   --r-xs: 4px;
   --r-sm: 6px;
@@ -46,50 +57,61 @@
   --r-lg: 14px;
   --r-xl: 18px;
 
-  --shadow-card: 0 1px 2px rgba(31, 30, 28, 0.05), 0 1px 1px rgba(31, 30, 28, 0.03);
-  --shadow-chip: 0 1px 2px rgba(31, 30, 28, 0.08);
-  --shadow-overlay: 0 2px 6px rgba(31, 30, 28, 0.06), 0 20px 48px -12px rgba(31, 30, 28, 0.22);
+  --shadow-card: 0 1px 2px rgba(24, 28, 27, 0.05), 0 1px 1px rgba(24, 28, 27, 0.03);
+  --shadow-chip: 0 1px 2px rgba(24, 28, 27, 0.08);
+  --shadow-overlay: 0 2px 6px rgba(24, 28, 27, 0.06), 0 20px 48px -12px rgba(24, 28, 27, 0.22);
 
-  --rail-w: 256px;
+  --rail-w: 232px;
+  --titlebar-h: 38px;
   --tabbar-h: 46px;
   --toolbar-h: 46px;
   --statusbar-h: 30px;
+
+  /* 正文列宽：由工具栏的「列宽」选择器改写（640 / 720 / 860 / 100%） */
+  --ed-max: 720px;
 }
 
 :root[data-theme="dark"] {
-  --canvas: #141312;
-  --surface: #1b1a18;
-  --surface-sunken: #171615;
-  --surface-hover: #26241f;
-  --surface-active: #1e302c;
-  --row-active: #211f1c;
+  --canvas: #0f1614;
+  --surface: #151d1a;
+  --surface-sunken: #121917;
+  --surface-hover: rgba(132, 205, 189, 0.08);
+  --surface-active: #1b332d;
+  --row-active: #18211e;
 
-  --border: #302d28;
-  --border-strong: #423e37;
+  --border: #233029;
+  --border-strong: #33423b;
 
-  --text-primary: #e9e6e0;
-  --text-secondary: #a8a49c;
-  --text-tertiary: #8b867d;
+  --text-primary: #e7ece9;
+  --text-secondary: #a6b3ac;
+  --text-tertiary: #8b988f;
 
-  --accent: #7fc9b9;
-  --accent-hover: #9ad8ca;
-  --accent-soft: #1e302c;
-  --focus: rgba(127, 201, 185, 0.42);
+  --accent: #84cdbd;
+  --accent-hover: #a0dbcd;
+  --accent-soft: #1b332d;
+  --focus: rgba(132, 205, 189, 0.45);
 
   --success: #7dbd92;
   --warning: #d3a355;
   --danger: #e08a7c;
 
-  --code-bg: #1d1c19;
-  --code-border: #332f28;
+  --code-bg: #17211e;
+  --code-border: #26332e;
 
-  --syn-keyword: #7fc9b9;
+  --syn-keyword: #84cdbd;
   --syn-string: #d3a355;
   --syn-number: #e08a7c;
-  --syn-comment: #7d786f;
-  --syn-function: #8fb3d9;
-  --syn-type: #a8b4d8;
-  --syn-punct: #a8a49c;
+  --syn-comment: #8b968f;
+  --syn-function: #93b8dc;
+  --syn-type: #adb8da;
+  --syn-punct: #9aa79f;
+
+  /* 深色下标题栏用墨绿黑，比正文更深一档 */
+  --titlebar-bg: #0b1210;
+  --titlebar-fg: #cfe0da;
+  --titlebar-btn-hover: rgba(132, 205, 189, 0.14);
+  --titlebar-btn-active: rgba(132, 205, 189, 0.22);
+  --titlebar-close-hover: #e5484d;
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);

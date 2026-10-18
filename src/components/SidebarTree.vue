@@ -42,9 +42,10 @@ function onRow(node: FsNode) {
         :key="row.node.path"
         class="tree-row"
         role="treeitem"
+        :data-path="row.node.path"
         :aria-expanded="row.node.isDir ? state.expanded.has(row.node.path) : undefined"
         :class="{ selected: row.node.path === state.activePath, dir: row.node.isDir }"
-        :style="{ paddingLeft: `${6 + row.depth * 18}px` }"
+        :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
         @click="onRow(row.node)"
       >
         <span

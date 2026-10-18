@@ -46,6 +46,10 @@ const shapes: Record<string, string> = {
   pencil: '<path d="M4.5 19.5h4L19 9a2.5 2.5 0 0 0-3.5-3.5L5 16z"/><path d="M13.5 7.5l3.5 3.5"/>',
   eye: '<path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.4"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>',
+  columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/>',
+  minus: '<path d="M5 12h14"/>',
+  "win-max": '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
+  "win-restore": '<rect x="8" y="8" width="11" height="11" rx="1.5"/><path d="M5.5 15.5V6a1.5 1.5 0 0 1 1.5-1.5h9.5"/>',
 };
 </script>
 

@@ -6,6 +6,7 @@ import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
 import { activeTab, markDirty, state } from "../store";
+import WidthPicker from "./WidthPicker.vue";
 
 /**
  * 语雀式块级编辑：Milkdown Crepe。
@@ -188,5 +189,8 @@ watch(
 </script>
 
 <template>
-  <div ref="host" class="rich-editor" data-rich-editor />
+  <div class="rich-editor">
+    <div ref="host" class="rich-editor-body" data-rich-editor />
+    <WidthPicker />
+  </div>
 </template>

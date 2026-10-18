@@ -11,6 +11,11 @@ export const writeDoc = (path: string, content: string) =>
 export const createDoc = (dir: string, name: string) =>
   invoke<string>("doc_create", { dir, name });
 
+export const createDir = (dir: string, name: string) =>
+  invoke<string>("dir_create", { dir, name });
+
+export const copyNode = (path: string) => invoke<string>("node_copy", { path });
+
 export const renameNode = (path: string, newName: string) =>
   invoke<string>("node_rename", { path, newName });
 

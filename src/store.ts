@@ -1,21 +1,40 @@
 import { computed, reactive } from "vue";
 import { confirm, open } from "@tauri-apps/plugin-dialog";
 import {
+  copyNode,
+  createDir,
   createDoc,
   errorText,
   fileName,
   readDoc,
+  renameNode,
   scanVault,
   stripExt,
   trashNode,
   writeDoc,
 } from "./api";
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
+import { openNamePrompt } from "./ui/namePrompt";
 
 const LS_VAULT = "md-rust.vault";
 const LS_THEME = "md-rust.theme";
+const LS_ED_WIDTH = "md-rust.editor-width";
 
 export type EditorMode = "source" | "rich";
+export type EditorWidth = "narrow" | "standard" | "wide" | "full";
+
+/** 列宽档位：按编辑区宽度的百分比设置，值写到 --ed-max，两套内核共用。 */
+export const EDITOR_WIDTHS: {
+  key: EditorWidth;
+  label: string;
+  value: string;
+  hint: string;
+}[] = [
+  { key: "narrow", label: "窄", value: "60%", hint: "60%" },
+  { key: "standard", label: "标准", value: "75%", hint: "75%" },
+  { key: "wide", label: "宽", value: "90%", hint: "90%" },
+  { key: "full", label: "全宽", value: "100%", hint: "铺满" },
+];
 
 export const state = reactive({
   root: "",
@@ -25,6 +44,7 @@ export const state = reactive({
   activePath: "",
   theme: "light" as "light" | "dark",
   editorMode: "rich" as EditorMode,
+  editorWidth: "standard" as EditorWidth,
   sourceMode: false,
   readonly: true,
   railCollapsed: false,
@@ -91,6 +111,11 @@ function findNode(nodes: FsNode[], path: string): FsNode | null {
   return null;
 }
 
+/** 按路径查找目录树节点（供右键菜单等外部使用）。 */
+export function locateNode(path: string): FsNode | null {
+  return findNode(state.tree, path);
+}
+
 export function setTheme(theme: "light" | "dark") {
   state.theme = theme;
   document.documentElement.dataset.theme = theme;
@@ -111,6 +136,20 @@ export function setEditorMode(mode: EditorMode) {
   state.editorMode = mode;
   // 富文本模式本身就是所见即所得，不存在独立的阅读态
   if (mode === "rich") state.readonly = false;
+}
+
+/* ---------- 正文列宽 ---------- */
+
+function applyEditorWidth(width: EditorWidth) {
+  const meta = EDITOR_WIDTHS.find((w) => w.key === width) ?? EDITOR_WIDTHS[1];
+  state.editorWidth = meta.key;
+  document.documentElement.style.setProperty("--ed-max", meta.value);
+}
+
+/** 切换正文列宽；持久化到 localStorage，两套编辑内核共用一个变量。 */
+export function setEditorWidth(width: EditorWidth) {
+  applyEditorWidth(width);
+  localStorage.setItem(LS_ED_WIDTH, width);
 }
 
 export async function refresh() {
@@ -246,10 +285,134 @@ export async function removeActiveDoc() {
   }
 }
 
+/* ---------- 目录树右键操作 ---------- */
+
+/** 在指定目录新建文档：弹窗输入名称，创建后直接打开。 */
+export async function createDocIn(dir: string) {
+  if (!state.root) {
+    await pickVault();
+    return;
+  }
+  const name = await openNamePrompt({ title: "新建文档", initial: "未命名" });
+  if (!name) return;
+  try {
+    const path = await createDoc(dir, name);
+    state.expanded.add(dir);
+    await refresh();
+    const node = findNode(state.tree, path) ?? { name: fileName(path), path, isDir: false };
+    await openDoc(node);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 在指定目录新建子文件夹。 */
+export async function createDirIn(dir: string) {
+  if (!state.root) {
+    await pickVault();
+    return;
+  }
+  const name = await openNamePrompt({ title: "新建文件夹", initial: "新建文件夹" });
+  if (!name) return;
+  try {
+    await createDir(dir, name);
+    state.expanded.add(dir);
+    await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 重命名文件或文件夹；已打开的标签和展开状态同步跟着改。 */
+export async function renamePath(path: string, currentName: string) {
+  const name = await openNamePrompt({
+    title: "重命名",
+    initial: currentName,
+    confirmText: "重命名",
+  });
+  if (!name || name === currentName) return;
+  try {
+    const newPath = await renameNode(path, name);
+    const tab = state.tabs.find((t) => t.path === path);
+    if (tab) {
+      tab.path = newPath;
+      tab.name = stripExt(fileName(newPath));
+      if (state.activePath === path) state.activePath = newPath;
+    }
+    if (state.expanded.has(path)) {
+      state.expanded.delete(path);
+      state.expanded.add(newPath);
+    }
+    await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 复制副本：同目录生成「xx 副本」，文件夹递归复制。 */
+export async function duplicateNode(node: FsNode) {
+  try {
+    await copyNode(node.path);
+    await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 复制完整路径到剪贴板；WebView 拒绝时退回 execCommand。 */
+export async function copyNodePath(path: string) {
+  try {
+    await navigator.clipboard.writeText(path);
+    return;
+  } catch {
+    /* 落到下面的兜底 */
+  }
+  const ta = document.createElement("textarea");
+  ta.value = path;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  ta.remove();
+}
+
+/** 删除文件 / 文件夹：移到 <vault>/.trash/；相关标签一并关闭。 */
+export async function trashPath(path: string, label: string) {
+  const ok = await confirm(`把「${label}」移到 .trash？可以在文件管理器里找回。`, {
+    title: "删除",
+    kind: "warning",
+    okLabel: "移到回收站",
+    cancelLabel: "取消",
+  });
+  if (!ok) return;
+  try {
+    await trashNode(state.root, path);
+    // 命中该文件，或位于被删文件夹内的已打开标签，全部关闭
+    state.tabs = state.tabs.filter(
+      (t) => t.path !== path && !t.path.startsWith(`${path}\\`) && !t.path.startsWith(`${path}/`),
+    );
+    if (!state.tabs.some((t) => t.path === state.activePath)) {
+      state.activePath = state.tabs[0]?.path ?? "";
+      state.saveState = "saved";
+      state.charCount = state.tabs[0]?.content.replace(/\s+/g, "").length ?? 0;
+      state.cursor = { line: 1, col: 1 };
+    }
+    await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
 function dirOf(path: string): string {
   const parts = path.split(/[\\/]/);
   parts.pop();
   return parts.join("\\");
+}
+
+/** 路径的父目录（供「在所在文件夹新建」等菜单使用）。 */
+export function parentDirOf(path: string): string {
+  return dirOf(path);
 }
 
 let saveTimer: number | undefined;
@@ -311,6 +474,11 @@ export function updateCursor(line: number, col: number) {
 export async function init() {
   const theme = localStorage.getItem(LS_THEME);
   setTheme(theme === "dark" ? "dark" : "light");
+
+  const storedWidth = localStorage.getItem(LS_ED_WIDTH) as EditorWidth | null;
+  applyEditorWidth(
+    storedWidth && EDITOR_WIDTHS.some((w) => w.key === storedWidth) ? storedWidth : "standard",
+  );
 
   const saved = localStorage.getItem(LS_VAULT);
   if (saved) {

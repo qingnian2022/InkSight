@@ -1,6 +1,7 @@
-import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
-import type { DecorationSet, ViewUpdate } from "@codemirror/view";
-import type { Line, Range, Text } from "@codemirror/state";
+import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import type { DecorationSet } from "@codemirror/view";
+import { StateField } from "@codemirror/state";
+import type { EditorState, Line, Range, Text } from "@codemirror/state";
 
 /**
  * Live Preview：
@@ -298,14 +299,14 @@ function rangeHasSelection(active: Set<number>, first: number, last: number): bo
   return false;
 }
 
-function build(view: EditorView): DecorationSet {
+function build(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = [];
-  const doc = view.state.doc;
+  const doc = state.doc;
 
   const active = new Set<number>();
   // 只读预览时不存在「活动行」，整篇按渲染结果显示
-  if (view.state.facet(EditorView.editable)) {
-    for (const range of view.state.selection.ranges) {
+  if (state.facet(EditorView.editable)) {
+    for (const range of state.selection.ranges) {
       const first = doc.lineAt(range.from).number;
       const last = doc.lineAt(range.to).number;
       for (let n = first; n <= last; n += 1) active.add(n);
@@ -357,8 +358,9 @@ function build(view: EditorView): DecorationSet {
       if (end > i) {
         if (!rangeHasSelection(active, i, end)) {
           const source = collectLines(doc, i, end);
+          // block: true 必须带上——跨行 replace 只允许作为 block decoration 提供
           ranges.push(
-            Decoration.replace({ widget: new TableWidget(source) }).range(
+            Decoration.replace({ block: true, widget: new TableWidget(source) }).range(
               doc.line(i).from,
               doc.line(end).to,
             ),
@@ -386,26 +388,16 @@ function collectLines(doc: Text, first: number, last: number): string {
   return out.join("\n");
 }
 
-export const typoraRendering = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = build(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.selectionSet ||
-        update.viewportChanged ||
-        update.focusChanged
-      ) {
-        this.decorations = build(update.view);
-      }
-    }
+/**
+ * 用 StateField 而不是 ViewPlugin：表格是跨行 widget，CM6 只允许 StateField
+ * 提供 block decoration，plugin 提供会在构造时抛
+ * "Block decorations may not be specified via plugins"，并让视图半初始化。
+ */
+export const typoraRendering = StateField.define<DecorationSet>({
+  create: (state) => build(state),
+  update: (value, tr) => {
+    if (tr.docChanged || tr.selection) return build(tr.state);
+    return value.map(tr.changes);
   },
-  {
-    decorations: (value) => value.decorations,
-  },
-);
+  provide: (field) => EditorView.decorations.from(field),
+});
