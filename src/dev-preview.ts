@@ -12,7 +12,7 @@
  */
 import { createApp, h } from "vue";
 import App from "./App.vue";
-import { setEditorWidth, state } from "./store";
+import { setAutoSave, setEditorWidth, state } from "./store";
 import { openNamePrompt } from "./ui/namePrompt";
 import "./styles/tokens.css";
 import "./styles/app.css";
@@ -96,6 +96,21 @@ function fireAt(el: Element | null, offsetX = 40, offsetY = 12) {
 }
 
 if (q.get("outline") === "1") state.outlineOpen = true;
+if (q.get("as") === "0") setAutoSave(false);
+if (q.get("new") === "1") {
+  state.tabs.unshift({ path: "::untitled-1", name: "未命名", content: "", dirty: true });
+  state.activePath = "::untitled-1";
+  state.saveState = "dirty";
+  state.charCount = 0;
+  setTimeout(() => {
+    void openNamePrompt({
+      title: "保存新文档",
+      initial: "未命名",
+      confirmText: "保存",
+      folder: "D:/Notes/知识库/写作",
+    });
+  }, 1600);
+}
 if (q.get("mode") === "source") {
   state.editorMode = "source";
   state.readonly = true;
@@ -104,6 +119,18 @@ if (q.get("wp") === "1") {
   setTimeout(() => {
     document.querySelector<HTMLButtonElement>(".wp-btn")?.click();
   }, 1500);
+}
+// ?hd=1 —— 打开顶栏「标题」下拉（Crepe 监听 pointerdown，不能用 click()）
+if (q.get("hd") === "1") {
+  const tryHd = (n: number) => {
+    const btn = document.querySelector<HTMLElement>(".top-bar-heading-button");
+    if (!btn) {
+      if (n > 0) setTimeout(() => tryHd(n - 1), 400);
+      return;
+    }
+    btn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+  };
+  tryHd(30);
 }
 // ?wpk=narrow|standard|wide|full —— 挂载前直接切列宽，验证宽度真实生效
 const wpk = q.get("wpk");

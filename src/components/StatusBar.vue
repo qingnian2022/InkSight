@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { saveActive, state } from "../store";
+import { isUntitledPath, saveActive, state } from "../store";
 
 const statusText = computed(() => {
   switch (state.saveState) {
@@ -20,6 +20,8 @@ const chars = computed(() => state.charCount.toLocaleString("zh-CN"));
 const path = computed(() => {
   const full = state.activePath;
   if (!full) return "";
+  // 未命名文档还没有磁盘路径，显示提示语而不是内部哨兵
+  if (isUntitledPath(full)) return "未命名（保存后创建）";
   const root = state.root.replace(/[\\/]+$/, "");
   if (root && full.startsWith(root)) {
     return full.slice(root.length).replace(/^[\\/]+/, "");

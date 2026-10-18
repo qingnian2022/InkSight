@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { setAutoSave, state } from "../store";
 import Icon from "./Icon.vue";
 
 /**
@@ -45,21 +46,33 @@ onBeforeUnmount(() => {
   <header class="titlebar" data-tauri-drag-region>
     <span class="titlebar-title" data-tauri-drag-region>md-rust</span>
 
-    <div v-if="isTauri" class="titlebar-controls">
-      <button class="win-btn" aria-label="最小化" title="最小化" @click="minimize">
-        <Icon name="minus" :size="14" />
-      </button>
+    <div class="titlebar-controls">
       <button
-        class="win-btn"
-        :aria-label="maximized ? '还原' : '最大化'"
-        :title="maximized ? '向下还原' : '最大化'"
-        @click="toggleMaximize"
+        class="as-toggle"
+        :title="state.autoSave ? '自动保存：开（停止输入约 0.8 秒写盘）' : '自动保存：关（Ctrl+S 手动写盘）'"
+        :aria-pressed="state.autoSave"
+        @click="setAutoSave(!state.autoSave)"
       >
-        <Icon :name="maximized ? 'win-restore' : 'win-max'" :size="13" />
+        <span>自动保存</span>
+        <span class="as-slider" :class="{ on: state.autoSave }" />
       </button>
-      <button class="win-btn win-close" aria-label="关闭" title="关闭" @click="close">
-        <Icon name="close" :size="13" />
-      </button>
+
+      <div v-if="isTauri" class="win-btns">
+        <button class="win-btn" aria-label="最小化" title="最小化" @click="minimize">
+          <Icon name="minus" :size="14" />
+        </button>
+        <button
+          class="win-btn"
+          :aria-label="maximized ? '还原' : '最大化'"
+          :title="maximized ? '向下还原' : '最大化'"
+          @click="toggleMaximize"
+        >
+          <Icon :name="maximized ? 'win-restore' : 'win-max'" :size="13" />
+        </button>
+        <button class="win-btn win-close" aria-label="关闭" title="关闭" @click="close">
+          <Icon name="close" :size="13" />
+        </button>
+      </div>
     </div>
   </header>
 </template>

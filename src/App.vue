@@ -37,6 +37,10 @@ function onKeydown(event: KeyboardEvent) {
   if (key === "n") {
     event.preventDefault();
     void newDoc();
+  } else if (key === "s") {
+    // 自动保存关闭后这是主保存通道；开着时也可以随时手动写盘
+    event.preventDefault();
+    void saveActive();
   } else if (key === "w" && state.activePath) {
     event.preventDefault();
     void closeTab(state.activePath);

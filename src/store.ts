@@ -14,11 +14,12 @@ import {
   writeDoc,
 } from "./api";
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
-import { openNamePrompt } from "./ui/namePrompt";
+import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 
 const LS_VAULT = "md-rust.vault";
 const LS_THEME = "md-rust.theme";
 const LS_ED_WIDTH = "md-rust.editor-width";
+const LS_AUTOSAVE = "md-rust.autosave";
 
 export type EditorMode = "source" | "rich";
 export type EditorWidth = "narrow" | "standard" | "wide" | "full";
@@ -51,6 +52,7 @@ export const state = reactive({
   outlineOpen: false,
   saveState: "saved" as SaveState,
   error: "",
+  autoSave: true,
   charCount: 0,
   cursor: { line: 1, col: 1 },
   blockType: "paragraph",
@@ -156,9 +158,9 @@ export async function refresh() {
   if (!state.root) return;
   try {
     state.tree = await scanVault(state.root);
-    for (const node of state.tree) {
-      if (node.isDir) state.expanded.add(node.path);
-    }
+    // 默认只展开第一个目录，其余保持折叠
+    const firstDir = state.tree.find((n) => n.isDir);
+    if (firstDir) state.expanded.add(firstDir.path);
   } catch (err) {
     state.error = errorText(err);
   }
@@ -243,26 +245,32 @@ export async function closeTab(path: string) {
   }
 }
 
+/** 未命名文档的哨兵路径前缀：冒号在 Windows 文件名里非法，不会和真实文件冲突。 */
+const UNTITLED_PREFIX = "::untitled-";
+
+export function isUntitledPath(path: string): boolean {
+  return path.startsWith(UNTITLED_PREFIX);
+}
+
+/** 新建：只开一个内存中的「未命名」标签，磁盘上不创建文件；保存时才落盘。 */
 export async function newDoc() {
   if (!state.root) {
     await pickVault();
     return;
   }
-  const dir = state.activePath ? dirOf(state.activePath) : state.root;
-  try {
-    const path = await createDoc(dir, "未命名");
-    await refresh();
-    const node = findNode(state.tree, path) ?? {
-      name: fileName(path),
-      path,
-      isDir: false,
-    };
-    const parent = dirOf(path);
-    if (parent !== state.root) state.expanded.add(parent);
-    await openDoc(node);
-  } catch (err) {
-    state.error = errorText(err);
-  }
+  const seq = state.tabs.filter((t) => isUntitledPath(t.path)).length + 1;
+  const path = `${UNTITLED_PREFIX}${seq}`;
+  state.tabs.push({
+    path,
+    name: seq > 1 ? `未命名 ${seq}` : "未命名",
+    content: "",
+    dirty: false,
+  });
+  state.activePath = path;
+  state.readonly = state.editorMode === "source";
+  state.saveState = "saved";
+  state.charCount = 0;
+  state.cursor = { line: 1, col: 1 };
 }
 
 export async function removeActiveDoc() {
@@ -417,6 +425,13 @@ export function parentDirOf(path: string): string {
 
 let saveTimer: number | undefined;
 
+/** 切换自动保存；关闭时取消已排队的定时写入。 */
+export function setAutoSave(on: boolean) {
+  state.autoSave = on;
+  localStorage.setItem(LS_AUTOSAVE, on ? "1" : "0");
+  if (!on) window.clearTimeout(saveTimer);
+}
+
 export function markDirty(path: string, content: string) {
   const tab = state.tabs.find((t) => t.path === path);
   if (!tab) return;
@@ -425,12 +440,14 @@ export function markDirty(path: string, content: string) {
   tab.dirty = true;
   state.saveState = "dirty";
   state.charCount = content.replace(/\s+/g, "").length;
+  // 自动保存只作用于已落盘的文档；未命名文档等手动保存
+  if (!state.autoSave || isUntitledPath(path)) return;
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => void saveTab(tab), 800);
 }
 
 export async function saveTab(tab: Tab) {
-  if (!tab.dirty) return;
+  if (!tab.dirty || isUntitledPath(tab.path)) return;
   state.saveState = "saving";
   try {
     await writeDoc(tab.path, tab.content);
@@ -443,16 +460,57 @@ export async function saveTab(tab: Tab) {
   }
 }
 
+/** 未命名文档的默认落盘位置：最近一个真实文档所在文件夹，否则知识库根目录。 */
+function defaultNewDir(): string {
+  for (let i = state.tabs.length - 1; i >= 0; i -= 1) {
+    const t = state.tabs[i];
+    if (t.path && !isUntitledPath(t.path)) return parentDirOf(t.path);
+  }
+  return state.root;
+}
+
+/** 未命名文档的落盘：弹窗确认名称与目录，确认后才创建文件并写入。 */
+async function materializeTab(tab: Tab) {
+  const dir = defaultNewDir();
+  const name = await openNamePrompt({
+    title: "保存新文档",
+    initial: tab.name === "未命名" ? "未命名" : tab.name,
+    confirmText: "保存",
+    folder: dir,
+  });
+  if (!name) return;
+  const targetDir = namePromptState.folder || dir;
+  try {
+    const path = await createDoc(targetDir, name);
+    tab.path = path;
+    tab.name = stripExt(fileName(path));
+    const parent = parentDirOf(path);
+    if (parent !== state.root) state.expanded.add(parent);
+    await refresh();
+    state.activePath = path;
+    await saveTab(tab);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 手动保存（Ctrl+S / 状态栏 / 右键）：未命名文档在这里才真正创建文件。 */
 export async function saveActive() {
   window.clearTimeout(saveTimer);
   const tab = activeTab.value;
-  if (tab) await saveTab(tab);
+  if (!tab) return;
+  if (isUntitledPath(tab.path)) {
+    if (tab.dirty || tab.content.trim()) await materializeTab(tab);
+    return;
+  }
+  if (tab.dirty) await saveTab(tab);
 }
 
+/** 切换文档 / 关闭标签前的静默写盘；未命名文档跳过（不能替用户决定落盘位置）。 */
 export async function flush() {
   window.clearTimeout(saveTimer);
   const tab = activeTab.value;
-  if (tab?.dirty) await saveTab(tab);
+  if (tab?.dirty && !isUntitledPath(tab.path)) await saveTab(tab);
 }
 
 /** 阅读 / 编辑切换；切回阅读前先把改动写盘。富文本模式没有阅读态。 */
@@ -479,6 +537,8 @@ export async function init() {
   applyEditorWidth(
     storedWidth && EDITOR_WIDTHS.some((w) => w.key === storedWidth) ? storedWidth : "standard",
   );
+
+  state.autoSave = localStorage.getItem(LS_AUTOSAVE) !== "0";
 
   const saved = localStorage.getItem(LS_VAULT);
   if (saved) {
