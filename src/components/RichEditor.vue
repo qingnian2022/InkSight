@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { Crepe } from "@milkdown/crepe";
+import { editorViewCtx } from "@milkdown/core";
 import { lineNumbers } from "@codemirror/view";
+import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
+import { setPmCtx } from "../editor/pmCtxRef";
+import { setPmView } from "../editor/pmViewRef";
 import { activeTab, markDirty, state } from "../store";
+import TableToolbar from "./TableToolbar.vue";
 import WidthPicker from "./WidthPicker.vue";
 
 /**
@@ -19,6 +24,7 @@ import WidthPicker from "./WidthPicker.vue";
  */
 
 const host = ref<HTMLElement | null>(null);
+const pmView = shallowRef<EditorView | null>(null);
 let crepe: Crepe | null = null;
 let boundPath = "";
 let seq = 0;
@@ -52,7 +58,12 @@ async function mount() {
 
   await nextTick();
   const tab = activeTab.value;
-  if (!host.value || !tab || !state.activePath) return;
+  if (!host.value || !tab || !state.activePath) {
+    setPmView(null);
+    setPmCtx(null);
+    pmView.value = null;
+    return;
+  }
 
   const path = tab.path;
   const instance = new Crepe({
@@ -170,6 +181,15 @@ async function mount() {
   instance.setReadonly(state.readonly);
   crepe = instance;
   boundPath = path;
+
+  // 把 ProseMirror 视图与 Milkdown Ctx 挂出来，
+  // 表格工具条 / 右键表格命令从这里取
+  instance.editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx);
+    pmView.value = view;
+    setPmView(view);
+    setPmCtx(ctx);
+  });
 }
 
 onMounted(mount);
@@ -177,6 +197,9 @@ onMounted(mount);
 onBeforeUnmount(() => {
   // 让还在 await create 的那次 mount 失效，否则会在已卸载的 DOM 上留一个编辑器
   seq += 1;
+  setPmView(null);
+  setPmCtx(null);
+  pmView.value = null;
   void teardown();
 });
 
@@ -191,6 +214,7 @@ watch(
 <template>
   <div class="rich-editor">
     <div ref="host" class="rich-editor-body" data-rich-editor />
+    <TableToolbar :view="pmView" />
     <WidthPicker />
   </div>
 </template>

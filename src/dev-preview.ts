@@ -14,6 +14,12 @@ import { createApp, h } from "vue";
 import App from "./App.vue";
 import { setAutoSave, setEditorWidth, state } from "./store";
 import { openNamePrompt } from "./ui/namePrompt";
+import { getPmCtx } from "./editor/pmCtxRef";
+import { insertAtBoundary, runTableCmd } from "./editor/tableCmds";
+import { editorViewCtx } from "@milkdown/core";
+import { NodeSelection, TextSelection } from "@milkdown/prose/state";
+// 直接拿 ProseMirror 视图实例做编程式选区（绕开 headless 无法真实点击的限制）
+
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -132,6 +138,176 @@ if (q.get("hd") === "1") {
   };
   tryHd(30);
 }
+// ?tb=1 —— 表格交互诊断：NodeSelection（点击单元格后的真实状态）→ 插行 →
+// 边界插列 → 删行，逐步报告命令是否真实生效
+if (q.get("tb") === "1") {
+  setTimeout(() => {
+    const cell = document.querySelector<HTMLElement>(".milkdown-table-block tbody td");
+    if (!cell) {
+      const p = document.createElement("pre");
+      p.textContent = "no table cell found";
+      p.style.cssText = "position:fixed;right:6px;bottom:30px;background:#fff;color:#000;font:11px monospace;padding:4px;z-index:99999;border:1px solid #ccc";
+      document.body.appendChild(p);
+      return;
+    }
+
+    const blockEl = () => document.querySelector(".milkdown-table-block");
+    const rowsIn = () => blockEl()?.querySelectorAll("tbody tr").length ?? -1;
+    const colsIn = () => blockEl()?.querySelector("tr")?.children.length ?? -1;
+    const results: string[] = [];
+
+    const finish = () => {
+      // 截图用：把光标真实放进第一个数据单元格（DOM 选区 + 输入），
+      // 让工具条与「+」插入点走完整显示链路
+      setTimeout(() => {
+        const para = document.querySelector<HTMLElement>(".milkdown-table-block tbody tr:nth-child(2) td p");
+        const pmEl = document.querySelector<HTMLElement>(".ProseMirror");
+        pmEl?.focus();
+        if (para) {
+          const range = document.createRange();
+          range.setStart(para.firstChild ?? para, 0);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+          document.execCommand("insertText", false, "测");
+        }
+        setTimeout(() => {
+          const tbEl = document.querySelector<HTMLElement>(".tbl-toolbar");
+          results.push(
+            "toolbar=" + (tbEl ? "shown" : "none") + " plus=" + document.querySelectorAll(".tbl-plus").length,
+          );
+          const probe = document.createElement("pre");
+          probe.id = "tb-probe";
+          probe.textContent = results.join("\n");
+          probe.style.cssText = "position:fixed;left:6px;bottom:30px;background:#fff;color:#000;font:10px monospace;padding:4px;z-index:99999;border:1px solid #ccc;white-space:pre-wrap;max-width:560px";
+          document.body.appendChild(probe);
+        }, 900);
+      }, 200);
+    };
+
+    // 步骤 3：删行（先把光标放进第 2 个数据行单元格，再删当前行 -1）
+    const step3 = () => {
+      const view = getPmCtx()?.get(editorViewCtx);
+      const cell2 = document.querySelector<HTMLElement>(
+        ".milkdown-table-block tbody tr:nth-child(3) td, .milkdown-table-block tbody tr:nth-child(3) th",
+      );
+      if (!view || !cell2) {
+        results.push("delRow=skip(no-view-or-cell)");
+        finish();
+        return;
+      }
+      const inner = view.posAtDOM(cell2, 0);
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(inner), 1)),
+      );
+      const before = rowsIn();
+      const ok = runTableCmd("delRow");
+      setTimeout(() => {
+        const after = rowsIn();
+        results.push("delRow=" + String(ok) + " rows=" + before + "->" + after + (after < before ? " OK" : " 未生效"));
+        finish();
+      }, 400);
+    };
+
+    // 步骤 2b：第 1 个数据行之前插行（行边界「+」路径）
+    const step2b = () => {
+      const before = rowsIn();
+      const ok = insertAtBoundary("row", 1);
+      setTimeout(() => {
+        const after = rowsIn();
+        results.push("boundaryRow=" + String(ok) + " rows=" + before + "->" + after + (after > before ? " OK" : " 未生效"));
+        step3();
+      }, 400);
+    };
+
+    // 步骤 2：第 1 列左侧插列（边界「+」路径）
+    const step2 = () => {
+      const before = colsIn();
+      const ok = insertAtBoundary("col", 1);
+      setTimeout(() => {
+        const after = colsIn();
+        results.push("boundaryCol=" + String(ok) + " cols=" + before + "->" + after + (after > before ? " OK" : " 未生效"));
+        step2b();
+      }, 400);
+    };
+
+    // 步骤 1：把选区改成 NodeSelection（复刻 Crepe 点击单元格后的状态），再插行
+    const step1 = () => {
+      const view = getPmCtx()?.get(editorViewCtx);
+      if (!view) {
+        results.push("no-pm-view");
+        finish();
+        return;
+      }
+      const inner = view.posAtDOM(cell, 0);
+      const $pos = view.state.doc.resolve(inner);
+      const cellStart = $pos.before($pos.depth);
+      view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, cellStart)));
+      const before = rowsIn();
+      const ok = runTableCmd("rowAfter");
+      setTimeout(() => {
+        const after = rowsIn();
+        results.push("nodeSelRowAfter=" + String(ok) + " rows=" + before + "->" + after + (after > before ? " OK" : " 未生效"));
+        step2();
+      }, 400);
+    };
+
+    step1();
+  }, 2600);
+}
+
+// ?tb=2 —— 表格诊断第二组：删列、删表格
+if (q.get("tb") === "2") {
+  setTimeout(() => {
+    const results: string[] = [];
+    const blockEl = () => document.querySelector(".milkdown-table-block");
+    const colsIn = () => blockEl()?.querySelector("tr")?.children.length ?? -1;
+
+    const finish = () => {
+      const probe = document.createElement("pre");
+      probe.id = "tb-probe";
+      probe.textContent = results.join("\n");
+      probe.style.cssText = "position:fixed;left:6px;bottom:30px;background:#fff;color:#000;font:10px monospace;padding:4px;z-index:99999;border:1px solid #ccc;white-space:pre-wrap;max-width:560px";
+      document.body.appendChild(probe);
+    };
+
+    const putCursor = (rowIdx: number, colIdx: number) => {
+      const view = getPmCtx()?.get(editorViewCtx);
+      const cell = blockEl()?.querySelectorAll("tr")[rowIdx]?.children[colIdx] as HTMLElement | undefined;
+      if (!view || !cell) return false;
+      const inner = view.posAtDOM(cell, 0);
+      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(inner), 1)));
+      return true;
+    };
+
+    // 步骤 1：删列（光标在第 1 数据行第 1 列 → 删列 -1）
+    const step1 = () => {
+      putCursor(2, 1);
+      const before = colsIn();
+      const ok = runTableCmd("delCol");
+      setTimeout(() => {
+        const after = colsIn();
+        results.push("delCol=" + String(ok) + " cols=" + before + "->" + after + (after < before ? " OK" : " 未生效"));
+        step2();
+      }, 400);
+    };
+
+    // 步骤 2：删表格（表格整体移除）
+    const step2 = () => {
+      putCursor(2, 1);
+      const ok = runTableCmd("delTable");
+      setTimeout(() => {
+        const gone = !blockEl();
+        results.push("delTable=" + String(ok) + " removed=" + String(gone) + (gone ? " OK" : " 未生效"));
+        finish();
+      }, 400);
+    };
+
+    step1();
+  }, 2600);
+}
+
 // ?wpk=narrow|standard|wide|full —— 挂载前直接切列宽，验证宽度真实生效
 const wpk = q.get("wpk");
 if (wpk === "narrow" || wpk === "wide" || wpk === "full") setEditorWidth(wpk);

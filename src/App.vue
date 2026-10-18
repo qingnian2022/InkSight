@@ -10,6 +10,8 @@ import StatusBar from "./components/StatusBar.vue";
 import TabBar from "./components/TabBar.vue";
 import TitleBar from "./components/TitleBar.vue";
 import { openContextMenu, type CtxItem } from "./ui/contextMenu";
+import { getPmView } from "./editor/pmViewRef";
+import type { TableCmd } from "./editor/tableCmds";
 import {
   closeTab,
   createDirIn,
@@ -28,6 +30,11 @@ import {
   toggleReadonly,
   trashPath,
 } from "./store";
+
+/** 表格命令按需加载：prosemirror 体系不进首屏 */
+function tableCmd(cmd: TableCmd) {
+  void import("./editor/tableCmds").then((m) => m.runTableCmd(cmd));
+}
 
 function onKeydown(event: KeyboardEvent) {
   const mod = event.ctrlKey || event.metaKey;
@@ -181,11 +188,27 @@ function onContextMenu(e: MouseEvent) {
       { label: "全选", shortcut: "Ctrl+A", action: () => keyOn(el, "a") },
     );
     if (editable.classList.contains("ProseMirror")) {
-      items.push(
-        { separator: true, label: "" },
-        { label: "加粗", shortcut: "Ctrl+B", action: () => keyOn(el, "b") },
-        { label: "斜体", shortcut: "Ctrl+I", action: () => keyOn(el, "i") },
-      );
+      // 光标在表格内时，追加语雀式表格操作分组
+      const inTable = target.closest(".milkdown-table-block");
+      if (inTable && getPmView()) {
+        items.push(
+          { separator: true, label: "" },
+          { label: "在上方插入行", action: () => tableCmd("rowBefore") },
+          { label: "在下方插入行", action: () => tableCmd("rowAfter") },
+          { label: "在左侧插入列", action: () => tableCmd("colBefore") },
+          { label: "在右侧插入列", action: () => tableCmd("colAfter") },
+          { separator: true, label: "" },
+          { label: "删除行", action: () => tableCmd("delRow") },
+          { label: "删除列", action: () => tableCmd("delCol") },
+          { label: "删除表格", action: () => tableCmd("delTable") },
+        );
+      } else {
+        items.push(
+          { separator: true, label: "" },
+          { label: "加粗", shortcut: "Ctrl+B", action: () => keyOn(el, "b") },
+          { label: "斜体", shortcut: "Ctrl+I", action: () => keyOn(el, "i") },
+        );
+      }
     }
   } else {
     items.push(

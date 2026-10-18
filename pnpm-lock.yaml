@@ -32,6 +32,9 @@ importers:
       '@milkdown/crepe':
         specifier: ^7.15.0
         version: 7.22.3(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.6)(typescript@6.0.3)
+      '@milkdown/preset-gfm':
+        specifier: 7.22.3
+        version: 7.22.3
       '@tauri-apps/api':
         specifier: ^2
         version: 2.12.4
@@ -48,6 +51,12 @@ importers:
         specifier: ^3.5.13
         version: 3.5.44(typescript@6.0.3)
     devDependencies:
+      '@milkdown/core':
+        specifier: 7.22.3
+        version: 7.22.3
+      '@milkdown/prose':
+        specifier: 7.22.3
+        version: 7.22.3
       '@tauri-apps/cli':
         specifier: ^2
         version: 2.12.3
