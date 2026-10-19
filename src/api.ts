@@ -59,6 +59,44 @@ export const importDocs = (destDir: string, sources: string[]) =>
 export const exportZip = (sourceRoot: string, destFile: string, entries: string[] | null) =>
   invoke<ExportReport>("export_zip", { sourceRoot, destFile, entries });
 
+/* ---------- git 同步 ---------- */
+
+export interface SyncStatus {
+  installed: boolean;
+  initialized: boolean;
+  hasRemote: boolean;
+  remote: string;
+  branch: string;
+  dirty: boolean;
+  ahead: number;
+  behind: number;
+  conflicted: boolean;
+}
+
+export interface SyncResult {
+  ok: boolean;
+  conflicted: boolean;
+  message: string;
+}
+
+/** 本地同步状态（不访问网络，随时可查）。 */
+export const gitSyncStatus = (vault: string) =>
+  invoke<SyncStatus>("git_sync_status", { vault });
+
+/** 连接远程：init（如需）+ .gitignore + 提交本地全部内容 + 合流推送。 */
+export const gitSyncSetup = (vault: string, remote: string) =>
+  invoke<SyncResult>("git_sync_setup", { vault, remote });
+
+/** 一次完整同步：提交 → 拉取 rebase → 推送。 */
+export const gitSyncNow = (vault: string) => invoke<SyncResult>("git_sync_now", { vault });
+
+/** 冲突处理：放弃本次同步（rebase --abort），本地保持原样。 */
+export const gitSyncAbort = (vault: string) => invoke<void>("git_sync_abort", { vault });
+
+/** 冲突处理：放弃本地未同步修改，强制对齐云端。 */
+export const gitSyncResetRemote = (vault: string) =>
+  invoke<void>("git_sync_reset_remote", { vault });
+
 export function fileName(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] || path;

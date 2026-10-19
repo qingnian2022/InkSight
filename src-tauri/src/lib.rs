@@ -1,3 +1,5 @@
+mod git_sync;
+
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -348,19 +350,26 @@ struct DataDirInfo {
     fallback: bool,
 }
 
-/// 解析内置数据目录：优先 `<exe 目录>/data`，不可写（如装进 Program Files）
-/// 则降级到 `%APPDATA%/com.iife_.md-rust/data`。目录不存在时自动创建。
+/// 解析内置数据目录：优先 `<exe 目录>/data`（便携模式），exe 路径拿不到
+/// 或目录不可写（如装进 Program Files）则降级到
+/// `%APPDATA%/<identifier>/data`。目录不存在时自动创建。
+///
+/// 注意：不能用 Tauri 的 `BaseDirectory::Executable`——它底层是
+/// `dirs::executable_dir()`，在 Windows 上恒为 None（XDG 语义），
+/// 必报 "unknown path"；这里直接用 `current_exe()`。
 #[tauri::command]
 fn data_dir(app: tauri::AppHandle) -> Result<DataDirInfo, String> {
-    let primary = app
-        .path()
-        .resolve("data", tauri::path::BaseDirectory::Executable)
-        .map_err(|e| format!("E_PATH: {e}"))?;
-    if std::fs::create_dir_all(&primary).is_ok() {
-        return Ok(DataDirInfo {
-            path: primary.to_string_lossy().into_owned(),
-            fallback: false,
-        });
+    let primary = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.to_path_buf()))
+        .map(|dir| dir.join("data"));
+    if let Some(primary) = primary {
+        if std::fs::create_dir_all(&primary).is_ok() {
+            return Ok(DataDirInfo {
+                path: primary.to_string_lossy().into_owned(),
+                fallback: false,
+            });
+        }
     }
     let fallback = app
         .path()
@@ -564,7 +573,12 @@ pub fn run() {
             data_dir,
             open_data_dir,
             import_docs,
-            export_zip
+            export_zip,
+            git_sync::git_sync_status,
+            git_sync::git_sync_setup,
+            git_sync::git_sync_now,
+            git_sync::git_sync_abort,
+            git_sync::git_sync_reset_remote
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

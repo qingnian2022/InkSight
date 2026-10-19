@@ -16,6 +16,7 @@ import { setAutoSave, setEditorWidth, state } from "./store";
 import { openNamePrompt } from "./ui/namePrompt";
 import { getPmCtx } from "./editor/pmCtxRef";
 import { insertAtBoundary, runTableCmd } from "./editor/tableCmds";
+import type { SyncStatus } from "./api";
 import { editorViewCtx } from "@milkdown/core";
 import { NodeSelection, TextSelection } from "@milkdown/prose/state";
 // 直接拿 ProseMirror 视图实例做编程式选区（绕开 headless 无法真实点击的限制）
@@ -306,6 +307,49 @@ if (q.get("tb") === "2") {
 
     step1();
   }, 2600);
+}
+
+// ?sync=ok|dirty|conflict|error|unset —— 同步面板状态演示（浏览器预览 mock）
+const syncState = q.get("sync");
+if (syncState) {
+  const base: SyncStatus = {
+    installed: true,
+    initialized: true,
+    hasRemote: true,
+    remote: "https://gitee.com/hao-zhangjian/notes.git",
+    branch: "main",
+    dirty: false,
+    ahead: 0,
+    behind: 0,
+    conflicted: false,
+  };
+  if (syncState === "dirty") {
+    base.dirty = true;
+    base.ahead = 1;
+  } else if (syncState === "conflict") {
+    base.conflicted = true;
+  } else if (syncState === "unset") {
+    base.initialized = false;
+    base.hasRemote = false;
+    base.remote = "";
+  }
+  state.syncStatus = base;
+  if (syncState === "error") {
+    state.syncError = true;
+    state.syncMessage = "推送失败：远程仓库拒绝访问，请检查地址与登录状态";
+  } else if (syncState === "conflict") {
+    state.syncMessage = "同步冲突：两台机器改动了同一篇文档";
+  } else if (syncState === "ok") {
+    state.syncAt = Date.now() - 40_000;
+    state.syncMessage = "已同步：提交 1 个文件并推送";
+  } else if (syncState === "dirty") {
+    state.syncAt = Date.now() - 3_600_000;
+  }
+  setTimeout(() => {
+    const pill = document.querySelector<HTMLElement>(".sync-pill");
+    pill?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    pill?.click();
+  }, 1500);
 }
 
 // ?wpk=narrow|standard|wide|full —— 挂载前直接切列宽，验证宽度真实生效

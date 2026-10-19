@@ -19,10 +19,22 @@ import {
 } from "./api";
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
+import {
+  gitSyncAbort,
+  gitSyncNow,
+  gitSyncResetRemote,
+  gitSyncSetup,
+  gitSyncStatus,
+  type SyncStatus,
+} from "./api";
 
 const LS_THEME = "md-rust.theme";
 const LS_ED_WIDTH = "md-rust.editor-width";
 const LS_AUTOSAVE = "md-rust.autosave";
+const LS_SYNC_AUTO = "md-rust.sync-auto";
+const LS_SYNC_REMOTE = "md-rust.sync-remote";
+
+export const isTauri = "__TAURI_INTERNALS__" in window;
 
 export type EditorMode = "source" | "rich";
 export type EditorWidth = "narrow" | "standard" | "wide" | "full";
@@ -62,6 +74,13 @@ export const state = reactive({
   cursor: { line: 1, col: 1 },
   blockType: "paragraph",
   activeMarks: [] as string[],
+  /* git 同步（详情见下方「git 同步」区块） */
+  syncStatus: null as SyncStatus | null,
+  syncBusy: false,
+  syncError: false,
+  syncMessage: "",
+  syncAt: 0,
+  syncAuto: false,
 });
 
 export const activeTab = computed(
@@ -169,6 +188,8 @@ export async function refresh() {
   } catch (err) {
     state.error = errorText(err);
   }
+  // 文件操作会改变 dirty 状态，顺手刷新同步状态（fire-and-forget）
+  void refreshSyncStatus();
 }
 
 export async function useVault(path: string) {
@@ -401,6 +422,120 @@ export async function trashPath(path: string, label: string) {
   }
 }
 
+/* ---------- git 同步 ---------- */
+
+let syncTimer: number | undefined;
+
+/** 自动同步开关；持久化到 localStorage。 */
+export function setSyncAuto(on: boolean) {
+  state.syncAuto = on;
+  localStorage.setItem(LS_SYNC_AUTO, on ? "1" : "0");
+}
+
+/** 读取本地同步状态（git status / 分支 / 领先落后），纯本地查询，不碰网络。 */
+export async function refreshSyncStatus() {
+  if (!isTauri || !state.root) return;
+  try {
+    state.syncStatus = await gitSyncStatus(state.root);
+  } catch {
+    /* git 暂不可用等场景静默，状态保持上次值 */
+  }
+}
+
+/** 立即同步：提交本地改动 → 拉取 rebase → 推送。 */
+export async function syncNow() {
+  if (!isTauri || !state.root || state.syncBusy) return;
+  state.syncBusy = true;
+  state.syncError = false;
+  try {
+    const res = await gitSyncNow(state.root);
+    state.syncMessage = res.message;
+    state.syncError = !res.ok;
+    if (res.ok) state.syncAt = Date.now();
+    await refreshSyncStatus();
+    if (res.ok) await refresh();
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
+/** 连接远程仓库（首次引导 / 更换地址）。成功后按约定默认开启自动同步。 */
+export async function syncSetup(remote: string) {
+  if (!isTauri || !state.root || state.syncBusy) return;
+  const url = remote.trim();
+  if (!url) return;
+  state.syncBusy = true;
+  state.syncError = false;
+  try {
+    const res = await gitSyncSetup(state.root, url);
+    state.syncMessage = res.message;
+    state.syncError = !res.ok;
+    localStorage.setItem(LS_SYNC_REMOTE, url);
+    if (res.ok) {
+      state.syncAt = Date.now();
+      setSyncAuto(true);
+      await refreshSyncStatus();
+      await refresh();
+    }
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
+/** 冲突处理一：放弃本次同步，本地保持原样。 */
+export async function syncAbort() {
+  if (!isTauri || !state.root) return;
+  try {
+    await gitSyncAbort(state.root);
+    state.syncMessage = "已放弃本次同步，本地内容保持原样";
+    state.syncError = false;
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  }
+  await refreshSyncStatus();
+}
+
+/** 冲突处理二：放弃本地未同步修改，强制对齐云端（调用方需先确认）。 */
+export async function syncResetRemote() {
+  if (!isTauri || !state.root) return;
+  try {
+    await gitSyncResetRemote(state.root);
+    state.syncMessage = "已放弃本地未同步的修改，与云端保持一致";
+    state.syncError = false;
+    state.syncAt = Date.now();
+    await refresh();
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  }
+  await refreshSyncStatus();
+}
+
+/** 自动同步：写盘成功后防抖 5 秒触发一次；冲突 / 忙碌时跳过。 */
+function scheduleSync() {
+  if (!state.syncAuto || state.syncBusy || !isTauri) return;
+  const st = state.syncStatus;
+  if (!st?.hasRemote || st.conflicted) return;
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => void syncNow(), 5000);
+}
+
+export function initSyncAuto() {
+  state.syncAuto = localStorage.getItem(LS_SYNC_AUTO) === "1";
+}
+
+/** 面板输入框的初始远程地址：优先仓库里配置的，其次上次输入过的。 */
+export function lastSyncRemote(): string {
+  return state.syncStatus?.remote || localStorage.getItem(LS_SYNC_REMOTE) || "";
+}
+
 /* ---------- 内置数据目录 ---------- */
 
 let noticeTimer: number | undefined;
@@ -543,6 +678,7 @@ export async function saveTab(tab: Tab) {
     tab.dirty = false;
     state.saveState = "saved";
     state.error = "";
+    scheduleSync();
   } catch (err) {
     state.saveState = "error";
     state.error = errorText(err);
@@ -635,9 +771,16 @@ export async function init() {
     state.dataFallback = info.fallback;
     await useVault(info.path);
     if (info.fallback) {
-      notify(`安装目录不可写，数据目录已降级到 ${info.path}`);
+      notify(`安装目录不可用，数据目录已降级到 ${info.path}`);
     }
   } catch (err) {
     state.error = errorText(err);
+  }
+
+  // git 同步：恢复开关状态；开启自动同步时启动先静默拉一次，防止落后云端
+  initSyncAuto();
+  await refreshSyncStatus();
+  if (state.syncAuto && state.syncStatus?.hasRemote && !state.syncStatus.conflicted) {
+    void syncNow();
   }
 }

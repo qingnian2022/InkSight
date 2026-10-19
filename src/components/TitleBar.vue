@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setAutoSave, state } from "../store";
 import Icon from "./Icon.vue";
+import SyncMenu from "./SyncMenu.vue";
 
 /**
  * 自绘系统标题栏：去掉原生窗口边框后，这一条承担拖拽、双击最大化
@@ -47,6 +48,8 @@ onBeforeUnmount(() => {
     <span class="titlebar-title" data-tauri-drag-region>md-rust</span>
 
     <div class="titlebar-controls">
+      <SyncMenu />
+
       <button
         class="as-toggle"
         :title="state.autoSave ? '自动保存：开（停止输入约 0.8 秒写盘）' : '自动保存：关（Ctrl+S 手动写盘）'"

@@ -2554,3 +2554,224 @@ svg {
   border-color: var(--accent);
   transform: scale(1.12);
 }
+
+/* ---------- 标题栏 git 同步 ---------- */
+
+.sync-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.sync-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--titlebar-fg);
+  font-size: 11.5px;
+  transition: background 120ms ease;
+}
+
+.sync-pill:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 状态点：灰未配置 / 绿已同步 / 橙待同步 / 红冲突出错 / 蓝同步中 */
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: #9aa2a2;
+}
+
+.sync-dot.green { background: #97c459; }
+.sync-dot.amber { background: #f0a04b; }
+.sync-dot.red { background: #ef7d7d; }
+.sync-dot.blue { background: #8ec2f4; }
+
+.sync-spin {
+  animation: sync-rotate 0.9s linear infinite;
+}
+
+@keyframes sync-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.sync-menu {
+  position: fixed;
+  z-index: 1000;
+  width: 340px;
+  padding: 12px 14px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-status-label {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.sync-status-meta {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.sync-sub {
+  margin: 8px 0 0;
+  padding: 6px 9px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.sync-sub-err {
+  background: color-mix(in srgb, #e5484d 10%, var(--surface));
+  color: color-mix(in srgb, #e5484d 78%, var(--text-primary));
+}
+
+.sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.sync-btn {
+  height: 26px;
+  padding: 0 14px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  transition: background 120ms ease;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.sync-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sync-btn.ghost {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+
+.sync-btn.ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.sync-btn.danger {
+  background: var(--surface);
+  color: #c5353a;
+  border: 1px solid color-mix(in srgb, #e5484d 45%, var(--border));
+}
+
+.sync-btn.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #e5484d 10%, var(--surface));
+}
+
+.sync-auto-label {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+/* 小号滑块开关（自动同步），与标题栏自动保存同款配色语言 */
+.sync-auto {
+  position: relative;
+  width: 32px;
+  height: 17px;
+  border-radius: 16px;
+  background: #303136;
+  flex: none;
+  transition: background 0.4s;
+}
+
+.sync-auto:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sync-auto-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 20px;
+  background: linear-gradient(40deg, #ff0080, #ff8c00 70%);
+  transition: 0.4s;
+}
+
+.sync-auto.on .sync-auto-knob {
+  background: #303136;
+  transform: translateX(15px);
+  box-shadow:
+    inset -3px -2px 5px -2px #8983f7,
+    inset -5px -2px 0 0 #a3dafb;
+}
+
+.sync-remote {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sync-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 11.5px;
+}
+
+.sync-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sync-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.sync-hint {
+  margin-top: 7px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.sync-conflict {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+}
