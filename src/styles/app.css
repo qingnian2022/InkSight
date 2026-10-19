@@ -1121,6 +1121,15 @@ svg {
   white-space: nowrap;
 }
 
+/* 导入 / 导出结果等一次性提示 */
+.status-text.notice {
+  color: var(--success);
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-sep {
   width: 1px;
   height: 12px;

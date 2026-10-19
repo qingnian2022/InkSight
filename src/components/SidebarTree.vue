@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { fileName } from "../api";
-import { newDoc, openDoc, pickVault, refresh, state, toggleExpand, visibleRows } from "../store";
+import { importInto, newDoc, openDataFolder, openDoc, refresh, state, toggleExpand, visibleRows } from "../store";
 import type { FsNode } from "../types";
 import Icon from "./Icon.vue";
 
@@ -13,9 +12,13 @@ function onRow(node: FsNode) {
 <template>
   <aside class="sidebar" aria-label="知识库目录">
     <div class="rail-head">
-      <button class="vault-switch" :title="state.root || '选择知识库文件夹'" @click="pickVault">
+      <button
+        class="vault-switch"
+        title="我的知识库（内置数据目录），点击在资源管理器中打开"
+        @click="openDataFolder"
+      >
         <Icon name="folder" :size="15" />
-        <span>{{ state.root ? fileName(state.root) : "选择知识库" }}</span>
+        <span>我的知识库</span>
         <Icon name="chevron" :size="12" class="chev" />
       </button>
       <span class="rail-head-spacer" />
@@ -67,19 +70,16 @@ function onRow(node: FsNode) {
         />
       </div>
 
-      <div v-if="!state.root" class="tree-empty">
-        <Icon name="folder" :size="22" />
-        <p>还没有打开知识库</p>
-        <span>选择一个文件夹，里面的 .md 会出现在这里。</span>
-        <button class="tree-empty-btn" @click="pickVault">选择文件夹</button>
-      </div>
-      <div v-else-if="!visibleRows.length" class="tree-empty">
+      <div v-if="state.root && !visibleRows.length" class="tree-empty">
         <Icon name="file" :size="20" />
-        <p>这个文件夹还是空的</p>
-        <span>新建一篇 Markdown，或把已有的文件放进来。</span>
+        <p>知识库还是空的</p>
+        <span>右键目录树可导入已有的 Markdown 文件，或新建一篇。</span>
+        <button class="tree-empty-btn" @click="importInto(state.root)">导入 Markdown…</button>
       </div>
     </div>
 
-    <div class="rail-footer">{{ state.root || "未选择知识库" }}</div>
+    <div class="rail-footer">
+      {{ state.root || "数据目录初始化中…" }}{{ state.dataFallback ? "（AppData 降级）" : "" }}
+    </div>
   </aside>
 </template>

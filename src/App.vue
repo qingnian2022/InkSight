@@ -18,11 +18,13 @@ import {
   createDocIn,
   copyNodePath,
   duplicateNode,
+  exportAll,
+  exportNode,
+  importInto,
   init,
   locateNode,
   newDoc,
   parentDirOf,
-  pickVault,
   refresh,
   renamePath,
   saveActive,
@@ -105,10 +107,12 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
     return [
       { label: "新建文档", action: () => void createDocIn(path) },
       { label: "新建子文件夹", action: () => void createDirIn(path) },
+      { label: "导入 Markdown…", action: () => void importInto(path) },
       { separator: true, label: "" },
       { label: "复制文件夹", action: () => void duplicateNode(locateNode(path)!) },
       { label: "重命名", shortcut: "F2", action: () => void renamePath(path, name) },
       { label: "复制路径", action: () => void copyNodePath(path) },
+      { label: "导出此文件夹 (zip)", action: () => void exportNode(locateNode(path)!) },
       { separator: true, label: "" },
       { label: "删除", shortcut: "Del", action: () => void trashPath(path, name) },
     ];
@@ -119,6 +123,7 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
     { label: `复制「${label}」副本`, action: () => void duplicateNode(locateNode(path)!) },
     { label: "重命名", shortcut: "F2", action: () => void renamePath(path, name) },
     { label: "复制路径", action: () => void copyNodePath(path) },
+    { label: "导出此文档 (.md)", action: () => void exportNode(locateNode(path)!) },
     { separator: true, label: "" },
     { label: "删除", shortcut: "Del", action: () => void trashPath(path, name) },
   ];
@@ -143,18 +148,18 @@ function onContextMenu(e: MouseEvent) {
     }
   }
 
-  // 2) 目录树空白区域：在根目录新增
+  // 2) 目录树空白区域：根目录导入与新增
   if (target.closest(".tree")) {
     const items: CtxItem[] = [];
     if (state.root) {
       items.push(
         { label: "新建文档", shortcut: "Ctrl+N", action: () => void createDocIn(state.root) },
         { label: "新建文件夹", action: () => void createDirIn(state.root) },
+        { label: "导入 Markdown…（到根目录）", action: () => void importInto(state.root) },
         { separator: true, label: "" },
+        { label: "导出整库 (zip)", action: () => void exportAll() },
         { label: "刷新目录", action: () => void refresh() },
       );
-    } else {
-      items.push({ label: "选择知识库文件夹", action: () => void pickVault() });
     }
     openContextMenu(e.clientX, e.clientY, items);
     return;

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>md-rust · Git 同步方案预览</title>
+<style>
+  :root {
+    --bg: #f4f5f5; --panel: #ffffff; --border: #e3e5e8;
+    --text: #2b2f36; --text2: #8a9099; --accent: #3b82f6; --accent-soft: #eaf2fe;
+    --ok: #16a34a; --warn: #b45309; --danger: #dc2626;
+    --radius: 14px; --row-h: 46px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); padding: 28px; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .sub { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+  .note { background: var(--accent-soft); border: 1px solid #d3e5fd; color: #1d4ed8; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+
+  /* 架构图 */
+  .arch { display: flex; align-items: center; justify-content: center; gap: 14px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 18px; margin-bottom: 22px; }
+  .node { text-align: center; }
+  .node .box { width: 150px; border: 2px solid var(--accent); border-radius: 12px; padding: 12px 10px; font-size: 13px; font-weight: 600; background: var(--accent-soft); }
+  .node.server .box { border-color: #9333ea; background: #f5edfe; }
+  .node .cap { font-size: 11px; color: var(--text2); margin-top: 8px; line-height: 1.6; }
+  .arrow { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--text2); min-width: 120px; }
+  .arrow .line { display: flex; align-items: center; width: 100%; }
+  .arrow .shaft { flex: 1; height: 2px; background: #c4c9d0; }
+  .arrow .head { color: #c4c9d0; }
+  .arrow b { color: var(--text); font-weight: 500; }
+
+  /* App shell */
+  .shell { width: 1080px; max-width: 100%; height: 560px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0,0,0,.06); }
+  .titlebar { height: 40px; display: flex; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); gap: 8px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .body { flex: 1; display: flex; min-height: 0; }
+  .sidebar { width: 250px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: #fafbfb; }
+  .vault-head { height: var(--row-h); display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+  .vault-head .ico { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .vault-head .name { font-weight: 600; font-size: 14px; flex: 1; }
+  .tree { flex: 1; padding: 6px 8px; }
+  .row { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 9px; font-size: 13px; }
+  .row:hover { background: #f0f2f4; }
+  .row.active { background: var(--accent-soft); color: #1d4ed8; }
+  .row .em { color: var(--text2); }
+  .row.d1 { padding-left: 30px; }
+  .sb-footer { border-top: 1px solid var(--border); padding: 10px 14px; font-size: 11px; color: var(--text2); line-height: 1.6; }
+  .sb-footer b { color: var(--text); font-weight: 500; }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .doc { flex: 1; overflow: auto; padding: 30px 44px; }
+  .doc h2 { font-size: 22px; margin-bottom: 14px; }
+  .doc p { font-size: 14px; line-height: 1.9; color: #4b5158; margin-bottom: 10px; }
+
+  .statusbar { height: 40px; border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 14px; gap: 10px; font-size: 12px; color: var(--text2); }
+  .sync-btn { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 12px; cursor: pointer; color: var(--text); }
+  .sync-btn:hover { background: #f0f2f4; }
+  .sync-btn.conflict { border-color: #fecaca; color: var(--danger); background: #fef2f2; }
+  .spin { width: 12px; height: 12px; border: 2px solid #cbd5e1; border-top-color: var(--accent); border-radius: 50%; animation: r 0.8s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  .gear { margin-left: auto; cursor: pointer; border: none; background: none; font-size: 15px; }
+
+  /* 对话框 */
+  .overlay { position: fixed; inset: 0; background: rgba(20,24,30,.35); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .overlay.show { display: flex; }
+  .dialog { width: 460px; background: #fff; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,.2); overflow: hidden; }
+  .dialog h3 { font-size: 15px; padding: 16px 20px 2px; }
+  .dialog .dsub { font-size: 12px; color: var(--text2); padding: 0 20px 12px; }
+  .field { padding: 0 20px 12px; font-size: 13px; }
+  .field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+  .field input[type=text] { width: 100%; height: 34px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; font-size: 13px; font-family: Consolas, monospace; }
+  .field .tip { font-size: 11px; color: var(--warn); margin-top: 5px; }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 14px; font-size: 13px; }
+  .switch { width: 38px; height: 21px; border-radius: 999px; background: var(--accent); position: relative; cursor: pointer; }
+  .switch::after { content: ""; position: absolute; top: 2.5px; right: 2.5px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .dfoot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); background: #fafbfb; }
+  .btn { height: 32px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--border); background: #fff; font-size: 13px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .report { margin: 0 20px 16px; background: #f6f8f9; border-radius: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.9; }
+  .report .ok { color: var(--ok); font-weight: 600; }
+  .report .li { color: #4b5158; }
+
+  .flow { display: flex; gap: 18px; margin-top: 22px; width: 1080px; max-width: 100%; }
+  .card { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .card h4 { font-size: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: #1d4ed8; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+  .card p, .card li { font-size: 12.5px; color: #4b5158; line-height: 1.8; }
+  .card ul { padding-left: 18px; }
+  .tag { display: inline-block; font-size: 11px; background: #f0f2f4; border-radius: 6px; padding: 2px 8px; color: var(--text2); margin: 2px 4px 2px 0; }
+  .try { text-align: center; color: var(--text2); font-size: 12px; margin: 12px 0 6px; }
+  .server-cmd { font-family: Consolas, monospace; font-size: 12px; background: #1e2430; color: #d7e2ee; border-radius: 10px; padding: 10px 14px; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <h1>md-rust · Git 同步（远程仓库当同步服务器）—— 方案预览</h1>
+  <div class="sub">仅方案演示，未修改项目代码 · 对应方案文档：docs/PLAN-git同步.md</div>
+  <div class="note">核心思路：data\ 目录本身变成 git 仓库，自动 commit → pull --rebase → push。远程只要一个<b>裸仓库或任意私有空仓库</b>，服务器上不用跑任何软件；凭据走系统凭据管理器 / SSH，软件里不存密码。</div>
+
+  <div class="arch">
+    <div class="node">
+      <div class="box">设备 A<br><span style="font-weight:400;font-size:12px">data\ git 仓库</span></div>
+      <div class="cap">写文档 → 自动 commit<br>联网 push / pull --rebase</div>
+    </div>
+    <div class="arrow">
+      <div class="line"><span class="shaft"></span><span class="head">▶</span></div>
+      <span><b>push</b> 新提交</span>
+      <div class="line"><span class="head">◀</span><span class="shaft"></span></div>
+      <span><b>pull --rebase</b> 拉取</span>
+    </div>
+    <div class="node server">
+      <div class="box">远程裸仓库<br><span style="font-weight:400;font-size:12px">私有 GitHub / Gitee / Gitea / NAS</span></div>
+      <div class="cap">充当「同步服务器」<br>git init --bare 即可</div>
+    </div>
+    <div class="arrow">
+      <div class="line"><span class="shaft"></span><span class="head">▶</span></div>
+      <span><b>push</b></span>
+      <div class="line"><span class="head">◀</span><span class="shaft"></span></div>
+      <span><b>pull</b></span>
+    </div>
+    <div class="node">
+      <div class="box">设备 B<br><span style="font-weight:400;font-size:12px">data\ git 仓库</span></div>
+      <div class="cap">新设备可从云端<br>一键恢复整个知识库</div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span>md-rust</span>
+    </div>
+    <div class="body">
+      <div class="sidebar">
+        <div class="vault-head">
+          <div class="ico">知</div>
+          <div class="name">我的知识库</div>
+        </div>
+        <div class="tree">
+          <div class="row dir"><span class="em">📁</span>工作笔记</div>
+          <div class="row d1 active"><span class="em">📄</span>本周计划.md</div>
+          <div class="row d1"><span class="em">📄</span>会议记录.md</div>
+          <div class="row"><span class="em">📄</span>读书笔记.md</div>
+        </div>
+        <div class="sb-footer">数据目录<br><b>D:\soft\md-rust\data</b><br>远端：git@github.com:jay/notes.git</div>
+      </div>
+      <div class="main">
+        <div class="doc">
+          <h2>本周计划</h2>
+          <p>· 完成 md-rust Git 同步方案评审</p>
+          <p>· 在 NAS 上建裸仓库并配置远端</p>
+          <p>· 笔记本上用「从云端恢复」拉下全部笔记</p>
+        </div>
+        <div class="statusbar">
+          <button class="sync-btn" id="syncBtn" onclick="doSync()"><span id="syncIcon">✓</span><span id="syncText">已同步</span></button>
+          <span>· 3 分钟前</span>
+          <button class="sync-btn" style="color:var(--warn)" onclick="doSync(true)">⚠ 演示冲突状态</button>
+          <button class="gear" title="同步设置" onclick="openSettings()">⚙</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="try">👆 点状态栏「已同步」按钮可演示同步过程；点 ⚙ 打开同步设置弹窗</div>
+
+  <div class="overlay" id="ovSettings">
+    <div class="dialog">
+      <h3>同步设置</h3>
+      <div class="dsub">data\ 目录将变成 git 仓库并与远端保持一致</div>
+      <div class="field">
+        <label>远程仓库地址（请使用私有仓库）</label>
+        <input type="text" value="git@github.com:jay/notes.git">
+        <div class="tip">⚠ 公开仓库 = 笔记全网可见。HTTPS 首次推送会弹系统凭据窗口；SSH 走 ~/.ssh 配置。</div>
+      </div>
+      <div class="field">
+        <label>提交作者（仅写入本仓库配置）</label>
+        <input type="text" value="Jay &lt;jay@example.com&gt;">
+      </div>
+      <div class="switch-row">
+        <span>自动同步（保存后 30 秒 + 每 15 分钟）</span>
+        <div class="switch"></div>
+      </div>
+      <div class="report">
+        <div class="ok">✔ 当前状态：main 领先远端 0 / 落后 0，最近提交 a1b2c3d「sync: 14:30」</div>
+        <div class="li">· data\.gitignore 已自动写入 .trash/（回收站不上云）</div>
+      </div>
+      <div class="dfoot">
+        <button class="btn" onclick="closeAll()">取消</button>
+        <button class="btn" onclick="restoreDemo()">从云端恢复（新设备）</button>
+        <button class="btn primary" onclick="closeAll()">保存并首次同步</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovRestore">
+    <div class="dialog">
+      <h3>从云端恢复知识库</h3>
+      <div class="dsub">检测到本地 data\ 为空，而远端已有 128 个文件</div>
+      <div class="dbody" style="padding:4px 20px 16px;font-size:13px;line-height:1.8;color:#4b5158">
+        将把远端仓库克隆到本地数据目录，完成后自动刷新目录树。<br>
+        本地已存在的内容不会被覆盖（仅在目录为空时提供此选项）。
+      </div>
+      <div class="dfoot">
+        <button class="btn" onclick="closeAll()">取消</button>
+        <button class="btn primary" onclick="closeAll()">开始恢复</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="card">
+      <h4><span class="n">1</span>同步策略</h4>
+      <ul>
+        <li>启动时：静默 pull --rebase --autostash</li>
+        <li>保存写盘后 30s：有改动才 commit + push</li>
+        <li>每 15 分钟：双向对齐（可关，存 localStorage）</li>
+        <li>无网络静默跳过，本地提交保留、联网补推</li>
+      </ul>
+      <div style="margin-top:8px">
+        <span class="tag">lib.rs · sync_now</span><span class="tag">调用系统 git</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4><span class="n">2</span>冲突处理</h4>
+      <ul>
+        <li>markdown 纯文本，git 自动合并大部分改动</li>
+        <li>同段冲突 → rebase 暂停，状态栏红字提示</li>
+        <li><b>绝不自动覆盖</b>，建议先「导出整库」再手动处理</li>
+        <li>提交文案固定 <b>sync: HH:mm</b>，不污染历史</li>
+      </ul>
+      <div style="margin-top:8px">
+        <span class="tag">识别 CONFLICT</span><span class="tag">status: conflict</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4><span class="n">3</span>服务端准备（一次性）</h4>
+      <div class="server-cmd"># NAS / 任意 Linux 服务器<br>git init --bare /srv/git/notes.git<br><br># 或直接建一个私有 GitHub / Gitee 空仓库</div>
+      <ul style="margin-top:8px">
+        <li>不装任何服务端软件，git 协议本身够用</li>
+        <li>未装 git 的电脑：同步按钮降级隐藏，编辑不受影响</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+  const icon = document.getElementById('syncIcon');
+  const text = document.getElementById('syncText');
+  const btn = document.getElementById('syncBtn');
+  function openSettings(){ document.getElementById('ovSettings').classList.add('show'); }
+  function restoreDemo(){ document.getElementById('ovRestore').classList.add('show'); }
+  function closeAll(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); }
+  function doSync(conflict){
+    if (conflict) {
+      icon.textContent = '⚠'; text.textContent = '同步冲突'; btn.classList.add('conflict');
+      return;
+    }
+    icon.className = 'spin'; icon.textContent = ''; text.textContent = '正在同步…';
+    btn.classList.remove('conflict');
+    setTimeout(() => {
+      icon.className = ''; icon.textContent = '✓';
+      text.textContent = '已同步';
+    }, 1600);
+  }
+</script>
+</body>
+</html>

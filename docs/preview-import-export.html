@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>md-rust 个人版 · 导入导出方案预览</title>
+<style>
+  :root {
+    --bg: #f4f5f5; --panel: #ffffff; --border: #e3e5e8;
+    --text: #2b2f36; --text2: #8a9099; --accent: #3b82f6; --accent-soft: #eaf2fe;
+    --radius: 14px; --row-h: 46px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); padding: 28px; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .sub { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+  .note { background: var(--accent-soft); border: 1px solid #d3e5fd; color: #1d4ed8; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+
+  .shell { width: 1080px; max-width: 100%; height: 640px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0,0,0,.06); }
+  .titlebar { height: 40px; display: flex; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); gap: 8px; }
+  .titlebar .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .titlebar .title { margin-left: 10px; }
+  .body { flex: 1; display: flex; min-height: 0; }
+
+  .sidebar { width: 250px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: #fafbfb; }
+  .vault-head { height: var(--row-h); display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .vault-head:hover { background: #f0f2f4; }
+  .vault-head .ico { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .vault-head .name { font-weight: 600; font-size: 14px; flex: 1; }
+  .vault-head .hint { font-size: 11px; color: var(--text2); }
+  .tree { flex: 1; overflow: auto; padding: 6px 8px; }
+  .row { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 9px; font-size: 13px; cursor: pointer; user-select: none; }
+  .row:hover { background: #f0f2f4; }
+  .row.active { background: var(--accent-soft); color: #1d4ed8; }
+  .row.dir { font-weight: 500; }
+  .row .caret { color: var(--text2); font-size: 10px; width: 10px; }
+  .row .em { color: var(--text2); }
+  .row.d1 { padding-left: 30px; }
+  .row.d2 { padding-left: 50px; }
+  .sb-footer { border-top: 1px solid var(--border); padding: 10px 14px; font-size: 11px; color: var(--text2); line-height: 1.6; }
+  .sb-footer b { color: var(--text); font-weight: 500; }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .tabs { height: var(--row-h); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; gap: 6px; }
+  .tab { height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 9px; font-size: 13px; cursor: pointer; }
+  .tab.active { background: var(--accent-soft); color: #1d4ed8; }
+  .editor { flex: 1; position: relative; background: #fff; }
+  .doc { position: absolute; inset: 0; overflow: auto; padding: 36px 48px; }
+  .doc h2 { font-size: 22px; margin-bottom: 14px; }
+  .doc p { font-size: 14px; line-height: 1.9; color: #4b5158; margin-bottom: 10px; }
+  .badge-row { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; }
+  .badge { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--text2); background: #fff; }
+
+  .ctxmenu { position: absolute; width: 210px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 5px; z-index: 30; }
+  .ctxmenu .mi { height: 34px; display: flex; align-items: center; gap: 9px; padding: 0 10px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .ctxmenu .mi:hover { background: #f0f2f4; }
+  .ctxmenu .mi .em { width: 16px; text-align: center; color: var(--text2); }
+  .ctxmenu .sep { height: 1px; background: var(--border); margin: 5px 8px; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(20,24,30,.35); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .overlay.show { display: flex; }
+  .dialog { width: 430px; background: #fff; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,.2); overflow: hidden; }
+  .dialog h3 { font-size: 15px; padding: 16px 20px 4px; }
+  .dialog .dsub { font-size: 12px; color: var(--text2); padding: 0 20px 14px; }
+  .dialog .dbody { padding: 4px 20px 18px; font-size: 13px; line-height: 1.8; }
+  .picker { border: 1px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; color: var(--text2); font-size: 13px; margin-bottom: 12px; }
+  .picker b { color: var(--text); font-weight: 500; }
+  .report { background: #f6f8f9; border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+  .report .ok { color: #16a34a; font-weight: 600; }
+  .report .li { color: #4b5158; }
+  .dfoot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); background: #fafbfb; }
+  .btn { height: 32px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--border); background: #fff; font-size: 13px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .flow { display: flex; gap: 18px; margin-top: 22px; width: 1080px; max-width: 100%; }
+  .card { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .card h4 { font-size: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: #1d4ed8; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+  .card p, .card li { font-size: 12.5px; color: #4b5158; line-height: 1.8; }
+  .card ul { padding-left: 18px; }
+  .tag { display: inline-block; font-size: 11px; background: #f0f2f4; border-radius: 6px; padding: 2px 8px; color: var(--text2); margin: 2px 4px 2px 0; }
+  .try { text-align: center; color: var(--text2); font-size: 12px; margin: 12px 0 6px; }
+</style>
+</head>
+<body>
+  <h1>md-rust · 个人版内置知识库 + 导入导出 —— UI 预览</h1>
+  <div class="sub">仅方案演示，未修改项目代码 · 对应方案文档：docs/PLAN-个人版数据目录与导入导出.md</div>
+  <div class="note">预览要点：① 侧栏不再有「选择知识库文件夹」，固定为「我的知识库」，数据存在 <b>软件安装目录\data\</b>；② 导入 / 导出入口在目录树右键菜单；③ 导入完成有结果报告，重名自动改名。</div>
+
+  <div class="shell">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="title">md-rust</span>
+    </div>
+    <div class="body">
+      <div class="sidebar">
+        <div class="vault-head" title="点击在资源管理器中打开数据目录">
+          <div class="ico">知</div>
+          <div class="name">我的知识库</div>
+          <div class="hint">内置</div>
+        </div>
+        <div class="tree">
+          <div class="row dir"><span class="caret">▾</span><span class="em">📁</span>工作笔记</div>
+          <div class="row d1 active"><span class="em">📄</span>本周计划.md</div>
+          <div class="row d1"><span class="em">📄</span>会议记录.md</div>
+          <div class="row dir"><span class="caret">▸</span><span class="em">📁</span>技术摘抄</div>
+          <div class="row d1"><span class="em">📄</span>2026-10-19 导入的读书笔记.md</div>
+          <div class="row"><span class="em">📄</span>未命名.md</div>
+        </div>
+        <div class="sb-footer">数据目录<br><b id="dataPath">D:\soft\md-rust\data</b></div>
+      </div>
+      <div class="main">
+        <div class="tabs">
+          <div class="tab active">本周计划</div>
+          <div class="tab">会议记录</div>
+        </div>
+        <div class="editor">
+          <div class="badge-row"><span class="badge">阅读</span><span class="badge">已保存</span></div>
+          <div class="doc">
+            <h2>本周计划</h2>
+            <p>· 完成 md-rust 个人版数据目录改造评审</p>
+            <p>· 导入旧知识库的历史文档并核对图片路径</p>
+            <p>· 每周五导出整库 zip 备份到移动硬盘</p>
+          </div>
+          <div class="ctxmenu" id="ctx" style="display:none; left: 590px; top: 130px;">
+            <div class="mi"><span class="em">📄</span>新建文档</div>
+            <div class="mi" onclick="openImport()"><span class="em">📥</span>导入 Markdown…（可多选）</div>
+            <div class="sep"></div>
+            <div class="mi" onclick="openExport()"><span class="em">📦</span>导出此文件夹</div>
+            <div class="mi"><span class="em">✏️</span>重命名</div>
+            <div class="mi"><span class="em">🗑</span>删除</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="try">👆 在编辑区空白处点一下可呼出「工作笔记」文件夹的右键菜单（演示）——导入入口就在目录右键里，选中的文件会导入到该文件夹</div>
+
+  <div class="flow">
+    <div class="card">
+      <h4><span class="n">1</span>导入流程</h4>
+      <ul>
+        <li><b>右键目录树中的文件夹</b> → 「导入 Markdown…」</li>
+        <li>系统文件选择框，<b>可多选</b> .md / .markdown / .mdx</li>
+        <li>选中文件<b>复制</b>到右键的那个文件夹，原文件不动</li>
+        <li>重名自动改为「xx (2).md」并在报告中提示</li>
+      </ul>
+      <div style="margin-top:8px">
+        <span class="tag">api.ts · importDocs()</span><span class="tag">lib.rs · import_docs</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4><span class="n">2</span>导出流程</h4>
+      <ul>
+        <li>单篇：文件右键「导出此文档 (.md)」</li>
+        <li>文件夹：右键「导出此文件夹」→ zip 保留结构</li>
+        <li>整库：空白处「导出整库 (zip)」，排除 .trash</li>
+        <li>文件名默认 md-rust-backup-YYYYMMDD.zip</li>
+      </ul>
+      <div style="margin-top:8px">
+        <span class="tag">lib.rs · export_zip</span><span class="tag">新增依赖 zip = "2"</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4><span class="n">3</span>数据目录与风险</h4>
+      <ul>
+        <li>主路径：<b>&lt;exe 目录&gt;\data</b>，启动自动创建</li>
+        <li>装进 Program Files 不可写 → 自动降级 AppData 并在状态栏提示</li>
+        <li>推荐便携版（zip 解压即用），彻底避开权限问题</li>
+        <li>老用户首次启动提示「是否复制现有知识库到 data」</li>
+      </ul>
+      <div style="margin-top:8px">
+        <span class="tag">data_dir 命令</span><span class="tag">BaseDirectory::Executable</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovImport">
+    <div class="dialog">
+      <h3>导入 Markdown</h3>
+      <div class="dsub">目标目录：我的知识库 / 工作笔记 · 复制导入，原文件保持不变</div>
+      <div class="dbody">
+        <div class="picker">已选择 3 个文件 · 共 86 KB<br><b>读书笔记.md、周报-1016.md、周报-1017.md</b></div>
+        <div class="report">
+          <div class="ok">✔ 导入完成：3 篇成功，1 个重名已自动改名</div>
+          <div class="li">· 周报-1016.md → 周报-1016 (2).md</div>
+          <div class="li" style="color:#b45309">⚠ 文中引用的本地图片不会随之导入，请把图片一并复制到 data\assets</div>
+        </div>
+      </div>
+      <div class="dfoot">
+        <button class="btn" onclick="closeAll()">关闭</button>
+        <button class="btn primary" onclick="closeAll()">在目录树中查看</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovExport">
+    <div class="dialog">
+      <h3>导出此文件夹 (zip)</h3>
+      <div class="dsub">将「工作笔记」打包导出；空白处右键还可「导出整库」，.trash 不包含</div>
+      <div class="dbody">
+        <div class="picker">保存为 <b>md-rust-backup-20261019.zip</b><br>位置：D:\backup\（保存对话框中选择）</div>
+        <div class="report">
+          <div class="ok">✔ 导出完成：17 个文档 · 2 个附件文件夹 · 4.2 MB</div>
+          <div class="li">解压后目录结构与软件内一致，可直接换机恢复</div>
+        </div>
+      </div>
+      <div class="dfoot">
+        <button class="btn" onclick="closeAll()">关闭</button>
+        <button class="btn primary" onclick="closeAll()">打开所在文件夹</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function openImport(){ document.getElementById('ovImport').classList.add('show'); }
+  function openExport(){ document.getElementById('ovExport').classList.add('show'); }
+  function closeAll(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); }
+  const ctx = document.getElementById('ctx');
+  document.querySelector('.editor').addEventListener('click', (e) => {
+    if (e.target.closest('.ctxmenu')) return;
+    ctx.style.display = ctx.style.display === 'none' ? 'block' : 'none';
+  });
+  ctx.querySelectorAll('.mi')[2].addEventListener('click', openExport);
+  document.getElementById('dataPath').textContent = 'D:\\soft\\md-rust\\data';
+</script>
+</body>
+</html>

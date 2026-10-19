@@ -3,7 +3,7 @@ import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch 
 import { EditorView } from "@codemirror/view";
 import { createEditorState, editableCompartment } from "../editor/setup";
 import { setView } from "../editor/viewRef";
-import { activeTab, newDoc, pickVault, state } from "../store";
+import { activeTab, newDoc, state } from "../store";
 import Icon from "./Icon.vue";
 
 // Crepe 会捎带 @codemirror/language-data 的全部语言包，按需加载以免拖慢首屏
@@ -100,17 +100,12 @@ watch(
       <div class="empty-mark">
         <Icon name="file" :size="22" />
       </div>
-      <h2>{{ state.root ? "还没有打开文档" : "选一个文件夹开始" }}</h2>
+      <h2>还没有打开文档</h2>
       <p>
-        {{
-          state.root
-            ? "从左侧目录选择一篇 Markdown，或新建一篇。正文会直接渲染，光标停在哪一行，哪一行才显示 Markdown 标记。"
-            : "md-rust 不建立自己的数据库：选中的文件夹就是知识库，文件就是数据。可以随时用 Git 或别的编辑器打开。"
-        }}
+        从左侧目录选择一篇 Markdown，或新建一篇。正文会直接渲染，光标停在哪一行，哪一行才显示
+        Markdown 标记。
       </p>
-      <button class="primary-btn" @click="state.root ? newDoc() : pickVault()">
-        {{ state.root ? "新建文档" : "选择知识库文件夹" }}
-      </button>
+      <button class="primary-btn" @click="newDoc">新建文档</button>
       <p class="empty-hint">纯文本存储 · 不锁定格式 · 可用 Git 管理</p>
     </div>
   </div>

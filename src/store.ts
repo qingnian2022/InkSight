@@ -1,11 +1,15 @@
 import { computed, reactive } from "vue";
-import { confirm, open } from "@tauri-apps/plugin-dialog";
+import { confirm, open, save } from "@tauri-apps/plugin-dialog";
 import {
   copyNode,
   createDir,
   createDoc,
+  dataDir,
   errorText,
+  exportZip,
   fileName,
+  importDocs,
+  openDataDir,
   readDoc,
   renameNode,
   scanVault,
@@ -16,7 +20,6 @@ import {
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 
-const LS_VAULT = "md-rust.vault";
 const LS_THEME = "md-rust.theme";
 const LS_ED_WIDTH = "md-rust.editor-width";
 const LS_AUTOSAVE = "md-rust.autosave";
@@ -53,6 +56,8 @@ export const state = reactive({
   saveState: "saved" as SaveState,
   error: "",
   autoSave: true,
+  notice: "",
+  dataFallback: false,
   charCount: 0,
   cursor: { line: 1, col: 1 },
   blockType: "paragraph",
@@ -166,19 +171,12 @@ export async function refresh() {
   }
 }
 
-export async function pickVault() {
-  const picked = await open({ directory: true, multiple: false, title: "选择知识库文件夹" });
-  if (typeof picked !== "string") return;
-  await useVault(picked);
-}
-
 export async function useVault(path: string) {
   await flush();
   state.tabs = [];
   state.activePath = "";
   state.root = path;
   state.expanded = new Set<string>();
-  localStorage.setItem(LS_VAULT, path);
   await refresh();
 }
 
@@ -254,10 +252,7 @@ export function isUntitledPath(path: string): boolean {
 
 /** 新建：只开一个内存中的「未命名」标签，磁盘上不创建文件；保存时才落盘。 */
 export async function newDoc() {
-  if (!state.root) {
-    await pickVault();
-    return;
-  }
+  if (!state.root) return;
   const seq = state.tabs.filter((t) => isUntitledPath(t.path)).length + 1;
   const path = `${UNTITLED_PREFIX}${seq}`;
   state.tabs.push({
@@ -297,10 +292,7 @@ export async function removeActiveDoc() {
 
 /** 在指定目录新建文档：弹窗输入名称，创建后直接打开。 */
 export async function createDocIn(dir: string) {
-  if (!state.root) {
-    await pickVault();
-    return;
-  }
+  if (!state.root) return;
   const name = await openNamePrompt({ title: "新建文档", initial: "未命名" });
   if (!name) return;
   try {
@@ -316,10 +308,7 @@ export async function createDocIn(dir: string) {
 
 /** 在指定目录新建子文件夹。 */
 export async function createDirIn(dir: string) {
-  if (!state.root) {
-    await pickVault();
-    return;
-  }
+  if (!state.root) return;
   const name = await openNamePrompt({ title: "新建文件夹", initial: "新建文件夹" });
   if (!name) return;
   try {
@@ -407,6 +396,106 @@ export async function trashPath(path: string, label: string) {
       state.cursor = { line: 1, col: 1 };
     }
     await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/* ---------- 内置数据目录 ---------- */
+
+let noticeTimer: number | undefined;
+
+/** 状态栏提示（导入 / 导出结果等），10 秒后自动消失。 */
+export function notify(text: string) {
+  state.notice = text;
+  window.clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => {
+    state.notice = "";
+  }, 10000);
+}
+
+/** 在资源管理器中打开数据目录（侧栏标题点击触发）。 */
+export async function openDataFolder() {
+  if (!state.root) return;
+  try {
+    await openDataDir(state.root);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 右键目录导入：多选 Markdown 文件，复制进右键的那个文件夹。 */
+export async function importInto(dir: string) {
+  const picked = await open({
+    multiple: true,
+    title: "选择要导入的 Markdown 文件",
+    filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdx"] }],
+  });
+  if (!picked) return;
+  const sources = Array.isArray(picked) ? picked : [picked];
+  try {
+    const report = await importDocs(dir, sources);
+    state.expanded.add(dir);
+    await refresh();
+    const parts = [`导入 ${report.imported} 篇文档`];
+    if (report.renamed.length) {
+      parts.push(
+        `${report.renamed.length} 个重名已自动改名：${report.renamed
+          .map((r) => `${r.from} → ${r.to}`)
+          .join("、")}`,
+      );
+    }
+    parts.push("文中引用的本地图片不会随之导入，请把图片一并复制到 data/assets");
+    notify(`${parts.join("；")}。`);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+function todayStamp(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** 导出整库为 zip（排除 .trash）。 */
+export async function exportAll() {
+  if (!state.root) return;
+  const dest = await save({
+    title: "导出整库 (zip)",
+    defaultPath: `md-rust-backup-${todayStamp()}.zip`,
+    filters: [{ name: "Zip 压缩包", extensions: ["zip"] }],
+  });
+  if (!dest) return;
+  try {
+    const report = await exportZip(state.root, dest, null);
+    notify(
+      `整库导出完成：${report.files} 个文件（${formatBytes(report.bytes)}），已保存到 ${dest}。`,
+    );
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 导出单个文档或文件夹：文档导出 .md，文件夹导出 zip。 */
+export async function exportNode(node: FsNode) {
+  const dest = await save({
+    title: node.isDir ? "导出文件夹 (zip)" : "导出文档",
+    defaultPath: node.isDir ? `${node.name}.zip` : node.name,
+    filters: node.isDir ? [{ name: "Zip 压缩包", extensions: ["zip"] }] : undefined,
+  });
+  if (!dest) return;
+  try {
+    const report = await exportZip(state.root, dest, [node.path]);
+    notify(
+      `导出完成：${report.files} 个文件（${formatBytes(report.bytes)}），已保存到 ${dest}。`,
+    );
   } catch (err) {
     state.error = errorText(err);
   }
@@ -540,13 +629,15 @@ export async function init() {
 
   state.autoSave = localStorage.getItem(LS_AUTOSAVE) !== "0";
 
-  const saved = localStorage.getItem(LS_VAULT);
-  if (saved) {
-    try {
-      await useVault(saved);
-    } catch {
-      localStorage.removeItem(LS_VAULT);
-      state.root = "";
+  // 个人版：知识库固定为软件数据目录，启动即用，无需选择
+  try {
+    const info = await dataDir();
+    state.dataFallback = info.fallback;
+    await useVault(info.path);
+    if (info.fallback) {
+      notify(`安装目录不可写，数据目录已降级到 ${info.path}`);
     }
+  } catch (err) {
+    state.error = errorText(err);
   }
 }

@@ -43,7 +43,11 @@ const path = computed(() => {
 
     <div class="status-group grow">
       <span>{{ chars }} 字</span>
-      <template v-if="state.error">
+      <template v-if="state.notice">
+        <span>·</span>
+        <span class="status-text notice" :title="state.notice">{{ state.notice }}</span>
+      </template>
+      <template v-else-if="state.error">
         <span>·</span>
         <span class="status-text error" :title="state.error">{{ state.error }}</span>
       </template>
