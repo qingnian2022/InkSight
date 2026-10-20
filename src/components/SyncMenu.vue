@@ -9,9 +9,11 @@ import {
   setSyncAuto,
   state,
   syncAbort,
+  syncFromRemote,
   syncNow,
   syncResetRemote,
   syncSetup,
+  syncToRemote,
 } from "../store";
 
 /**
@@ -177,6 +179,25 @@ onBeforeUnmount(() => {
           @click="setSyncAuto(!state.syncAuto)"
         >
           <span class="sync-auto-knob" />
+        </button>
+      </div>
+
+      <div class="sync-actions sync-directional">
+        <button
+          class="sync-btn ghost"
+          :disabled="state.syncBusy || !st?.hasRemote"
+          title="拉取云端内容覆盖到本地；两边都改过的部分以云端为准"
+          @click="syncFromRemote()"
+        >
+          ⬇ 从远程同步（以远程为准）
+        </button>
+        <button
+          class="sync-btn ghost"
+          :disabled="state.syncBusy || !st?.hasRemote"
+          title="把本地内容推送到云端；两边都改过的部分以本地为准"
+          @click="syncToRemote()"
+        >
+          ⬆ 同步到远程（以本地为准）
         </button>
       </div>
 

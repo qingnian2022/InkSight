@@ -119,8 +119,22 @@ body.resizing .app-body {
   user-select: none;
 }
 
+/* 图标 + 名称的左侧组合，避免 space-between 把名称挤到中间 */
+.titlebar-left {
+  display: flex;
+  align-items: center;
+}
+
+.titlebar-logo {
+  width: 16px;
+  height: 16px;
+  margin-left: 12px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
 .titlebar-title {
-  padding-left: 14px;
+  padding-left: 6px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -215,7 +229,7 @@ body.resizing .app-body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface-sunken);
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-card);
@@ -230,6 +244,7 @@ body.resizing .app-body {
   align-items: center;
   gap: 2px;
   padding: 0 8px 0 10px;
+  background: var(--surface-sunken);
   border-bottom: 1px solid var(--border);
 }
 
@@ -279,10 +294,10 @@ body.resizing .app-body {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 28px;
+  height: 34px;
   padding-right: 10px;
   border-radius: var(--r-sm);
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-secondary);
   white-space: nowrap;
   transition: background 120ms ease, color 120ms ease;
@@ -365,18 +380,24 @@ body.resizing .app-body {
   opacity: 0.75;
 }
 
-/* 置顶区与普通区之间的分隔线（上下留出块间距） */
+/* 置顶区与普通区之间的分隔线（不使用 color-mix：旧 WebView2 不支持会整条隐形） */
 .pin-separator {
-  height: 1px;
+  height: 2px;
   margin: 14px 10px 16px;
-  background: var(--border);
-  opacity: 0.9;
+  border-radius: 1px;
+  background: var(--text-tertiary);
+  opacity: 0.65;
 }
 
-/* 虚拟「置顶」文件夹：与普通文件夹明显区分 */
+/* 虚拟「置顶」文件夹：浅色底（非主题强调色）与普通文件夹区分 */
 .tree-row.pinned-folder {
-  height: 34px;
-  background: var(--accent-soft);
+  height: 40px;
+  margin-bottom: 8px;
+  background: #f6f4ef;
+}
+
+.tree-row.pinned-folder:hover {
+  background: #efece4;
 }
 
 .tree-row.pinned-folder:hover {
@@ -2717,6 +2738,14 @@ body.resizing .app-body {
   align-items: center;
   gap: 10px;
   margin-top: 10px;
+}
+
+/* 方向性同步：两个按钮纵向铺满面板宽度 */
+.sync-actions.sync-directional {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .sync-btn {

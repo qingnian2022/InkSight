@@ -97,6 +97,14 @@ export const gitSyncSetup = (vault: string, remote: string) =>
 /** 一次完整同步：提交 → 拉取 rebase → 推送。 */
 export const gitSyncNow = (vault: string) => invoke<SyncResult>("git_sync_now", { vault });
 
+/** 从远程同步：拉取远程，内容冲突以远程为准。 */
+export const gitSyncFromRemote = (vault: string) =>
+  invoke<SyncResult>("git_sync_from_remote", { vault });
+
+/** 同步本地到远程：推送本地，内容冲突以本地为准。 */
+export const gitSyncToRemote = (vault: string) =>
+  invoke<SyncResult>("git_sync_to_remote", { vault });
+
 /** 冲突处理：放弃本次同步（rebase --abort），本地保持原样。 */
 export const gitSyncAbort = (vault: string) => invoke<void>("git_sync_abort", { vault });
 

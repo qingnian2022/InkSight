@@ -439,7 +439,7 @@ fn asset_import(vault: String, doc_path: String, src: String) -> Result<String, 
 fn app_info() -> serde_json::Value {
     serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
-        "name": "md-rust"
+        "name": "见字如面"
     })
 }
 
@@ -730,14 +730,14 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            let toggle = MenuItem::with_id(app, "toggle", "打开 md-rust", true, None::<&str>)?;
+            let toggle = MenuItem::with_id(app, "toggle", "打开见字如面", true, None::<&str>)?;
             let new_doc = MenuItem::with_id(app, "new", "新建文档", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&toggle, &new_doc, &quit])?;
 
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("md-rust — 我的知识库")
+                .tooltip("见字如面 — 我的知识库")
                 .menu(&menu)
                 .show_menu_on_left_click(false) // 左键留给「切换窗口」
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -775,6 +775,8 @@ pub fn run() {
             git_sync::git_sync_status,
             git_sync::git_sync_setup,
             git_sync::git_sync_now,
+            git_sync::git_sync_from_remote,
+            git_sync::git_sync_to_remote,
             git_sync::git_sync_abort,
             git_sync::git_sync_reset_remote,
             pin_list,

@@ -3,7 +3,6 @@ import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vu
 import { Crepe } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { lineNumbers } from "@codemirror/view";
 import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -169,8 +168,7 @@ async function mount() {
         proxyDomURL: resolveImageUrl,
       },
       [Crepe.Feature.CodeMirror]: {
-        // 代码块内显示行号，配色换成项目自己的低饱和色板
-        extensions: [lineNumbers()],
+        // 配色换成项目自己的低饱和色板（不显示行号）
         theme: codeTheme,
         copyText: "复制",
         searchPlaceholder: "搜索语言",

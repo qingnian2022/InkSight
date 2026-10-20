@@ -24,10 +24,12 @@ import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 import {
   gitSyncAbort,
+  gitSyncFromRemote,
   gitSyncNow,
   gitSyncResetRemote,
   gitSyncSetup,
   gitSyncStatus,
+  gitSyncToRemote,
   type SyncStatus,
 } from "./api";
 
@@ -486,6 +488,46 @@ export async function syncNow() {
   state.syncError = false;
   try {
     const res = await gitSyncNow(state.root);
+    state.syncMessage = res.message;
+    state.syncError = !res.ok;
+    if (res.ok) state.syncAt = Date.now();
+    await refreshSyncStatus();
+    if (res.ok) await refresh();
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
+/** 从远程同步：拉取远程内容，冲突以远程为准。 */
+export async function syncFromRemote() {
+  if (!isTauri || !state.root || state.syncBusy) return;
+  state.syncBusy = true;
+  state.syncError = false;
+  try {
+    const res = await gitSyncFromRemote(state.root);
+    state.syncMessage = res.message;
+    state.syncError = !res.ok;
+    if (res.ok) state.syncAt = Date.now();
+    await refreshSyncStatus();
+    if (res.ok) await refresh();
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
+/** 同步本地到远程：推送本地内容，冲突以本地为准。 */
+export async function syncToRemote() {
+  if (!isTauri || !state.root || state.syncBusy) return;
+  state.syncBusy = true;
+  state.syncError = false;
+  try {
+    const res = await gitSyncToRemote(state.root);
     state.syncMessage = res.message;
     state.syncError = !res.ok;
     if (res.ok) state.syncAt = Date.now();

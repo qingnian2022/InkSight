@@ -563,6 +563,129 @@ pub async fn git_sync_now(vault: String) -> Result<SyncResult, String> {
         .map_err(|e| format!("E_TASK: {e}"))?
 }
 
+/// 方向性同步的公共流程：提交本地 → fetch → 拉取（冲突按 favor 裁决）→ 推送。
+/// favor = "theirs"：冲突以远程为准（从远程同步）；"ours"：冲突以本地为准（同步到远程）。
+fn sync_directional_impl(vault: &str, favor: &str, ok_message: &str) -> Result<SyncResult, String> {
+    if !git_installed() {
+        return Err("E_NO_GIT: 未检测到 git，请先安装 git 并重启应用".into());
+    }
+    let dir = Path::new(vault);
+    if !dir.is_dir() {
+        return Err("E_NOT_FOUND: 知识库目录不存在".into());
+    }
+    if !is_repo(dir) {
+        return Err("E_SETUP: 知识库尚未连接远程，请先在同步面板配置".into());
+    }
+    if !git(dir, &["remote", "get-url", "origin"]).ok {
+        return Err("E_SETUP: 未连接远程仓库，请先在同步面板配置".into());
+    }
+    ensure_identity(dir);
+
+    let committed = commit_all(dir)?;
+    let branch = current_branch(dir);
+
+    let fetch = git(dir, &["fetch", "origin"]);
+    if !fetch.ok {
+        return Err(format!("E_REMOTE: {}", fetch.err_text()));
+    }
+
+    // 本地还没有任何提交：以云端为准建分支；云端也没有内容则直接推送建档
+    if !has_head(dir) {
+        if remote_branch_exists(dir, &branch) {
+            let co = git(dir, &["checkout", "-f", "-B", &branch, &format!("origin/{branch}")]);
+            if !co.ok {
+                return Err(format!("E_GIT: {}", co.err_text()));
+            }
+            return Ok(SyncResult {
+                ok: true,
+                conflicted: false,
+                message: "已从云端拉取全部笔记".into(),
+            });
+        }
+        let push = git(dir, &["push", "-u", "origin", &branch]);
+        if !push.ok {
+            return Err(format!("E_REMOTE: 推送失败\n{}", push.err_text()));
+        }
+        return Ok(SyncResult {
+            ok: true,
+            conflicted: false,
+            message: "已推送当前内容到远程".into(),
+        });
+    }
+
+    // 云端还没有这个分支：直接首推建档
+    if !remote_branch_exists(dir, &branch) {
+        let push = git(dir, &["push", "-u", "origin", &branch]);
+        if !push.ok {
+            return Err(format!("E_REMOTE: 推送失败\n{}", push.err_text()));
+        }
+        return Ok(SyncResult {
+            ok: true,
+            conflicted: false,
+            message: format!("{ok_message}（远程此前为空，已建档推送）"),
+        });
+    }
+
+    // merge + 策略裁决：theirs=远程覆盖冲突块，ours=本地覆盖冲突块；
+    // 非冲突的双方改动都保留。--autostash 兜底未提交的零星改动。
+    let pull = git(dir, &[
+        "pull", "--no-rebase", "--autostash", "-X", favor, "origin", &branch,
+    ]);
+    if !pull.ok {
+        let conflicted = !git(dir, &["diff", "--name-only", "--diff-filter=U"])
+            .stdout
+            .trim()
+            .is_empty();
+        if conflicted {
+            return Ok(SyncResult {
+                ok: false,
+                conflicted: true,
+                message: "自动裁决失败：请手动处理冲突，或用云端覆盖本地".into(),
+            });
+        }
+        return Err(format!("E_GIT: {}", pull.err_text()));
+    }
+
+    let push = git(dir, &["push", "-u", "origin", &branch]);
+    if !push.ok {
+        return Err(format!("E_REMOTE: 推送失败\n{}", push.err_text()));
+    }
+
+    let message = match committed {
+        0 => ok_message.to_string(),
+        n => format!("{ok_message}，本地提交 {n} 个文件"),
+    };
+    Ok(SyncResult {
+        ok: true,
+        conflicted: false,
+        message,
+    })
+}
+
+/// 从远程同步：拉取远程内容，内容冲突以远程为准，完成后推送对齐。
+pub fn sync_from_remote_impl(vault: &str) -> Result<SyncResult, String> {
+    sync_directional_impl(vault, "theirs", "已从远程同步（冲突以远程为准）")
+}
+
+/// 同步本地到远程：本地内容优先推送，内容冲突以本地为准。
+pub fn sync_to_remote_impl(vault: &str) -> Result<SyncResult, String> {
+    sync_directional_impl(vault, "ours", "已同步本地到远程（冲突以本地为准）")
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn git_sync_from_remote(vault: String) -> Result<SyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || sync_from_remote_impl(&vault))
+        .await
+        .map_err(|e| format!("E_TASK: {e}"))?
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn git_sync_to_remote(vault: String) -> Result<SyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || sync_to_remote_impl(&vault))
+        .await
+        .map_err(|e| format!("E_TASK: {e}"))?
+}
+
 #[tauri::command(rename_all = "camelCase")]
 pub async fn git_sync_abort(vault: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || abort_impl(&vault))

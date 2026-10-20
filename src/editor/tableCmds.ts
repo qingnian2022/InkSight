@@ -41,6 +41,33 @@ function normalizeSelection(view: EditorView) {
   }
 }
 
+/**
+ * 删掉整个表格，原位保留一个空段落（空行），光标落入其中。
+ * 用于删除最后一行/最后一列：表格即将塌掉时，退化为「删除表格 + 留空行」。
+ */
+function deleteTableLeaveBlank(view: EditorView): boolean {
+  const { state } = view;
+  const { $from } = state.selection;
+  let depth = $from.depth;
+  let tablePos = -1;
+  let tableSize = 0;
+  while (depth > 0) {
+    const node = $from.node(depth);
+    if (node.type.name === "table" || node.type.spec.tableRole === "table") {
+      tablePos = $from.before(depth);
+      tableSize = node.nodeSize;
+      break;
+    }
+    depth -= 1;
+  }
+  if (tablePos < 0) return false;
+  const tr = state.tr;
+  tr.replaceWith(tablePos, tablePos + tableSize, state.schema.nodes.paragraph.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(tablePos + 1), 1));
+  view.dispatch(tr);
+  return true;
+}
+
 export function runTableCmd(name: TableCmd): boolean {
   const ctx = getPmCtx();
   if (!ctx) return false;
@@ -69,9 +96,13 @@ export function runTableCmd(name: TableCmd): boolean {
     // GFM 表头行（第 0 行）不可删：删掉后下一数据行会被顶成表头。
     case "delRow":
       if (rect.top === 0) return false;
+      // 删的是最后一行数据：表格将塌掉 → 直接删除表格，原位留一个空行
+      if (rect.map.height <= 2) return deleteTableLeaveBlank(view);
       commands.call(selectRowCommand.key, { index: rect.top });
       return commands.call(deleteSelectedCellsCommand.key);
     case "delCol":
+      // 删的是最后一列：表格将塌掉 → 直接删除表格，原位留一个空行
+      if (rect.map.width <= 1) return deleteTableLeaveBlank(view);
       commands.call(selectColCommand.key, { index: rect.left });
       return commands.call(deleteSelectedCellsCommand.key);
     case "delTable":

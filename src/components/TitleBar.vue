@@ -45,7 +45,10 @@ onBeforeUnmount(() => {
 
 <template>
   <header class="titlebar" data-tauri-drag-region>
-    <span class="titlebar-title" data-tauri-drag-region>md-rust</span>
+    <div class="titlebar-left" data-tauri-drag-region>
+      <img class="titlebar-logo" src="/app-icon.png" alt="" draggable="false" />
+      <span class="titlebar-title" data-tauri-drag-region>见字如面</span>
+    </div>
 
     <div class="titlebar-controls">
       <SyncMenu />
