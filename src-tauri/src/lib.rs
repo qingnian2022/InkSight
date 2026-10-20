@@ -405,7 +405,8 @@ struct ImportReport {
     renamed: Vec<RenamedEntry>,
 }
 
-/// 把选中的 Markdown 文件复制进目标目录；重名自动加序号（unique_path）。
+/// 把选中的 Markdown 文件 / 文件夹复制进目标目录，重名自动加序号（unique_path）。
+/// 文件只收 Markdown；文件夹整棵复制（跳过点开头条目，.git 等），保留内部结构。
 #[tauri::command(rename_all = "camelCase")]
 fn import_docs(dest_dir: String, sources: Vec<String>) -> Result<ImportReport, String> {
     let dest = PathBuf::from(&dest_dir);
@@ -416,39 +417,94 @@ fn import_docs(dest_dir: String, sources: Vec<String>) -> Result<ImportReport, S
         imported: 0,
         renamed: Vec::new(),
     };
+
     for source in sources {
         let src = PathBuf::from(&source);
-        if !src.is_file() {
-            continue;
+        let name = match src.file_name().and_then(|s| s.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+
+        if src.is_dir() {
+            let target = unique_path(&dest, &sanitize_name(&name));
+            copy_dir_filtered(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
+            let final_name = target
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            if final_name != name {
+                report.renamed.push(RenamedEntry {
+                    from: name,
+                    to: final_name,
+                });
+            }
+            report.imported += count_files(&target);
+        } else if src.is_file() {
+            let is_md = src
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| matches!(e.to_ascii_lowercase().as_str(), "md" | "markdown" | "mdx"))
+                .unwrap_or(false);
+            if !is_md {
+                continue;
+            }
+            let target = unique_path(&dest, &name);
+            std::fs::copy(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
+            let final_name = target
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            if final_name != name {
+                report.renamed.push(RenamedEntry {
+                    from: name,
+                    to: final_name,
+                });
+            }
+            report.imported += 1;
         }
-        let is_md = src
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| matches!(e.to_ascii_lowercase().as_str(), "md" | "markdown" | "mdx"))
-            .unwrap_or(false);
-        if !is_md {
-            continue;
-        }
-        let name = src
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| "E_INVALID_ARG: 路径没有文件名".to_string())?;
-        let target = unique_path(&dest, name);
-        std::fs::copy(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
-        let final_name = target
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_string();
-        if final_name != name {
-            report.renamed.push(RenamedEntry {
-                from: name.to_string(),
-                to: final_name,
-            });
-        }
-        report.imported += 1;
     }
     Ok(report)
+}
+
+/// 递归复制目录，跳过点开头的文件 / 文件夹（.git、.obsidian 等）。
+fn copy_dir_filtered(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        let to = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_filtered(&entry.path(), &to)?;
+        } else {
+            std::fs::copy(entry.path(), &to)?;
+        }
+    }
+    Ok(())
+}
+
+/// 统计目录下（递归、跳过点开头条目）的文件数。
+fn count_files(dir: &Path) -> u32 {
+    let mut n = 0;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            if path.is_dir() {
+                n += count_files(&path);
+            } else {
+                n += 1;
+            }
+        }
+    }
+    n
 }
 
 #[derive(Serialize)]

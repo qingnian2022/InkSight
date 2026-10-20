@@ -125,7 +125,8 @@
           </div>
           <div class="ctxmenu" id="ctx" style="display:none; left: 590px; top: 130px;">
             <div class="mi"><span class="em">📄</span>新建文档</div>
-            <div class="mi" onclick="openImport()"><span class="em">📥</span>导入 Markdown…（可多选）</div>
+            <div class="mi" onclick="openImport()"><span class="em">📥</span>导入 Markdown…（文件，可多选）</div>
+            <div class="mi" onclick="openImport()"><span class="em">📂</span>导入文件夹…（可多选）</div>
             <div class="sep"></div>
             <div class="mi" onclick="openExport()"><span class="em">📦</span>导出此文件夹</div>
             <div class="mi"><span class="em">✏️</span>重命名</div>
@@ -141,10 +142,10 @@
     <div class="card">
       <h4><span class="n">1</span>导入流程</h4>
       <ul>
-        <li><b>右键目录树中的文件夹</b> → 「导入 Markdown…」</li>
-        <li>系统文件选择框，<b>可多选</b> .md / .markdown / .mdx</li>
-        <li>选中文件<b>复制</b>到右键的那个文件夹，原文件不动</li>
-        <li>重名自动改为「xx (2).md」并在报告中提示</li>
+        <li><b>右键目录树中的文件夹</b> → 「导入 Markdown…」或「导入文件夹…」</li>
+        <li>文件模式：多选 .md / .markdown / .mdx；文件夹模式：可多选文件夹</li>
+        <li><b>复制</b>到右键的那个文件夹，原文件不动</li>
+        <li>文件夹整棵复制（含图片），保留结构；重名自动「xx (2)」</li>
       </ul>
       <div style="margin-top:8px">
         <span class="tag">api.ts · importDocs()</span><span class="tag">lib.rs · import_docs</span>

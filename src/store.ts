@@ -18,6 +18,7 @@ import {
   writeDoc,
 } from "./api";
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
+import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 import {
   gitSyncAbort,
@@ -572,19 +573,41 @@ export async function importInto(dir: string) {
     const report = await importDocs(dir, sources);
     state.expanded.add(dir);
     await refresh();
-    const parts = [`导入 ${report.imported} 篇文档`];
-    if (report.renamed.length) {
-      parts.push(
-        `${report.renamed.length} 个重名已自动改名：${report.renamed
-          .map((r) => `${r.from} → ${r.to}`)
-          .join("、")}`,
-      );
-    }
-    parts.push("文中引用的本地图片不会随之导入，请把图片一并复制到 data/assets");
-    notify(`${parts.join("；")}。`);
+    notify(`${describeReport(report)}。文中引用的本地图片不会随之导入，请把图片一并复制到 data/assets`);
   } catch (err) {
     state.error = errorText(err);
   }
+}
+
+/** 右键目录导入：多选文件夹，整棵复制（含图片等所有文件），保留内部结构。 */
+export async function importFolderInto(dir: string) {
+  const picked = await open({
+    directory: true,
+    multiple: true,
+    title: "选择要导入的文件夹",
+  });
+  if (!picked) return;
+  const sources = Array.isArray(picked) ? picked : [picked];
+  try {
+    const report = await importDocs(dir, sources);
+    state.expanded.add(dir);
+    await refresh();
+    notify(`${describeReport(report)}。文件夹内所有文件（含图片）已按原结构复制。`);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+function describeReport(report: ImportReport): string {
+  const parts = [`导入 ${report.imported} 个文件`];
+  if (report.renamed.length) {
+    parts.push(
+      `${report.renamed.length} 个重名已自动改名：${report.renamed
+        .map((r) => `${r.from} → ${r.to}`)
+        .join("、")}`,
+    );
+  }
+  return parts.join("；");
 }
 
 function todayStamp(): string {
