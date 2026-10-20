@@ -32,11 +32,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "windows": {
       "nsis": {
         "languages": ["SimpChinese"],
         "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": "zh-CN"
       }
     },
     "icon": [
