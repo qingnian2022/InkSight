@@ -65,6 +65,33 @@ svg {
   gap: 12px;
   padding: 12px;
   transition: grid-template-columns 160ms ease;
+  position: relative;
+}
+
+/* 左侧目录栏拖拽调宽：盖在栏目间隙上的一条透明热区（只有鼠标指针样式，无高亮） */
+.sidebar-resizer {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: calc(12px + var(--rail-w) + 2px);
+  width: 8px;
+  border-radius: 4px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.app.rail-collapsed .sidebar-resizer {
+  display: none;
+}
+
+/* 拖拽中：关闭列宽动画，避免跟手延迟 */
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.resizing .app-body {
+  transition: none;
 }
 
 .app.rail-collapsed .app-body {

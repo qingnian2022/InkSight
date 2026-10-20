@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import ContextMenu from "./components/ContextMenu.vue";
 import EditorPane from "./components/EditorPane.vue";
@@ -39,6 +39,48 @@ import {
 /** 表格命令按需加载：prosemirror 体系不进首屏 */
 function tableCmd(cmd: TableCmd) {
   void import("./editor/tableCmds").then((m) => m.runTableCmd(cmd));
+}
+
+/* ---------- 左侧目录栏手动拖拽调宽 ---------- */
+
+const SIDEBAR_W_LS = "md-rust.sidebar-width";
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 560;
+
+const sidebarWidth = ref(clampSidebarWidth(Number(localStorage.getItem(SIDEBAR_W_LS)) || 0));
+let resizing = false;
+let resizeStartX = 0;
+let resizeStartW = 0;
+
+function clampSidebarWidth(w: number) {
+  return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w));
+}
+
+function applySidebarWidth(w: number) {
+  document.documentElement.style.setProperty("--rail-w", `${w}px`);
+}
+
+function startSidebarResize(e: PointerEvent) {
+  e.preventDefault();
+  resizing = true;
+  resizeStartX = e.clientX;
+  resizeStartW = sidebarWidth.value;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  document.body.classList.add("resizing");
+}
+
+function moveSidebarResize(e: PointerEvent) {
+  if (!resizing) return;
+  sidebarWidth.value = clampSidebarWidth(resizeStartW + (e.clientX - resizeStartX));
+  applySidebarWidth(sidebarWidth.value);
+}
+
+function endSidebarResize(e: PointerEvent) {
+  if (!resizing) return;
+  resizing = false;
+  document.body.classList.remove("resizing");
+  (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  localStorage.setItem(SIDEBAR_W_LS, String(sidebarWidth.value));
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -265,6 +307,7 @@ const unlisteners: (() => void)[] = [];
 
 onMounted(() => {
   void init();
+  applySidebarWidth(sidebarWidth.value); // 恢复上次拖拽后的侧栏宽度
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("contextmenu", onContextMenu, true);
 
@@ -284,6 +327,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   window.removeEventListener("contextmenu", onContextMenu, true);
   unlisteners.forEach((un) => un());
+  document.body.classList.remove("resizing");
 });
 </script>
 
@@ -292,6 +336,15 @@ onBeforeUnmount(() => {
     <TitleBar />
     <div class="app-body">
       <SidebarTree />
+      <div
+        class="sidebar-resizer"
+        :class="{ active: resizing }"
+        title="拖拽调整目录栏宽度"
+        @pointerdown="startSidebarResize"
+        @pointermove="moveSidebarResize"
+        @pointerup="endSidebarResize"
+        @pointercancel="endSidebarResize"
+      />
       <div class="main">
         <TabBar />
         <EditorToolbar v-if="state.editorMode === 'source'" />
