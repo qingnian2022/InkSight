@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { Crepe } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { lineNumbers } from "@codemirror/view";
 import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
@@ -11,10 +12,36 @@ import { buildColorTopBarItems, closeColorPalette } from "../editor/color-comman
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
-import { activeTab, markDirty, state } from "../store";
+import { activeTab, isUntitledPath, markDirty, state } from "../store";
 import ColorPalette from "./ColorPalette.vue";
 import TableToolbar from "./TableToolbar.vue";
 import WidthPicker from "./WidthPicker.vue";
+
+/**
+ * 把文档里的图片地址转成 webview 可加载的 asset:// 地址。
+ * - http(s) / data / blob：原样返回
+ * - 绝对路径（盘符 / 根开头）：直接转
+ * - 相对路径（assets/xxx、../img/a.png）：以当前文档所在目录为基准解析
+ *   （Markdown 相对路径以文档文件为基准，不是知识库根）
+ */
+function resolveImageUrl(url: string): string {
+  if (!url || /^(https?|data|blob):/i.test(url)) return url;
+  const tab = activeTab.value;
+  if (!tab || isUntitledPath(tab.path)) return url;
+
+  let abs = url;
+  if (!/^[a-zA-Z]:[\\/]/.test(url) && !url.startsWith("/") && !url.startsWith("\\")) {
+    const parts = tab.path.split(/[\\/]/);
+    parts.pop(); // 去掉文件名，得到文档所在目录
+    for (const seg of url.split(/[\\/]/)) {
+      if (seg === "." || seg === "") continue;
+      if (seg === "..") parts.pop();
+      else parts.push(seg);
+    }
+    abs = parts.join("\\");
+  }
+  return convertFileSrc(abs);
+}
 
 /**
  * 语雀式块级编辑：Milkdown Crepe。
@@ -138,6 +165,8 @@ async function mount() {
         blockConfirmButton: "确定",
         blockCaptionPlaceholderText: "写图注",
         blockUploadPlaceholderText: "或粘贴图片链接",
+        // 本地图片（相对/绝对路径）转 asset:// 显示；http(s) 原样
+        proxyDomURL: resolveImageUrl,
       },
       [Crepe.Feature.CodeMirror]: {
         // 代码块内显示行号，配色换成项目自己的低饱和色板
