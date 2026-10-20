@@ -7,16 +7,18 @@ import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
+import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
 import { activeTab, markDirty, state } from "../store";
+import ColorPalette from "./ColorPalette.vue";
 import TableToolbar from "./TableToolbar.vue";
 import WidthPicker from "./WidthPicker.vue";
 
 /**
  * 语雀式块级编辑：Milkdown Crepe。
- * - 顶部固定工具栏（TopBar）、选中文字的气泡工具栏（Toolbar）
+ * - 顶部固定工具栏（TopBar）；选中文字的气泡工具栏（Toolbar）已关闭
  * - 块左侧拖拽手柄 + 「/」唤起插入菜单（BlockEdit）
  * - 存储仍是 Markdown 文本：进 Markdown、出 Markdown，store 不用改
  *
@@ -81,6 +83,20 @@ async function mount() {
           { label: "标题 5", level: 5 },
           { label: "标题 6", level: 6 },
         ],
+          // 「文字颜色」按钮（语雀式：A 直接染色 + ▾ 弹色板，自制弹层）
+          // 语雀式布局：重排默认分组——
+          //   标题下拉 | 加粗 斜体 删除线 A ▾ | 列表×3 | 链接 图片 表格 | 行内代码 代码块 公式 | 引用 分割线
+          buildTopBar: (builder) => {
+            const formatting = builder.getGroup("formatting").group;
+            // 行内代码从文本样式组挪到代码块一组（语雀把代码类收在块级区域）
+            const codeIndex = formatting.items.findIndex((item) => item.key === "code");
+            if (codeIndex >= 0) {
+              const codeItem = formatting.items.splice(codeIndex, 1)[0];
+              builder.getGroup("block").group.items.unshift(codeItem);
+            }
+            // 颜色双按钮放文本样式组末尾（加粗 / 斜体 / 删除线之后，语雀同款位置）
+            formatting.items.push(...buildColorTopBarItems());
+          },
       },
       // 「/」插入菜单的中文文案（图标沿用默认）
       [Crepe.Feature.BlockEdit]: {
@@ -114,16 +130,6 @@ async function mount() {
         text: "开始写作，输入 / 唤起插入菜单",
         mode: "block",
       },
-      // 选中文字后的气泡工具栏（这些文案是 title / aria-label）
-      [Crepe.Feature.Toolbar]: {
-        boldLabel: "加粗",
-        italicLabel: "斜体",
-        strikethroughLabel: "删除线",
-        codeLabel: "行内代码",
-        linkLabel: "链接",
-        latexLabel: "公式",
-        aiLabel: "AI",
-      },
       [Crepe.Feature.ImageBlock]: {
         inlineUploadButton: "上传",
         inlineConfirmButton: "确定",
@@ -148,7 +154,8 @@ async function mount() {
       // 语雀的顶部工具栏；默认关闭，需要显式打开
       [Crepe.Feature.TopBar]: true,
       [Crepe.Feature.BlockEdit]: true,
-      [Crepe.Feature.Toolbar]: true,
+      // 未列出的 Crepe 功能默认开启，必须显式关掉气泡工具栏
+      [Crepe.Feature.Toolbar]: false,
       [Crepe.Feature.ListItem]: true,
       [Crepe.Feature.Table]: true,
       [Crepe.Feature.CodeMirror]: true,
@@ -208,7 +215,10 @@ onBeforeUnmount(() => {
   void teardown();
 });
 
-watch(() => state.activePath, mount);
+watch(() => state.activePath, () => {
+  closeColorPalette();
+  void mount();
+});
 
 watch(
   () => state.readonly,
@@ -219,6 +229,7 @@ watch(
 <template>
   <div class="rich-editor">
     <div ref="host" class="rich-editor-body" data-rich-editor />
+    <ColorPalette />
     <TableToolbar :view="pmView" />
     <WidthPicker />
   </div>
