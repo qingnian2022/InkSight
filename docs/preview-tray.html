@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>md-rust · 托盘图标 + 关闭最小化 方案预览</title>
+<style>
+  :root {
+    --bg: #f4f5f5; --panel: #ffffff; --border: #e3e5e8;
+    --text: #2b2f36; --text2: #8a9099; --accent: #3b82f6; --accent-soft: #eaf2fe;
+    --ok: #16a34a; --warn: #b45309; --danger: #dc2626;
+    --radius: 14px; --row-h: 46px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); padding: 28px; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .sub { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+  .note { background: var(--accent-soft); border: 1px solid #d3e5fd; color: #1d4ed8; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; line-height: 1.7; }
+
+  /* 桌面模拟 */
+  .desktop { position: relative; width: 1080px; max-width: 100%; height: 560px; background: linear-gradient(160deg, #3b4a63, #62708a); border-radius: var(--radius); overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.15); }
+  .taskbar { position: absolute; bottom: 0; left: 0; right: 0; height: 48px; background: rgba(18,22,30,.88); display: flex; align-items: center; padding: 0 14px; gap: 6px; color: #dfe6ef; font-size: 12px; }
+  .tb-start { font-weight: 600; padding: 4px 12px; border-radius: 6px; }
+  .tb-tray { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .tb-tray .sysico { width: 16px; height: 16px; border-radius: 4px; background: #9aa6b8; opacity: .8; }
+  .tray-app { position: relative; width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+  .tray-app:hover::after { content: attr(data-tip); position: absolute; bottom: 32px; right: 0; white-space: nowrap; background: #20242c; color: #eef2f7; font-size: 11px; font-weight: 400; padding: 5px 9px; border-radius: 7px; }
+
+  .win { position: absolute; top: 40px; left: 90px; right: 90px; bottom: 76px; background: var(--panel); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.35); transition: transform .25s ease, opacity .25s ease; }
+  .win.hidden { transform: translateY(40px) scale(.96); opacity: 0; pointer-events: none; }
+  .titlebar { height: 40px; display: flex; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); gap: 8px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; cursor: pointer; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .winbtns { margin-left: auto; display: flex; gap: 4px; }
+  .winbtn { width: 30px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: var(--text2); }
+  .winbtn:hover { background: #f0f2f4; }
+  .appbody { flex: 1; display: flex; min-height: 0; }
+  .sidebar { width: 220px; border-right: 1px solid var(--border); background: #fafbfb; padding: 6px 8px; }
+  .vhead { height: 40px; display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+  .vhead .ico { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .trow { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; font-size: 13px; }
+  .trow.active { background: var(--accent-soft); color: #1d4ed8; }
+  .trow .em { color: var(--text2); }
+  .trow.d1 { padding-left: 28px; }
+  .docarea { flex: 1; padding: 26px 40px; }
+  .docarea h2 { font-size: 20px; margin-bottom: 12px; }
+  .docarea p { font-size: 13.5px; line-height: 1.9; color: #4b5158; }
+
+  /* 托盘右键菜单 */
+  .traymenu { position: absolute; display: none; flex-direction: column; width: 190px; background: #20242c; border: 1px solid #323845; border-radius: 10px; padding: 5px; color: #e8edf4; font-size: 13px; box-shadow: 0 12px 32px rgba(0,0,0,.45); z-index: 20; }
+  .traymenu.show { display: flex; }
+  .traymenu .mi { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 7px; cursor: pointer; }
+  .traymenu .mi:hover { background: #313949; }
+  .traymenu .mi .em { width: 16px; color: #aab4c4; }
+  .traymenu .sep { height: 1px; background: #323845; margin: 4px 8px; }
+
+  .toast { position: absolute; right: 18px; bottom: 64px; width: 300px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; font-size: 12.5px; line-height: 1.7; color: #4b5158; box-shadow: 0 14px 40px rgba(0,0,0,.25); display: none; z-index: 25; }
+  .toast.show { display: block; }
+  .toast b { color: var(--text); }
+  .toast .t { color: var(--text2); font-size: 11px; margin-top: 4px; }
+
+  .try { text-align: center; color: var(--text2); font-size: 12px; margin: 12px 0 6px; }
+
+  .flow { display: flex; gap: 18px; margin-top: 22px; width: 1080px; max-width: 100%; }
+  .card { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .card h4 { font-size: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: #1d4ed8; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+  .card p, .card li { font-size: 12.5px; color: #4b5158; line-height: 1.8; }
+  .card ul { padding-left: 18px; }
+  .tag { display: inline-block; font-size: 11px; background: #f0f2f4; border-radius: 6px; padding: 2px 8px; color: var(--text2); margin: 2px 4px 2px 0; }
+  code { font-family: Consolas, monospace; font-size: 11.5px; background: #f0f2f4; border-radius: 5px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+  <h1>md-rust · 托盘图标 + 关闭即最小化 —— 交互预览</h1>
+  <div class="sub">仅方案演示，未修改项目代码 · 对应方案文档：docs/PLAN-托盘与关闭最小化.md</div>
+  <div class="note">行为：点窗口 ✕ 不退出，缩进系统托盘继续驻留（像微信/语雀桌面版）；托盘左键单击切换窗口、右键出菜单（打开 / 新建文档 / 退出）。纯 Rust 侧实现，前端只需加 3 行监听「托盘新建文档」。</div>
+
+  <div class="desktop">
+    <div class="win" id="win">
+      <div class="titlebar">
+        <span class="dot r" title="点我试试：关闭 = 最小化到托盘" onclick="closeWin()"></span>
+        <span class="dot y"></span><span class="dot g"></span>
+        <span>md-rust</span>
+        <div class="winbtns">
+          <div class="winbtn">—</div>
+          <div class="winbtn">▢</div>
+          <div class="winbtn" onclick="closeWin()" title="点我：关闭 → 缩到托盘，不退出">✕</div>
+        </div>
+      </div>
+      <div class="appbody">
+        <div class="sidebar">
+          <div class="vhead"><div class="ico">知</div>我的知识库</div>
+          <div class="trow"><span class="em">📁</span>工作笔记</div>
+          <div class="trow d1 active"><span class="em">📄</span>本周计划.md</div>
+          <div class="trow d1"><span class="em">📄</span>会议记录.md</div>
+          <div class="trow"><span class="em">📄</span>读书笔记.md</div>
+        </div>
+        <div class="docarea">
+          <h2>本周计划</h2>
+          <p>· 点右上角 ✕ 演示「关闭 → 最小化到托盘」</p>
+          <p>· 点任务栏右侧蓝色托盘图标：左键切回窗口，右键出菜单</p>
+          <p>· 文档实时落盘，隐藏期间自动保存照常工作</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="traymenu" id="trayMenu">
+      <div class="mi" onclick="openWin()"><span class="em">◱</span>打开 md-rust</div>
+      <div class="mi" onclick="openWin()"><span class="em">✎</span>新建文档</div>
+      <div class="sep"></div>
+      <div class="mi" onclick="quitApp()"><span class="em">⏻</span>退出</div>
+    </div>
+
+    <div class="toast" id="toast">
+      <b>md-rust 已最小化到托盘</b><br>
+      程序仍在后台运行，点托盘图标可随时唤回；右键托盘图标选择「退出」才会真正关闭。
+      <div class="t">首次最小化提示 · 之后不再显示</div>
+    </div>
+
+    <div class="taskbar">
+      <span class="tb-start">⊞</span>
+      <span style="color:#8fa0b8">正在使用 md-rust 编写本周计划…</span>
+      <div class="tb-tray">
+        <div class="sysico"></div><div class="sysico"></div>
+        <div class="tray-app" id="trayIcon" data-tip="md-rust — 我的知识库"
+             onclick="toggleWin(event)" ondblclick="openWin()" oncontextmenu="showMenu(event)">知</div>
+      </div>
+      <span id="clock">10:41</span>
+    </div>
+  </div>
+  <div class="try">👆 试试：点窗口 ✕ → 缩到托盘并弹提示；点托盘图标左键/右键、双击；菜单里「退出」才真正结束进程</div>
+
+  <div class="flow">
+    <div class="card">
+      <h4><span class="n">1</span>实现方式</h4>
+      <ul>
+        <li>Tauri 2 原生托盘：开 <code>tray-icon</code> + <code>image-png</code> feature</li>
+        <li>拦截 <code>CloseRequested</code> → <code>hide()</code>，进程驻留</li>
+        <li>托盘图标复用现有 <code>icons/icon.ico</code>，无需新资源</li>
+        <li>纯 Rust 侧实现，<b>前端零权限新增</b>；「新建文档」走 <code>emit</code> 事件，前端 3 行</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4><span class="n">2</span>推荐同批加上</h4>
+      <ul>
+        <li><b>单实例锁</b>（tauri-plugin-single-instance）：托盘常驻后二次启动唤醒已有窗口，避免多开（托盘场景下几乎必配）</li>
+        <li>设置项「关闭时退出程序」（默认关）：尊重想点 ✕ 就真退出的用户</li>
+        <li>托盘 tooltip：md-rust — 我的知识库</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4><span class="n">3</span>边界处理</h4>
+      <ul>
+        <li>文档实时落盘，隐藏期间自动保存照常，无丢失风险</li>
+        <li>首次最小化弹一次气泡说明「右键托盘可退出」，之后静默</li>
+        <li>dev 热重载时托盘短暂消失属正常，release 无此问题</li>
+        <li>Windows 关机正常结束进程，md 已在磁盘</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+  const win = document.getElementById('win');
+  const menu = document.getElementById('trayMenu');
+  const toast = document.getElementById('toast');
+  let hinted = false;
+  function closeWin(e) {
+    if (e) e.stopPropagation();
+    win.classList.add('hidden');
+    if (!hinted) { toast.classList.add('show'); hinted = true; setTimeout(()=>toast.classList.remove('show'), 4500); }
+  }
+  function openWin() { win.classList.remove('hidden'); menu.classList.remove('show'); }
+  function toggleWin(e) { e.stopPropagation(); win.classList.contains('hidden') ? openWin() : closeWin(); }
+  function showMenu(e) {
+    e.preventDefault(); e.stopPropagation();
+    const d = document.querySelector('.desktop').getBoundingClientRect();
+    menu.style.left = Math.min(e.clientX - d.left - 170, d.width - 200) + 'px';
+    menu.style.top = (e.clientY - d.top - 130) + 'px';
+    menu.classList.add('show');
+  }
+  function quitApp() {
+    win.classList.add('hidden'); menu.classList.remove('show');
+    document.getElementById('trayIcon').style.opacity = .25;
+    toast.innerHTML = '<b>md-rust 已退出</b><br>托盘图标消失，进程完全结束。';
+    toast.classList.add('show');
+  }
+  document.querySelector('.desktop').addEventListener('click', () => menu.classList.remove('show'));
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
+import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
 import { activeTab, markDirty, state } from "../store";
@@ -157,7 +158,11 @@ async function mount() {
       [Crepe.Feature.Cursor]: true,
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.LinkTooltip]: false,
-    },  });
+    },
+  });
+
+  // 内联 HTML 彩色文字（<font>/<span style="color:...">）渲染支持
+  instance.editor.use(mergeInlineColorHtml).use(coloredTextSchema);
 
   let ready = false;
 

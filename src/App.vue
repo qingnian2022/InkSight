@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
+import { listen } from "@tauri-apps/api/event";
 import ContextMenu from "./components/ContextMenu.vue";
 import EditorPane from "./components/EditorPane.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
@@ -25,6 +26,7 @@ import {
   init,
   locateNode,
   newDoc,
+  notify,
   parentDirOf,
   refresh,
   renamePath,
@@ -259,15 +261,29 @@ function onContextMenu(e: MouseEvent) {
   openContextMenu(e.clientX, e.clientY, items);
 }
 
+const unlisteners: (() => void)[] = [];
+
 onMounted(() => {
   void init();
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("contextmenu", onContextMenu, true);
+
+  // 托盘菜单「新建文档」：唤回窗口（Rust 侧已 show）并开新标签
+  void listen("tray://new-doc", () => void newDoc()).then((un) => unlisteners.push(un));
+  // 关闭缩到托盘：只提示一次，之后静默
+  void listen("tray://minimized", () => {
+    const flag = "md-rust.tray-hint";
+    if (!localStorage.getItem(flag)) {
+      localStorage.setItem(flag, "1");
+      notify("md-rust 已最小化到托盘，点托盘图标唤回，右键托盘图标选择「退出」才会真正关闭。");
+    }
+  }).then((un) => unlisteners.push(un));
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   window.removeEventListener("contextmenu", onContextMenu, true);
+  unlisteners.forEach((un) => un());
 });
 </script>
 

@@ -3,7 +3,9 @@ mod git_sync;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::Manager;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
 const MAX_DOC_BYTES: u64 = 20 * 1024 * 1024;
@@ -613,8 +615,50 @@ fn export_zip(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 单实例锁：托盘常驻后二次启动 → 唤回已有窗口，不再多开（必须是第一个插件）
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_main(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // 点 ✕ 不退出：隐藏窗口、进程驻留托盘；真正退出走托盘菜单「退出」
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.emit("tray://minimized", ());
+                    let _ = window.hide();
+                }
+            }
+        })
+        .setup(|app| {
+            let toggle = MenuItem::with_id(app, "toggle", "打开 md-rust", true, None::<&str>)?;
+            let new_doc = MenuItem::with_id(app, "new", "新建文档", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&toggle, &new_doc, &quit])?;
+
+            TrayIconBuilder::with_id("main")
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("md-rust — 我的知识库")
+                .menu(&menu)
+                .show_menu_on_left_click(false) // 左键留给「切换窗口」
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "toggle" => show_main(app),
+                    "new" => {
+                        show_main(app);
+                        let _ = app.emit("tray://new-doc", ());
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::DoubleClick { .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             vault_scan,
             doc_read,
@@ -638,4 +682,13 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 显示并聚焦主窗口（托盘菜单 / 双击图标 / 单实例二次启动共用）。
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
 }
