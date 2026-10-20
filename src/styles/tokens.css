@@ -117,3 +117,60 @@
   --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-overlay: 0 2px 4px rgba(0, 0, 0, 0.4), 0 20px 48px -12px rgba(0, 0, 0, 0.65);
 }
+
+/* ---------- 主题色（浅色） ----------
+   浅色全部中性色由 --accent color-mix 调出，所以只改这两个值，
+   画布、边框、置顶高亮、标题栏色带会整套跟着换。 */
+:root[data-accent="purple"] {
+  --accent: #7466cc;
+  --accent-hover: #6355b5;
+}
+
+:root[data-accent="blue"] {
+  --accent: #4d71bb;
+  --accent-hover: #405fa3;
+}
+
+:root[data-accent="pink"] {
+  --accent: #a95a80;
+  --accent-hover: #944d6f;
+}
+
+/* ---------- 主题色（深色） ----------
+   深色底是固定中性黑，强调色需要更亮；其余派生值（弹层背景、focus、
+   标题栏按钮 hover）深色下是硬编码的，必须逐项覆盖。 */
+:root[data-theme="dark"][data-accent="purple"] {
+  --accent: #b3a2f2;
+  --accent-hover: #c7b9f6;
+  --accent-soft: #241f38;
+  --surface-hover: rgba(179, 162, 242, 0.08);
+  --surface-active: #241f38;
+  --focus: rgba(179, 162, 242, 0.45);
+  --syn-keyword: #b3a2f2;
+  --titlebar-btn-hover: rgba(179, 162, 242, 0.14);
+  --titlebar-btn-active: rgba(179, 162, 242, 0.22);
+}
+
+:root[data-theme="dark"][data-accent="blue"] {
+  --accent: #8fb4ea;
+  --accent-hover: #a9c6f2;
+  --accent-soft: #1c2638;
+  --surface-hover: rgba(143, 180, 234, 0.08);
+  --surface-active: #1c2638;
+  --focus: rgba(143, 180, 234, 0.45);
+  --syn-keyword: #8fb4ea;
+  --titlebar-btn-hover: rgba(143, 180, 234, 0.14);
+  --titlebar-btn-active: rgba(143, 180, 234, 0.22);
+}
+
+:root[data-theme="dark"][data-accent="pink"] {
+  --accent: #e8a2c2;
+  --accent-hover: #f0b6d1;
+  --accent-soft: #34202c;
+  --surface-hover: rgba(232, 162, 194, 0.08);
+  --surface-active: #34202c;
+  --focus: rgba(232, 162, 194, 0.45);
+  --syn-keyword: #e8a2c2;
+  --titlebar-btn-hover: rgba(232, 162, 194, 0.14);
+  --titlebar-btn-active: rgba(232, 162, 194, 0.22);
+}

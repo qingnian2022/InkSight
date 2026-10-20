@@ -38,6 +38,74 @@ document.documentElement.dataset.theme = dark ? "dark" : "light";
 // ?accent=%230f5a8a —— 临时换主色，用于候选配色对比；不落盘
 const accent = q.get("accent");
 if (accent) document.documentElement.style.setProperty("--accent", decodeURIComponent(accent));
+// ?at=purple|blue|pink —— 主题色（正式 token 体系），?acmenu=1 打开选择器弹层
+const at = q.get("at");
+if (at === "purple" || at === "blue" || at === "pink") {
+  // 同时写 localStorage，App 的 init() 会按正式链路再应用一次
+  localStorage.setItem("md-rust.accent", at);
+  document.documentElement.dataset.accent = at;
+  state.accent = at;
+}
+if (q.get("acmenu") === "1") {
+  setTimeout(() => {
+    document.querySelector<HTMLElement>(".accent-picker .tool-btn")?.click();
+  }, 1600);
+}
+// ?hr=1 —— 在正文插一条 <hr>，用于目检 Markdown 分隔线样式
+if (q.get("hr") === "1") {
+  setTimeout(() => {
+    const pm = document.querySelector<HTMLElement>(".ProseMirror");
+    if (!pm) return;
+    const title = pm.querySelector("h2");
+    const hr = document.createElement("hr");
+    title?.after(hr);
+  }, 2600);
+}
+
+// ?whitescan=1 —— 暗色下扫描仍为纯白底的元素，定位漏映射的容器
+if (q.get("whitescan") === "1") {
+  setTimeout(() => {
+    const hits: string[] = [];
+    document.querySelectorAll<HTMLElement>("body *").forEach((el) => {
+      const bg = getComputedStyle(el).backgroundColor;
+      if (bg === "rgb(255, 255, 255)" && el.clientWidth > 0 && el.clientHeight > 0) {
+        const id = el.className && typeof el.className === "string"
+          ? el.tagName.toLowerCase() + "." + el.className.split(/\s+/).slice(0, 2).join(".")
+          : el.tagName.toLowerCase();
+        if (!hits.includes(id)) hits.push(id);
+      }
+    });
+    document.title = "WHITE(" + hits.length + "): " + hits.slice(0, 14).join(" ; ");
+  }, 2600);
+}
+if (q.get("cssprobe") === "1") {
+  setTimeout(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const get = (k: string) => cs.getPropertyValue(k).trim();
+    const bg = (sel: string) => {
+      const el = document.querySelector<HTMLElement>(sel);
+      return el ? getComputedStyle(el).backgroundColor : "none";
+    };
+    const div = document.querySelector<HTMLElement>(".md-tb-divider");
+    const divCss = div ? getComputedStyle(div) : null;
+    document.title = [
+      "theme=" + document.documentElement.dataset.theme,
+      "accent=" + document.documentElement.dataset.accent,
+      "accentVar=" + get("--accent"),
+      "surface=" + get("--surface"),
+      "canvas=" + get("--canvas"),
+      "text=" + get("--text-primary"),
+      "titlebar=" + get("--titlebar-bg"),
+      "| el.sidebar=" + bg(".sidebar"),
+      "el.main=" + bg(".main"),
+      "el.pm=" + bg(".ProseMirror"),
+      "el.titlebar=" + bg(".titlebar"),
+      "el.statusbar=" + bg(".statusbar"),
+      "dividerH=" + (divCss?.height ?? "none"),
+      "dividerBg=" + (divCss?.backgroundImage ?? "none").slice(0, 120),
+    ].join(" ");
+  }, 2500);
+}
 
 const doc = `# 写作工作台
 

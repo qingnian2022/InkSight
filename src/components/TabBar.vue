@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { activate, closeTab, newDoc, state, toggleTheme } from "../store";
+import AccentPicker from "./AccentPicker.vue";
 import Icon from "./Icon.vue";
 </script>
 
@@ -38,6 +39,7 @@ import Icon from "./Icon.vue";
     </button>
 
     <div class="tabbar-actions">
+      <AccentPicker />
       <button
         class="tool-btn"
         :aria-pressed="state.outlineOpen"

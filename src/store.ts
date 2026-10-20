@@ -38,11 +38,26 @@ const LS_ED_WIDTH = "md-rust.editor-width";
 const LS_AUTOSAVE = "md-rust.autosave";
 const LS_SYNC_AUTO = "md-rust.sync-auto";
 const LS_SYNC_REMOTE = "md-rust.sync-remote";
+const LS_ACCENT = "md-rust.accent";
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
 export type EditorMode = "source" | "rich";
 export type EditorWidth = "narrow" | "standard" | "wide" | "full";
+export type AccentTheme = "graphite" | "purple" | "blue" | "pink";
+
+/** 主题色候选：石墨为默认基调，其余三种只换主色，整套 chrome 自动派生。 */
+export const ACCENT_THEMES: {
+  key: AccentTheme;
+  label: string;
+  /** 菜单里的色点（用浅色模式的主色示意） */
+  swatch: string;
+}[] = [
+  { key: "graphite", label: "石墨", swatch: "#4a5050" },
+  { key: "purple", label: "紫", swatch: "#7466cc" },
+  { key: "blue", label: "蓝", swatch: "#4d71bb" },
+  { key: "pink", label: "粉", swatch: "#a95a80" },
+];
 
 /** 列宽档位：按编辑区宽度的百分比设置，值写到 --ed-max，两套内核共用。 */
 export const EDITOR_WIDTHS: {
@@ -65,6 +80,7 @@ export const state = reactive({
   tabs: [] as Tab[],
   activePath: "",
   theme: "light" as "light" | "dark",
+  accent: "graphite" as AccentTheme,
   editorMode: "rich" as EditorMode,
   editorWidth: "standard" as EditorWidth,
   sourceMode: false,
@@ -156,6 +172,13 @@ export function setTheme(theme: "light" | "dark") {
 
 export function toggleTheme() {
   setTheme(state.theme === "dark" ? "light" : "dark");
+}
+
+/** 切换主题色（只改主色 token，深浅两套派生值都在 tokens.css 里）。 */
+export function setAccent(accent: AccentTheme) {
+  state.accent = accent;
+  document.documentElement.dataset.accent = accent;
+  localStorage.setItem(LS_ACCENT, accent);
 }
 
 /**
@@ -858,6 +881,11 @@ export function updateCursor(line: number, col: number) {
 export async function init() {
   const theme = localStorage.getItem(LS_THEME);
   setTheme(theme === "dark" ? "dark" : "light");
+
+  const storedAccent = localStorage.getItem(LS_ACCENT) as AccentTheme | null;
+  setAccent(
+    storedAccent && ACCENT_THEMES.some((t) => t.key === storedAccent) ? storedAccent : "graphite",
+  );
 
   const storedWidth = localStorage.getItem(LS_ED_WIDTH) as EditorWidth | null;
   applyEditorWidth(

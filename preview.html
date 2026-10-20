@@ -1,4 +1,14 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8" /><title>preview</title></head>
+<html lang="zh-CN"><head><meta charset="UTF-8" /><title>preview</title>
+<script>
+  // 首帧前应用主题参数，避免「先浅后深」的合成残留（headless 截图会捕获到混合画面）
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (q.get("theme") === "dark") document.documentElement.dataset.theme = "dark";
+    var at = q.get("at");
+    if (at === "purple" || at === "blue" || at === "pink") document.documentElement.dataset.accent = at;
+  })();
+</script>
+</head>
 <body style="margin:0"><div id="app"></div>
 <script type="module" src="/src/dev-preview.ts"></script></body></html>
