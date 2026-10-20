@@ -22,13 +22,19 @@ import { $nodeSchema, $remark } from "@milkdown/kit/utils";
 const OPEN_TAG_RE = /^<(font|span)\b[^>]*>/i;
 const CLOSE_TAG_RE = /^<\/(font|span)\s*>$/i;
 
-/** 从开标签里提取颜色：优先 style="...color:..."，其次 color="..." 属性。 */
-function extractColor(tag: string): string | null {
+/** 从开标签里提取颜色与背景色：style 优先，其次 color / bgcolor 属性。 */
+function extractStyles(tag: string): { color: string; background: string } {
   const style = /style\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1] ?? "";
-  const fromStyle = /(?:^|;)\s*color\s*:\s*([^;"']+)/i.exec(style)?.[1]?.trim();
-  if (fromStyle) return fromStyle;
-  const fromAttr = /\scolor\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1]?.trim();
-  return fromAttr ?? null;
+  // 注意别匹配到 background-color —— color 前必须是行首或分号
+  const color =
+    /(?:^|;)\s*color\s*:\s*([^;"']+)/i.exec(style)?.[1]?.trim() ||
+    /\scolor\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1]?.trim() ||
+    "";
+  const background =
+    /(?:^|;)\s*background(?:-color)?\s*:\s*([^;"']+)/i.exec(style)?.[1]?.trim() ||
+    /\sbgcolor\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1]?.trim() ||
+    "";
+  return { color, background };
 }
 
 /**
@@ -36,21 +42,56 @@ function extractColor(tag: string): string | null {
  * 合并为 { type: "coloredText", data: { color }, children }。
  * 未闭合的标签原样放回（交给内置 html 节点当纯文本显示）。
  */
+/**
+ * 行内代码「整体恰好是一个彩色 font/span 标签」→ 拆掉反引号渲染成彩色文字。
+ * 公众号 / 知乎导出的文章常把红色强调包进 `` `<font ...>x</font>` ``，
+ * 按 Markdown 语义行内代码原样显示，观感就是「显示失效」。
+ * 可选的 ** 粗体标记也一并还原成 strong。序列化时反引号不再回来（导出产物）。
+ */
+function unwrapFontCode(child: any): any | null {
+  if (child.type !== "inlineCode") return null;
+  const m = /^\s*(\*\*)?\s*(<font\b[^>]*>[\s\S]*?<\/font>|<span\b[^>]*>[\s\S]*?<\/span>)\s*(\*\*)?\s*$/i.exec(
+    String(child.value ?? ""),
+  );
+  if (!m) return null;
+  const tag = m[2];
+  const open = /^<(font|span)\b[^>]*>/i.exec(tag)?.[0] ?? "";
+  const inner = tag.slice(open.length, tag.lastIndexOf("</"));
+  const styles = extractStyles(open);
+  if (!styles.color && !styles.background) return null;
+  const colored = {
+    type: "coloredText",
+    data: { color: styles.color, background: styles.background },
+    children: [{ type: "text", value: inner }],
+  };
+  return m[1] || m[3] ? { type: "strong", children: [colored] } : colored;
+}
+
 function mergeColoredRuns(children: any[]): any[] {
   const out: any[] = [];
-  let open: { color: string; buffer: any[] } | null = null;
+  let open: { color: string; background: string; buffer: any[] } | null = null;
 
   for (const child of children) {
+    const codeAsColored = unwrapFontCode(child);
+    if (codeAsColored) {
+      out.push(codeAsColored);
+      continue;
+    }
+
     if (child.type === "html") {
       const value = String(child.value ?? "").trim();
       if (!open) {
-        const color = OPEN_TAG_RE.test(value) ? extractColor(value) : null;
-        if (color) {
-          open = { color, buffer: [] };
+        const styles = OPEN_TAG_RE.test(value) ? extractStyles(value) : null;
+        if (styles && (styles.color || styles.background)) {
+          open = { ...styles, buffer: [] };
           continue;
         }
       } else if (CLOSE_TAG_RE.test(value)) {
-        out.push({ type: "coloredText", data: { color: open.color }, children: open.buffer });
+        out.push({
+          type: "coloredText",
+          data: { color: open.color, background: open.background },
+          children: open.buffer,
+        });
         open = null;
         continue;
       }
@@ -65,7 +106,13 @@ function mergeColoredRuns(children: any[]): any[] {
 
   if (open) {
     // 标签没闭合（跨段/写到一半）：不吞内容，原样还原
-    out.push({ type: "html", value: `<font style="color:${open.color}">` });
+    const style = [
+      open.color ? `color:${open.color}` : "",
+      open.background ? `background-color:${open.background}` : "",
+    ]
+      .filter(Boolean)
+      .join(";");
+    out.push({ type: "html", value: `<font style="${style}">` });
     out.push(...open.buffer);
   }
   return out;
@@ -83,7 +130,7 @@ export const mergeInlineColorHtml = $remark("mergeInlineColorHtml", () => () => 
   walkMdast(tree);
 });
 
-/** coloredText 内联节点：渲染 <span style="color:...">，序列化回 <font>。 */
+/** coloredText 内联节点：渲染 <span style="color:...;background-color:...">，序列化回 <font>。 */
 export const coloredTextSchema = $nodeSchema("coloredText", () => ({
   content: "inline*",
   group: "inline",
@@ -91,25 +138,42 @@ export const coloredTextSchema = $nodeSchema("coloredText", () => ({
   defining: true,
   attrs: {
     color: { default: "" },
+    background: { default: "" },
   },
   parseDOM: [
     {
       tag: "span[data-colored-text]",
-      getAttrs: (dom: HTMLElement) => ({ color: dom.dataset.coloredText || "" }),
+      getAttrs: (dom: HTMLElement) => ({
+        color: dom.dataset.coloredColor || "",
+        background: dom.dataset.coloredBackground || "",
+      }),
     },
   ],
-  toDOM: (node: any) => [
-    "span",
-    {
-      "data-colored-text": "true",
-      style: node.attrs.color ? `color:${node.attrs.color}` : undefined,
-    },
-    0,
-  ],
+  toDOM: (node: any) => {
+    const style = [
+      node.attrs.color ? `color:${node.attrs.color}` : "",
+      node.attrs.background ? `background-color:${node.attrs.background}` : "",
+    ]
+      .filter(Boolean)
+      .join(";");
+    return [
+      "span",
+      {
+        "data-colored-text": "true",
+        "data-colored-color": node.attrs.color ?? "",
+        "data-colored-background": node.attrs.background ?? "",
+        style,
+      },
+      0,
+    ];
+  },
   parseMarkdown: {
     match: (node: any) => node.type === "coloredText",
     runner: (state: any, node: any, type: any) => {
-      state.openNode(type, { color: node.data?.color ?? "" });
+      state.openNode(type, {
+        color: node.data?.color ?? "",
+        background: node.data?.background ?? "",
+      });
       state.next(node.children);
       state.closeNode();
     },
@@ -117,8 +181,13 @@ export const coloredTextSchema = $nodeSchema("coloredText", () => ({
   toMarkdown: {
     match: (node: any) => node.type.name === "coloredText",
     runner: (state: any, node: any) => {
-      const color = node.attrs.color || "inherit";
-      state.addNode("html", void 0, `<font style="color:${color}">`);
+      const style = [
+        node.attrs.color ? `color:${node.attrs.color}` : "",
+        node.attrs.background ? `background-color:${node.attrs.background}` : "",
+      ]
+        .filter(Boolean)
+        .join(";");
+      state.addNode("html", void 0, `<font style="${style}">`);
       state.next(node.content);
       state.addNode("html", void 0, "</font>");
     },

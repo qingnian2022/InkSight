@@ -159,7 +159,13 @@ export function applyColor(ctx: Ctx, color: string) {
 
   if (sameNode) {
     if (fromHit!.node.attrs.color !== color) {
-      view.dispatch(state.tr.setNodeMarkup(fromHit!.from, null, { color }));
+      // 改色时保留原有背景色
+      view.dispatch(
+        state.tr.setNodeMarkup(fromHit!.from, null, {
+          color,
+          background: fromHit!.node.attrs.background ?? "",
+        }),
+      );
       view.focus();
     }
     markLastUsed(color);
