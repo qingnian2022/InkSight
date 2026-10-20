@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { importInto, newDoc, openDataFolder, openDoc, refresh, state, toggleExpand, visibleRows } from "../store";
+import { computed } from "vue";
+import { importInto, isPinned, newDoc, openDataFolder, openDoc, refresh, state, toggleExpand, visibleRows } from "../store";
 import type { FsNode } from "../types";
 import Icon from "./Icon.vue";
 
@@ -7,6 +8,19 @@ function onRow(node: FsNode) {
   if (node.isDir) toggleExpand(node.path);
   else void openDoc(node);
 }
+
+/** 分隔线挂在「置顶子树最后一行」之后：展开时是最后一个子项，折叠时是「置顶」行本身。 */
+const rowsWithSep = computed(() => {
+  const list = visibleRows.value;
+  const rows = list.map((row) => ({ ...row, sepAfter: false }));
+  const vIdx = rows.findIndex((r) => r.node.isVirtual);
+  if (vIdx >= 0) {
+    let j = vIdx + 1;
+    while (j < rows.length && rows[j].depth !== 0) j += 1;
+    rows[j - 1].sepAfter = true;
+  }
+  return rows;
+});
 </script>
 
 <template>
@@ -40,35 +54,42 @@ function onRow(node: FsNode) {
     </div>
 
     <div class="tree" role="tree">
-      <div
-        v-for="row in visibleRows"
-        :key="row.node.path"
-        class="tree-row"
-        role="treeitem"
-        :data-path="row.node.path"
-        :aria-expanded="row.node.isDir ? state.expanded.has(row.node.path) : undefined"
-        :class="{ selected: row.node.path === state.activePath, dir: row.node.isDir }"
-        :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
-        @click="onRow(row.node)"
-      >
-        <span
-          class="twisty"
+      <template v-for="row in rowsWithSep" :key="row.node.path">
+        <div
+          class="tree-row"
+          role="treeitem"
+          :data-path="row.node.isVirtual ? undefined : row.node.path"
+          :aria-expanded="row.node.isDir ? state.expanded.has(row.node.path) : undefined"
           :class="{
-            blank: !row.node.isDir,
-            open: row.node.isDir && state.expanded.has(row.node.path),
+            selected: row.node.path === state.activePath,
+            dir: row.node.isDir,
+            'pinned-folder': row.node.isVirtual,
           }"
-          @click.stop="row.node.isDir && toggleExpand(row.node.path)"
+          :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
+          @click="onRow(row.node)"
         >
-          <Icon v-if="row.node.isDir" name="chevron-right" :size="13" />
-        </span>
-        <Icon :name="row.node.isDir ? 'folder' : 'file'" :size="15" />
-        <span class="label">{{ row.node.name }}</span>
-        <span
-          v-if="row.node.path === state.activePath && state.saveState === 'dirty'"
-          class="pen"
-          title="未保存"
-        />
-      </div>
+          <span
+            class="twisty"
+            :class="{
+              blank: !row.node.isDir,
+              open: row.node.isDir && state.expanded.has(row.node.path),
+            }"
+            @click.stop="row.node.isDir && toggleExpand(row.node.path)"
+          >
+            <Icon v-if="row.node.isDir" name="chevron-right" :size="13" />
+          </span>
+          <span v-if="row.node.isVirtual" class="pin-folder-glyph" title="置顶">📌</span>
+          <Icon v-else :name="row.node.isDir ? 'folder' : 'file'" :size="15" />
+          <span class="label">{{ row.node.name }}</span>
+          <span v-if="isPinned(row.node.path)" class="pin-mark" title="已置顶">📌</span>
+          <span
+            v-if="row.node.path === state.activePath && state.saveState === 'dirty'"
+            class="pen"
+            title="未保存"
+          />
+        </div>
+        <div v-if="row.sepAfter" class="pin-separator" role="separator" />
+      </template>
 
       <div v-if="state.root && !visibleRows.length" class="tree-empty">
         <Icon name="file" :size="20" />

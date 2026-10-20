@@ -10,6 +10,8 @@ import {
   fileName,
   importDocs,
   openDataDir,
+  pinList,
+  pinSet,
   readDoc,
   renameNode,
   scanVault,
@@ -57,6 +59,7 @@ export const state = reactive({
   root: "",
   tree: [] as FsNode[],
   expanded: new Set<string>(),
+  pinned: [] as string[],
   tabs: [] as Tab[],
   activePath: "",
   theme: "light" as "light" | "dark",
@@ -183,14 +186,38 @@ export async function refresh() {
   if (!state.root) return;
   try {
     state.tree = await scanVault(state.root);
-    // 默认只展开第一个目录，其余保持折叠
+    state.pinned = await pinList(state.root).catch(() => [] as string[]);
+    // 默认只展开第一个目录，其余保持折叠；
+    // 第一个目录是虚拟「置顶」文件夹时，尊重用户是否手动折叠过
     const firstDir = state.tree.find((n) => n.isDir);
-    if (firstDir) state.expanded.add(firstDir.path);
+    if (firstDir) {
+      const manuallyCollapsed =
+        firstDir.isVirtual && localStorage.getItem("md-rust.pinned-collapsed") === "1";
+      if (!manuallyCollapsed) state.expanded.add(firstDir.path);
+    }
   } catch (err) {
     state.error = errorText(err);
   }
   // 文件操作会改变 dirty 状态，顺手刷新同步状态（fire-and-forget）
   void refreshSyncStatus();
+}
+
+/** 是否已置顶。 */
+export function isPinned(path: string): boolean {
+  return state.pinned.includes(path);
+}
+
+/** 置顶 / 取消置顶：新置顶的排最前，整表写回数据目录的 .md-rust.json。 */
+export async function togglePin(path: string) {
+  const pins = state.pinned.filter((p) => p !== path);
+  if (!isPinned(path)) pins.unshift(path);
+  state.pinned = pins;
+  try {
+    await pinSet(state.root, pins);
+    await refresh();
+  } catch (err) {
+    state.error = errorText(err);
+  }
 }
 
 export async function useVault(path: string) {
@@ -202,9 +229,18 @@ export async function useVault(path: string) {
   await refresh();
 }
 
+/** 虚拟「置顶」文件夹的路径哨兵（与后端 PINNED_FOLDER_PATH 一致） */
+export const PINNED_FOLDER_PATH = "::pinned::";
+
 export function toggleExpand(path: string) {
-  if (state.expanded.has(path)) state.expanded.delete(path);
-  else state.expanded.add(path);
+  if (state.expanded.has(path)) {
+    state.expanded.delete(path);
+    // 用户手动折叠过置顶文件夹后，后续刷新不再自动展开
+    if (path === PINNED_FOLDER_PATH) localStorage.setItem("md-rust.pinned-collapsed", "1");
+  } else {
+    state.expanded.add(path);
+    if (path === PINNED_FOLDER_PATH) localStorage.removeItem("md-rust.pinned-collapsed");
+  }
 }
 
 export async function openDoc(node: FsNode) {

@@ -358,6 +358,44 @@ body.resizing .app-body {
   text-overflow: ellipsis;
 }
 
+.tree-row .pin-mark {
+  flex: none;
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+/* 置顶区与普通区之间的分隔线（上下留出块间距） */
+.pin-separator {
+  height: 1px;
+  margin: 14px 10px 16px;
+  background: var(--border);
+  opacity: 0.9;
+}
+
+/* 虚拟「置顶」文件夹：与普通文件夹明显区分 */
+.tree-row.pinned-folder {
+  height: 34px;
+  background: var(--accent-soft);
+}
+
+.tree-row.pinned-folder:hover {
+  background: var(--accent-soft);
+  filter: brightness(0.97);
+}
+
+.tree-row.pinned-folder .label {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pin-folder-glyph {
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+}
+
 .tree-row .pen {
   width: 5px;
   height: 5px;

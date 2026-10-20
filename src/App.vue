@@ -24,6 +24,7 @@ import {
   importFolderInto,
   importInto,
   init,
+  isPinned,
   locateNode,
   newDoc,
   notify,
@@ -32,6 +33,7 @@ import {
   renamePath,
   saveActive,
   state,
+  togglePin,
   toggleReadonly,
   trashPath,
 } from "./store";
@@ -150,6 +152,7 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
   const label = name.replace(/\.mdx?$/i, "");
   if (isDir) {
     return [
+      { label: isPinned(path) ? "取消置顶" : "置顶", action: () => void togglePin(path) },
       { label: "新建文档", action: () => void createDocIn(path) },
       { label: "新建子文件夹", action: () => void createDirIn(path) },
       { label: "导入 Markdown…（文件，可多选）", action: () => void importInto(path) },
@@ -164,6 +167,7 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
     ];
   }
   return [
+    { label: isPinned(path) ? "取消置顶" : "置顶", action: () => void togglePin(path) },
     { label: "在所在文件夹新建文档", action: () => void createDocIn(parentDirOf(path)) },
     { separator: true, label: "" },
     { label: `复制「${label}」副本`, action: () => void duplicateNode(locateNode(path)!) },

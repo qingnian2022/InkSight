@@ -11,6 +11,33 @@ use tauri_plugin_opener::OpenerExt;
 const MAX_DOC_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_DEPTH: usize = 12;
 const SKIP_DIRS: [&str; 5] = [".git", ".trash", "node_modules", "target", ".obsidian"];
+const PINS_FILE: &str = ".md-rust.json";
+/// 虚拟「置顶」文件夹的路径哨兵（:: 在 Windows 文件名里非法，不会与真实路径冲突）
+const PINNED_FOLDER_PATH: &str = "::pinned::";
+
+/// 置顶列表持久化在数据根目录的 .md-rust.json（点开头，目录树不扫描；随 git 同步）。
+fn pins_file(root: &Path) -> PathBuf {
+    root.join(PINS_FILE)
+}
+
+fn load_pins(root: &Path) -> Vec<String> {
+    let raw = std::fs::read_to_string(pins_file(root)).unwrap_or_default();
+    serde_json::from_str::<serde_json::Value>(&raw)
+        .ok()
+        .and_then(|v| {
+            serde_json::from_value::<Vec<String>>(v.get("pinned")?.clone()).ok()
+        })
+        .unwrap_or_default()
+}
+
+fn save_pins(root: &Path, pins: &[String]) -> Result<(), String> {
+    let json = serde_json::json!({ "pinned": pins });
+    std::fs::write(
+        pins_file(root),
+        serde_json::to_string_pretty(&json).map_err(|e| format!("E_IO: {e}"))?,
+    )
+    .map_err(|e| format!("E_IO: {e}"))
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +46,9 @@ struct FsNode {
     path: String,
     is_dir: bool,
     children: Option<Vec<FsNode>>,
+    /// 虚拟节点（如「置顶」文件夹）标记，前端据此禁用右键文件操作
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_virtual: Option<bool>,
 }
 
 fn is_markdown(path: &Path) -> bool {
@@ -55,6 +85,7 @@ fn scan(dir: &Path, depth: usize) -> Vec<FsNode> {
                 path: path.to_string_lossy().into_owned(),
                 is_dir: true,
                 children: Some(scan(&path, depth + 1)),
+                is_virtual: None,
             });
         } else if is_markdown(&path) {
             files.push(FsNode {
@@ -62,6 +93,7 @@ fn scan(dir: &Path, depth: usize) -> Vec<FsNode> {
                 path: path.to_string_lossy().into_owned(),
                 is_dir: false,
                 children: None,
+                is_virtual: None,
             });
         }
     }
@@ -70,6 +102,23 @@ fn scan(dir: &Path, depth: usize) -> Vec<FsNode> {
     files.sort_by_key(|n| n.name.to_lowercase());
     dirs.append(&mut files);
     dirs
+}
+
+/// 递归把置顶条目从原位置摘出（连同其子树），按树序收进 hoisted。
+fn drain_pinned(nodes: &mut Vec<FsNode>, pins: &[String], hoisted: &mut Vec<FsNode>) {
+    for node in nodes.iter_mut() {
+        if let Some(children) = node.children.as_mut() {
+            drain_pinned(children, pins, hoisted);
+        }
+    }
+    let mut i = 0;
+    while i < nodes.len() {
+        if pins.iter().any(|p| *p == nodes[i].path) {
+            hoisted.push(nodes.remove(i));
+        } else {
+            i += 1;
+        }
+    }
 }
 
 fn sanitize_name(raw: &str) -> String {
@@ -119,14 +168,46 @@ fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
     candidate
 }
 
-/// 递归列出知识库中的 Markdown 文件与目录。目录在前，各自按名称升序。
+/// 递归列出知识库中的 Markdown 文件与目录。
+/// 有置顶条目时，树顶出现一个虚拟「置顶」文件夹，置顶项（任意层级）连同
+/// 其子树都集中显示在该文件夹下（磁盘位置不动，仅显示层提升）。
 #[tauri::command(rename_all = "camelCase")]
 fn vault_scan(root: String) -> Result<Vec<FsNode>, String> {
     let path = PathBuf::from(&root);
     if !path.is_dir() {
         return Err("E_NOT_FOUND: 目录不存在".into());
     }
-    Ok(scan(&path, 0))
+    let pins = load_pins(&path);
+    let mut tree = scan(&path, 0);
+    if !pins.is_empty() {
+        let mut pinned: Vec<FsNode> = Vec::new();
+        drain_pinned(&mut tree, &pins, &mut pinned);
+        // drain 按树序收集，这里重排成用户置顶的顺序
+        pinned.sort_by_key(|n| {
+            pins.iter().position(|p| *p == n.path).unwrap_or(usize::MAX)
+        });
+        let folder = FsNode {
+            name: "置顶".into(),
+            path: PINNED_FOLDER_PATH.into(),
+            is_dir: true,
+            children: Some(pinned),
+            is_virtual: Some(true),
+        };
+        tree.insert(0, folder);
+    }
+    Ok(tree)
+}
+
+/// 读取置顶列表（数据根 .md-rust.json）。
+#[tauri::command(rename_all = "camelCase")]
+fn pin_list(root: String) -> Result<Vec<String>, String> {
+    Ok(load_pins(&PathBuf::from(&root)))
+}
+
+/// 保存置顶列表（整表覆盖，前端 togglePin 计算好后传入）。
+#[tauri::command(rename_all = "camelCase")]
+fn pin_set(root: String, paths: Vec<String>) -> Result<(), String> {
+    save_pins(&PathBuf::from(&root), &paths)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -268,6 +349,16 @@ fn node_rename(path: String, new_name: String) -> Result<String, String> {
     }
     let target = unique_path(parent, &file_name);
     std::fs::rename(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
+
+    // 置顶列表里的旧路径同步改写，保持置顶状态
+    let src_str = src.to_string_lossy().into_owned();
+    let target_str = target.to_string_lossy().into_owned();
+    let mut pins = load_pins(parent);
+    if let Some(pos) = pins.iter().position(|p| *p == src_str) {
+        pins[pos] = target_str;
+        let _ = save_pins(parent, &pins);
+    }
+
     Ok(target.to_string_lossy().into_owned())
 }
 
@@ -292,6 +383,13 @@ fn node_trash(root: String, path: String) -> Result<(), String> {
         .unwrap_or("untitled.md");
     let target = unique_path(&trash, &format!("{stamp}-{name}"));
     std::fs::rename(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
+
+    // 被删条目同步移出置顶列表
+    let mut pins = load_pins(&root_path);
+    if let Some(pos) = pins.iter().position(|p| *p == path) {
+        pins.remove(pos);
+        let _ = save_pins(&root_path, &pins);
+    }
     Ok(())
 }
 
@@ -678,7 +776,9 @@ pub fn run() {
             git_sync::git_sync_setup,
             git_sync::git_sync_now,
             git_sync::git_sync_abort,
-            git_sync::git_sync_reset_remote
+            git_sync::git_sync_reset_remote,
+            pin_list,
+            pin_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

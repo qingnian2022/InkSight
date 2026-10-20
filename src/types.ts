@@ -3,6 +3,8 @@ export interface FsNode {
   path: string;
   isDir: boolean;
   children?: FsNode[] | null;
+  /** 虚拟节点（如「置顶」文件夹）：不做右键文件操作、不可折叠 */
+  isVirtual?: boolean;
 }
 
 export interface Tab {

@@ -59,6 +59,13 @@ export const importDocs = (destDir: string, sources: string[]) =>
 export const exportZip = (sourceRoot: string, destFile: string, entries: string[] | null) =>
   invoke<ExportReport>("export_zip", { sourceRoot, destFile, entries });
 
+/** 读取置顶列表（数据根 .md-rust.json）。 */
+export const pinList = (root: string) => invoke<string[]>("pin_list", { root });
+
+/** 保存置顶列表（整表覆盖）。 */
+export const pinSet = (root: string, paths: string[]) =>
+  invoke<void>("pin_set", { root, paths });
+
 /* ---------- git 同步 ---------- */
 
 export interface SyncStatus {
