@@ -5,6 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>md-rust</title>
+    <script>
+      // 首帧前应用皮肤 / 主题 / 主题色，避免「先经典后 macOS」的闪烁
+      (function () {
+        try {
+          var skin = localStorage.getItem("md-rust.skin");
+          document.documentElement.dataset.skin = skin === "default" ? "default" : "macos";
+          var theme = localStorage.getItem("md-rust.theme");
+          if (theme === "dark") document.documentElement.dataset.theme = "dark";
+          var accent = localStorage.getItem("md-rust.accent");
+          if (accent) document.documentElement.dataset.accent = accent;
+        } catch (e) {
+          document.documentElement.dataset.skin = "macos";
+        }
+      })();
+    </script>
   </head>
 
   <body>

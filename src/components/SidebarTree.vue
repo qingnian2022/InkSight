@@ -54,8 +54,10 @@ const rowsWithSep = computed(() => {
     </div>
 
     <div class="tree" role="tree">
-      <template v-for="row in rowsWithSep" :key="row.node.path">
+      <TransitionGroup name="tree">
         <div
+          v-for="row in rowsWithSep"
+          :key="row.node.path"
           class="tree-row"
           role="treeitem"
           :data-path="row.node.isVirtual ? undefined : row.node.path"
@@ -64,6 +66,7 @@ const rowsWithSep = computed(() => {
             selected: row.node.path === state.activePath,
             dir: row.node.isDir,
             'pinned-folder': row.node.isVirtual,
+            'has-sep': row.sepAfter,
           }"
           :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
           @click="onRow(row.node)"
@@ -88,15 +91,14 @@ const rowsWithSep = computed(() => {
             title="未保存"
           />
         </div>
-        <div v-if="row.sepAfter" class="pin-separator" role="separator" />
-      </template>
 
-      <div v-if="state.root && !visibleRows.length" class="tree-empty">
-        <Icon name="file" :size="20" />
-        <p>知识库还是空的</p>
-        <span>右键目录树可导入已有的 Markdown 文件，或新建一篇。</span>
-        <button class="tree-empty-btn" @click="importInto(state.root)">导入 Markdown…</button>
-      </div>
+        <div v-if="state.root && !visibleRows.length" key="__empty" class="tree-empty">
+          <Icon name="file" :size="20" />
+          <p>知识库还是空的</p>
+          <span>右键目录树可导入已有的 Markdown 文件，或新建一篇。</span>
+          <button class="tree-empty-btn" @click="importInto(state.root)">导入 Markdown…</button>
+        </div>
+      </TransitionGroup>
     </div>
 
     <div class="rail-footer">

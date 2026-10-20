@@ -1844,7 +1844,8 @@ body.resizing .app-body {
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button {
   height: 32px;
-  padding: 0 8px 0 10px;
+  /* 收窄：标题按钮不该比图标按钮宽出一截 */
+  padding: 0 5px 0 7px;
   border-radius: var(--r-md);
   background: transparent;
 }
@@ -1858,20 +1859,23 @@ body.resizing .app-body {
   box-shadow: 0 0 0 2px var(--focus);
 }
 
-.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-label {
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-heading-label {
+  /* Crepe 默认给 80px 定宽，中文「标题 1」用不到这么宽 */
+  width: 44px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+  text-align: left;
 }
 
-.rich-editor .milkdown .milkdown-top-bar .top-bar-chevron {
-  width: 18px;
-  height: 18px;
-  margin-left: 2px;
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-chevron {
+  width: 14px;
+  height: 14px;
+  margin-left: 0;
 }
 
-.rich-editor .milkdown .milkdown-top-bar .top-bar-chevron svg {
+.rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-chevron svg {
   width: 14px;
   height: 14px;
   color: var(--text-tertiary);
@@ -2857,4 +2861,101 @@ body.resizing .app-body {
 .accent-check {
   margin-left: auto;
   color: var(--accent);
+}
+
+/* 主题色面板里的「界面风格」分组 */
+.accent-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+
+.accent-group-label {
+  margin: 4px 0 2px;
+  padding: 0 9px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.accent-skin-glyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex: none;
+  box-shadow: inset 0 0 0 0.5px rgba(20, 24, 23, 0.14);
+}
+
+.accent-skin-glyph.default {
+  background: linear-gradient(90deg, #4a5050 0 50%, #f2f2f4 50% 100%);
+}
+
+.accent-skin-glyph.macos {
+  background: linear-gradient(180deg, #ff5f57 0 33%, #febc2e 33% 66%, #28c840 66% 100%);
+}
+
+/* ---------- 目录树：展开 / 折叠 / 新建的过渡 ---------- */
+.tree {
+  position: relative;
+}
+
+/* 置顶子树与普通目录之间用留白分隔（原来是独立的占位元素） */
+.tree-row.has-sep {
+  margin-bottom: 18px;
+}
+
+.tree-enter-active,
+.tree-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.tree-enter-from,
+.tree-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 离开的行脱离文档流，让剩余行平滑上移 */
+.tree-leave-active {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+}
+
+.tree-move {
+  transition: transform 180ms ease;
+}
+
+/* 标签条容器：TransitionGroup 包裹，承载新建 / 关闭的过渡 */
+.tab-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-width: 0;
+}
+
+/* 新建标签：从左滑入 */
+.tab-enter-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.tab-enter-from {
+  opacity: 0;
+  transform: translateX(-10px) scale(0.98);
+}
+
+/* 关闭标签：淡出缩小；脱离文档流，其余标签平滑左移 */
+.tab-leave-active {
+  position: absolute;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.tab-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.tab-move {
+  transition: transform 220ms ease;
 }

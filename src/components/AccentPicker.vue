@@ -1,7 +1,20 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { ACCENT_THEMES, setAccent, state, type AccentTheme } from "../store";
+import {
+  ACCENT_THEMES,
+  accentSwatch,
+  setAccent,
+  setSkin,
+  state,
+  type AccentTheme,
+  type Skin,
+} from "../store";
 import Icon from "./Icon.vue";
+
+const SKINS: { key: Skin; label: string }[] = [
+  { key: "macos", label: "macOS" },
+  { key: "default", label: "经典" },
+];
 
 /**
  * 主题色选择器：调色盘按钮 + 四色弹层（石墨 / 紫 / 蓝 / 粉）。
@@ -26,6 +39,11 @@ function toggle() {
 
 function pick(key: AccentTheme) {
   setAccent(key);
+  open.value = false;
+}
+
+function pickSkin(skin: Skin) {
+  setSkin(skin);
   open.value = false;
 }
 
@@ -75,9 +93,23 @@ onBeforeUnmount(() => {
         :class="{ active: state.accent === t.key }"
         @click="pick(t.key)"
       >
-        <span class="accent-dot" :style="{ background: t.swatch }" />
+        <span class="accent-dot" :style="{ background: accentSwatch(t.key) }" />
         <span>{{ t.label }}</span>
         <Icon v-if="state.accent === t.key" name="check" :size="12" class="accent-check" />
+      </button>
+
+      <div class="accent-divider" />
+      <p class="accent-group-label">界面风格</p>
+      <button
+        v-for="s in SKINS"
+        :key="s.key"
+        class="accent-item"
+        :class="{ active: state.skin === s.key }"
+        @click="pickSkin(s.key)"
+      >
+        <span class="accent-skin-glyph" :class="s.key" />
+        <span>{{ s.label }}</span>
+        <Icon v-if="state.skin === s.key" name="check" :size="12" class="accent-check" />
       </button>
     </div>
   </div>

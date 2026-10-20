@@ -23,6 +23,7 @@ import { NodeSelection, TextSelection } from "@milkdown/prose/state";
 
 import "./styles/tokens.css";
 import "./styles/app.css";
+import "./styles/skin-macos.css";
 
 const q = new URLSearchParams(location.search);
 // 把运行时错误写进 title，headless dump-dom 可以直接读
@@ -35,6 +36,14 @@ window.addEventListener("unhandledrejection", (e) => {
 const dark = q.get("theme") === "dark";
 localStorage.setItem("md-rust.theme", dark ? "dark" : "light");
 document.documentElement.dataset.theme = dark ? "dark" : "light";
+// ?skin=macos|default —— 切换界面皮肤（写 localStorage 走正式链路）
+if (q.get("skin") === "macos" || q.get("skin") === "default") {
+  const skin = q.get("skin") as "macos" | "default";
+  localStorage.setItem("md-rust.skin", skin);
+  document.documentElement.dataset.skin = skin;
+  state.skin = skin;
+}
+
 // ?accent=%230f5a8a —— 临时换主色，用于候选配色对比；不落盘
 const accent = q.get("accent");
 if (accent) document.documentElement.style.setProperty("--accent", decodeURIComponent(accent));

@@ -15,16 +15,19 @@ const maximized = ref(false);
 let unlisten: (() => void) | null = null;
 
 function minimize() {
+  if (!isTauri) return;
   void getCurrentWindow().minimize();
 }
 
 async function toggleMaximize() {
+  if (!isTauri) return;
   const win = getCurrentWindow();
   await win.toggleMaximize();
   maximized.value = await win.isMaximized();
 }
 
 function close() {
+  if (!isTauri) return;
   void getCurrentWindow().close();
 }
 
@@ -44,11 +47,29 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="titlebar" data-tauri-drag-region>
+  <header
+    class="titlebar"
+    :class="{ 'is-macos': state.skin === 'macos' }"
+    data-tauri-drag-region
+  >
+    <div v-if="state.skin === 'macos'" class="traffic-lights" @pointerdown.stop>
+      <button class="tl close" aria-label="关闭" title="关闭（驻留托盘）" @click="close" />
+      <button class="tl min" aria-label="最小化" title="最小化" @click="minimize" />
+      <button
+        class="tl max"
+        :aria-label="maximized ? '还原' : '最大化'"
+        :title="maximized ? '向下还原' : '最大化'"
+        @click="toggleMaximize"
+      />
+    </div>
+
     <div class="titlebar-left" data-tauri-drag-region>
       <img class="titlebar-logo" src="/app-icon.png" alt="" draggable="false" />
       <span class="titlebar-title" data-tauri-drag-region>见字如面</span>
     </div>
+
+    <!-- macOS 皮肤：标题居中 -->
+    <span v-if="state.skin === 'macos'" class="titlebar-center">见字如面</span>
 
     <div class="titlebar-controls">
       <SyncMenu />
@@ -63,7 +84,7 @@ onBeforeUnmount(() => {
         <span class="as-slider" :class="{ on: state.autoSave }" />
       </button>
 
-      <div v-if="isTauri" class="win-btns">
+      <div v-if="isTauri && state.skin !== 'macos'" class="win-btns">
         <button class="win-btn" aria-label="最小化" title="最小化" @click="minimize">
           <Icon name="minus" :size="14" />
         </button>

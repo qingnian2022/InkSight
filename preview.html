@@ -7,6 +7,13 @@
     if (q.get("theme") === "dark") document.documentElement.dataset.theme = "dark";
     var at = q.get("at");
     if (at === "purple" || at === "blue" || at === "pink") document.documentElement.dataset.accent = at;
+    var skin = q.get("skin");
+    if (skin === "macos" || skin === "default") {
+      document.documentElement.dataset.skin = skin;
+    } else {
+      document.documentElement.dataset.skin =
+        localStorage.getItem("md-rust.skin") === "default" ? "default" : "macos";
+    }
   })();
 </script>
 </head>

@@ -39,12 +39,15 @@ const LS_AUTOSAVE = "md-rust.autosave";
 const LS_SYNC_AUTO = "md-rust.sync-auto";
 const LS_SYNC_REMOTE = "md-rust.sync-remote";
 const LS_ACCENT = "md-rust.accent";
+const LS_SKIN = "md-rust.skin";
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
 export type EditorMode = "source" | "rich";
 export type EditorWidth = "narrow" | "standard" | "wide" | "full";
 export type AccentTheme = "graphite" | "purple" | "blue" | "pink";
+/** 界面皮肤：default = 现有石墨卡片风；macos = macOS 一体式窗口 */
+export type Skin = "default" | "macos";
 
 /** 主题色候选：石墨为默认基调，其余三种只换主色，整套 chrome 自动派生。 */
 export const ACCENT_THEMES: {
@@ -81,6 +84,7 @@ export const state = reactive({
   activePath: "",
   theme: "light" as "light" | "dark",
   accent: "graphite" as AccentTheme,
+  skin: "macos" as Skin,
   editorMode: "rich" as EditorMode,
   editorWidth: "standard" as EditorWidth,
   sourceMode: false,
@@ -179,6 +183,20 @@ export function setAccent(accent: AccentTheme) {
   state.accent = accent;
   document.documentElement.dataset.accent = accent;
   localStorage.setItem(LS_ACCENT, accent);
+}
+
+/** 切换界面皮肤；macOS 皮肤由 skin-macos.css 整套接管 token 与布局。 */
+export function setSkin(skin: Skin) {
+  state.skin = skin;
+  document.documentElement.dataset.skin = skin;
+  localStorage.setItem(LS_SKIN, skin);
+}
+
+/** 色板里「默认」色点：macOS 皮肤下默认强调色是系统蓝 */
+export function accentSwatch(key: AccentTheme): string {
+  const base = ACCENT_THEMES.find((t) => t.key === key);
+  if (state.skin === "macos" && key === "graphite") return "#007aff";
+  return base?.swatch ?? "#4a5050";
 }
 
 /**
@@ -886,6 +904,8 @@ export async function init() {
   setAccent(
     storedAccent && ACCENT_THEMES.some((t) => t.key === storedAccent) ? storedAccent : "graphite",
   );
+
+  setSkin(localStorage.getItem(LS_SKIN) === "default" ? "default" : "macos");
 
   const storedWidth = localStorage.getItem(LS_ED_WIDTH) as EditorWidth | null;
   applyEditorWidth(

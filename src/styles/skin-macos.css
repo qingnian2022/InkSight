@@ -1,0 +1,486 @@
+/* ============================================================
+   macOS 皮肤（data-skin="macos"）
+   - token 层：系统灰 + 发丝线 + 更克制的圆角与阴影
+   - 布局层：去掉卡片浮层，侧栏 / 正文 / 状态栏融为一体
+   - 强调色：默认系统蓝，仍兼容 紫 / 蓝 / 粉 三套主题色
+   ============================================================ */
+
+/* ---------- 浅色 token ---------- */
+:root[data-skin="macos"] {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC", system-ui, sans-serif;
+
+  --canvas: #f5f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #f0f0f2;
+  --surface-hover: rgba(0, 0, 0, 0.045);
+  --surface-active: #e8e8ec;
+  --row-active: color-mix(in srgb, var(--accent) 10%, transparent);
+
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.16);
+
+  --text-primary: #1d1d1f;
+  --text-secondary: #5b5b60;
+  --text-tertiary: #86868b;
+
+  /* 默认强调色 = macOS 系统蓝（石墨在此皮肤下映射为蓝） */
+  --accent: #007aff;
+  --accent-hover: #0062d6;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --code-bg: #f5f5f7;
+  --code-border: rgba(0, 0, 0, 0.08);
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-chip: 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --shadow-overlay: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 10px 34px rgba(0, 0, 0, 0.18);
+
+  --titlebar-bg: #f2f2f4;
+  --titlebar-fg: #1d1d1f;
+  --titlebar-btn-hover: rgba(0, 0, 0, 0.07);
+  --titlebar-btn-active: rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- 深色 token ---------- */
+:root[data-skin="macos"][data-theme="dark"] {
+  --canvas: #1e1e20;
+  --surface: #242426;
+  --surface-sunken: #1b1b1d;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-active: #2e2e31;
+  --row-active: color-mix(in srgb, var(--accent) 20%, transparent);
+
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #b0b0b6;
+  --text-tertiary: #8a8a8f;
+
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 50%, transparent);
+
+  --code-bg: #1b1b1e;
+  --code-border: rgba(255, 255, 255, 0.08);
+
+  --titlebar-bg: #2a2a2d;
+  --titlebar-fg: #f5f5f7;
+  --titlebar-btn-hover: rgba(255, 255, 255, 0.08);
+  --titlebar-btn-active: rgba(255, 255, 255, 0.14);
+
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-overlay: 0 0 0 0.5px rgba(0, 0, 0, 0.4), 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- 主题色在 macOS 皮肤下继续可用 ---------- */
+:root[data-skin="macos"][data-accent="purple"] {
+  --accent: #7466cc;
+  --accent-hover: #6355b5;
+}
+
+:root[data-skin="macos"][data-accent="blue"] {
+  --accent: #4d71bb;
+  --accent-hover: #405fa3;
+}
+
+:root[data-skin="macos"][data-accent="pink"] {
+  --accent: #a95a80;
+  --accent-hover: #944d6f;
+}
+
+:root[data-skin="macos"][data-theme="dark"][data-accent="purple"] {
+  --accent: #b3a2f2;
+  --accent-hover: #c7b9f6;
+}
+
+:root[data-skin="macos"][data-theme="dark"][data-accent="blue"] {
+  --accent: #8fb4ea;
+  --accent-hover: #a9c6f2;
+}
+
+:root[data-skin="macos"][data-theme="dark"][data-accent="pink"] {
+  --accent: #e8a2c2;
+  --accent-hover: #f0b6d1;
+}
+
+/* ---------- 一体式窗口布局 ---------- */
+:root[data-skin="macos"] .app-body {
+  gap: 0;
+  padding: 0;
+}
+
+:root[data-skin="macos"] .sidebar {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface-sunken);
+  border-right: 0.5px solid var(--border);
+}
+
+:root[data-skin="macos"] .main {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root[data-skin="macos"] .statusbar {
+  border: none;
+  border-top: 0.5px solid var(--border);
+  border-radius: 0;
+  background: var(--titlebar-bg);
+}
+
+/* 标题栏 / 标签栏 / 工具栏统一为窗口 chrome 色，发丝线分隔 */
+:root[data-skin="macos"] .titlebar {
+  border-bottom: 0.5px solid var(--border);
+}
+
+:root[data-skin="macos"] .tabbar {
+  background: var(--titlebar-bg);
+  border-bottom: 0.5px solid var(--border);
+}
+
+:root[data-skin="macos"] .md-toolbar,
+:root[data-skin="macos"] .rich-editor .milkdown .milkdown-top-bar {
+  background: var(--titlebar-bg);
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* ---------- 标题栏：交通灯 + 居中标题 ---------- */
+.traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding-right: 10px;
+}
+
+.tl {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: none;
+  position: relative;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  transition: filter 160ms var(--ease-mac, ease);
+}
+
+/* hover 才浮现符号，和 macOS 一致 */
+.tl::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 160ms var(--ease-mac, ease);
+  pointer-events: none;
+}
+
+.tl:hover::after {
+  opacity: 1;
+}
+
+.tl.close::after {
+  content: "✕";
+  font-size: 8px;
+}
+
+.tl.min::after {
+  content: "–";
+}
+
+.tl.max::after {
+  content: "＋";
+  font-size: 8px;
+}
+
+.tl:hover {
+  filter: brightness(1.06);
+}
+
+.tl.close {
+  background: #ff5f57;
+}
+
+.tl.min {
+  background: #febc2e;
+}
+
+.tl.max {
+  background: #28c840;
+}
+
+.titlebar.is-macos {
+  position: relative;
+  justify-content: flex-start;
+  padding: 0 12px 0 14px;
+}
+
+.titlebar.is-macos .titlebar-controls {
+  margin-left: auto;
+}
+
+/* 左侧 logo + 标题让位给交通灯，标题改居中 */
+.titlebar.is-macos .titlebar-left {
+  display: none;
+}
+
+.titlebar-center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--titlebar-fg);
+}
+
+/* 亮色 chrome 上的控件配色（自动保存开关 / 同步 pill） */
+:root[data-skin="macos"] .as-toggle {
+  color: var(--text-secondary);
+}
+
+:root[data-skin="macos"] .sync-pill {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+:root[data-skin="macos"] .as-slider {
+  background: #d6d6da;
+}
+
+:root[data-skin="macos"][data-theme="dark"] .sync-pill {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+:root[data-skin="macos"][data-theme="dark"] .as-slider {
+  background: #3a3a3d;
+}
+
+/* ---------- 侧栏：macOS 列表选中态 ---------- */
+:root[data-skin="macos"] .tree-row {
+  margin: 0 6px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+
+:root[data-skin="macos"] .tree-row.selected {
+  background: var(--row-active);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+:root[data-skin="macos"] .tree-row.selected::before {
+  display: none;
+}
+
+/* ---------- 细节：细滚动条 ---------- */
+:root[data-skin="macos"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:root[data-skin="macos"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 6px;
+}
+
+:root[data-skin="macos"][data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ============================================================
+   交互动效（macOS 手感）
+   - hover / 按压：缓出曲线，长尾减速（越到后面越慢，显丝滑）
+   - 弹层：略带回弹的弹簧曲线
+   - 时长：hover 200ms / 按压 120ms / 弹层 260ms
+   ============================================================ */
+
+:root[data-skin="macos"] {
+  --ease-mac: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-mac-spring: cubic-bezier(0.34, 1.12, 0.64, 1);
+  --dur-hover: 200ms;
+  --dur-press: 120ms;
+  --dur-pop: 260ms;
+}
+
+/* 统一的 hover / 选中过渡：只过渡颜色与 transform，避免布局抖动 */
+:root[data-skin="macos"] .tool-btn,
+:root[data-skin="macos"] .md-tb-item,
+:root[data-skin="macos"] .top-bar-item,
+:root[data-skin="macos"] .tbl-btn,
+:root[data-skin="macos"] .tree-row,
+:root[data-skin="macos"] .accent-item,
+:root[data-skin="macos"] .block-menu-item,
+:root[data-skin="macos"] .ctx-item,
+:root[data-skin="macos"] .tab,
+:root[data-skin="macos"] .sync-pill {
+  transition:
+    background-color var(--dur-hover) var(--ease-mac),
+    color var(--dur-hover) var(--ease-mac),
+    box-shadow var(--dur-hover) var(--ease-mac),
+    border-color var(--dur-hover) var(--ease-mac),
+    transform var(--dur-hover) var(--ease-mac);
+}
+
+/* 按压回弹：macOS 工具按钮按下会轻微内缩 */
+:root[data-skin="macos"] .tool-btn:active,
+:root[data-skin="macos"] .md-tb-item:active,
+:root[data-skin="macos"] .top-bar-item:active,
+:root[data-skin="macos"] .tbl-btn:active,
+:root[data-skin="macos"] .sync-btn:active,
+:root[data-skin="macos"] .accent-item:active {
+  transform: scale(0.94);
+  transition-duration: var(--dur-press);
+}
+
+/* 交通灯：轻按回弹 */
+:root[data-skin="macos"] .tl:active {
+  transform: scale(0.9);
+  transition: transform 110ms var(--ease-mac);
+}
+
+/* 弹层：从锚点轻微放大 + 上浮淡入 */
+@keyframes mac-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:root[data-skin="macos"] .accent-menu,
+:root[data-skin="macos"] .sync-menu {
+  animation: mac-pop var(--dur-pop) var(--ease-mac-spring);
+  transform-origin: top right;
+}
+
+:root[data-skin="macos"] .block-menu {
+  animation: mac-pop var(--dur-pop) var(--ease-mac-spring);
+  transform-origin: top left;
+}
+
+:root[data-skin="macos"] .ctx-menu {
+  animation: mac-pop var(--dur-pop) var(--ease-mac-spring);
+  transform-origin: top left;
+}
+
+/* 开关滑钮：弹簧曲线，比线性更像系统控件 */
+:root[data-skin="macos"] .as-slider::before {
+  transition: transform 320ms var(--ease-mac-spring), background 240ms var(--ease-mac);
+}
+
+:root[data-skin="macos"] .sync-auto-knob {
+  transition: transform 320ms var(--ease-mac-spring), background 240ms var(--ease-mac);
+}
+
+/* 焦点：macOS 风格柔光圈（替代描边方框） */
+:root[data-skin="macos"] :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* 尊重系统「减弱动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin="macos"] *,
+  :root[data-skin="macos"] *::before,
+  :root[data-skin="macos"] *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* 结构性动效（侧栏折叠 / 大纲收放）也放慢，统一节拍 */
+:root[data-skin="macos"] .app-body {
+  transition: grid-template-columns 260ms var(--ease-mac);
+}
+
+:root[data-skin="macos"] .sidebar {
+  transition: opacity 220ms var(--ease-mac), transform 220ms var(--ease-mac);
+}
+
+:root[data-skin="macos"] .outline-drawer {
+  transition: width 260ms var(--ease-mac), opacity 220ms var(--ease-mac);
+}
+
+/* 结构性动效（侧栏折叠 / 大纲收放）也放慢，统一节拍 */
+:root[data-skin="macos"] .app-body {
+  transition: grid-template-columns 260ms var(--ease-mac);
+}
+
+:root[data-skin="macos"] .sidebar {
+  transition: opacity 220ms var(--ease-mac), transform 220ms var(--ease-mac);
+}
+
+:root[data-skin="macos"] .outline-drawer {
+  transition: width 260ms var(--ease-mac), opacity 220ms var(--ease-mac);
+}
+
+/* 目录树过渡：符合 mac 节拍（缓出 + 略长） */
+:root[data-skin="macos"] .tree-enter-active,
+:root[data-skin="macos"] .tree-leave-active {
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-mac);
+}
+
+:root[data-skin="macos"] .tree-move {
+  transition-duration: 260ms;
+  transition-timing-function: var(--ease-mac);
+}
+
+:root[data-skin="macos"] .tree-row .twisty svg {
+  transition: transform 200ms var(--ease-mac);
+}
+
+/* 标签新建 / 关闭：mac 节拍 */
+:root[data-skin="macos"] .tab-enter-active,
+:root[data-skin="macos"] .tab-leave-active {
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-mac);
+}
+
+:root[data-skin="macos"] .tab-move {
+  transition-duration: 300ms;
+  transition-timing-function: var(--ease-mac);
+}
+
+/* 编辑器本体不画焦点光圈：
+   可编辑区域点击即命中 :focus-visible，会在整个富文本区外面画出一圈大边框 */
+:root[data-skin="macos"] .ProseMirror:focus-visible,
+:root[data-skin="macos"] .cm-editor:focus-visible,
+:root[data-skin="macos"] .cm-content:focus-visible,
+:root[data-skin="macos"] .editor-host textarea:focus-visible {
+  box-shadow: none;
+}
+
+/* 编辑器本体不画焦点光圈：
+   可编辑区域点击即命中 :focus-visible，会在整个富文本区外面画出一圈大边框 */
+:root[data-skin="macos"] .ProseMirror:focus-visible,
+:root[data-skin="macos"] .cm-editor:focus-visible,
+:root[data-skin="macos"] .cm-content:focus-visible,
+:root[data-skin="macos"] .editor-host textarea:focus-visible {
+  box-shadow: none;
+}
