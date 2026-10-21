@@ -484,3 +484,12 @@
 :root[data-skin="macos"] .editor-host textarea:focus-visible {
   box-shadow: none;
 }
+
+/* 目录栏拖拽热区：macOS 皮肤无内外边距，热区要压在分界线上（默认皮肤是 12px+2px 偏移） */
+:root[data-skin="macos"] .sidebar-resizer {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--rail-w) - 4px);
+  width: 8px;
+  border-radius: 0;
+}

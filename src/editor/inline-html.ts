@@ -115,7 +115,24 @@ function mergeColoredRuns(children: any[]): any[] {
     out.push({ type: "html", value: `<font style="${style}">` });
     out.push(...open.buffer);
   }
-  return out;
+
+  // 同色相邻段合并：导出工具会把一段彩色文字切成多段（`**A****B**`），
+  // 不合并的话加粗标记只能覆盖第一段，后半段会丢粗体。
+  const merged: any[] = [];
+  for (const node of out) {
+    const prev = merged[merged.length - 1];
+    if (
+      node.type === "coloredText" &&
+      prev?.type === "coloredText" &&
+      (prev.data?.color ?? "") === (node.data?.color ?? "") &&
+      (prev.data?.background ?? "") === (node.data?.background ?? "")
+    ) {
+      prev.children = [...(prev.children ?? []), ...(node.children ?? [])];
+      continue;
+    }
+    merged.push(node);
+  }
+  return merged;
 }
 
 /** 遍历 mdast 树，在每个有 children 的层级做合并（先合并再递归子级）。 */
