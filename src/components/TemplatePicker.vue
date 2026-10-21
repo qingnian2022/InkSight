@@ -57,8 +57,8 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
       </div>
 
       <p class="tpl-hint">
-        自定义模板：把 .md 文件放进知识库的
-        <b>.templates/</b> 目录；支持占位符
+        自定义模板：目录树右键文档 →「存为模板」，或把 .md 放进知识库
+        <b>.templates/</b>；支持占位符
         <b>&#123;&#123;date&#125;&#125;</b> / <b>&#123;&#123;title&#125;&#125;</b>
       </p>
 

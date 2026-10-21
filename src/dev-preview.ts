@@ -46,6 +46,17 @@ if (q.get("skin") === "macos" || q.get("skin") === "default") {
   state.skin = skin;
 }
 
+// ?ctx=1 —— 打开文件右键菜单（目检「存为模板」）
+if (q.get("ctx") === "1") {
+  setTimeout(() => {
+    const rows = [...document.querySelectorAll<HTMLElement>(".tree-row")];
+    const row = rows.find((r) => r.dataset.path && !r.classList.contains("dir"));
+    row?.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 210, clientY: 300 }),
+    );
+  }, 1500);
+}
+
 // ?wp=1 —— 展开列宽菜单（目检 fixed 定位）
 if (q.get("wp") === "1") {
   setTimeout(() => {
