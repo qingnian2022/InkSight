@@ -5,6 +5,8 @@ import ContextMenu from "./components/ContextMenu.vue";
 import EditorPane from "./components/EditorPane.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import NamePrompt from "./components/NamePrompt.vue";
+import TemplatePicker from "./components/TemplatePicker.vue";
+import ImageLightbox from "./components/ImageLightbox.vue";
 import OutlineDrawer from "./components/OutlineDrawer.vue";
 import SidebarTree from "./components/SidebarTree.vue";
 import StatusBar from "./components/StatusBar.vue";
@@ -27,10 +29,12 @@ import {
   isPinned,
   locateNode,
   newDoc,
+  newDocFromTemplate,
   notify,
   parentDirOf,
   refresh,
   renamePath,
+  saveAsTemplate,
   saveActive,
   state,
   togglePin,
@@ -169,6 +173,7 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
   return [
     { label: isPinned(path) ? "取消置顶" : "置顶", action: () => void togglePin(path) },
     { label: "在所在文件夹新建文档", action: () => void createDocIn(parentDirOf(path)) },
+    { label: "存为模板", action: () => void saveAsTemplate(path) },
     { separator: true, label: "" },
     { label: `复制「${label}」副本`, action: () => void duplicateNode(locateNode(path)!) },
     { label: "重命名", shortcut: "F2", action: () => void renamePath(path, name) },
@@ -269,6 +274,7 @@ function onContextMenu(e: MouseEvent) {
   } else {
     items.push(
       { label: "新建文档", shortcut: "Ctrl+N", action: () => void newDoc() },
+      { label: "从模板新建…", action: () => void newDocFromTemplate() },
       {
         label: "保存当前文档",
         shortcut: "Ctrl+S",
@@ -361,5 +367,7 @@ onBeforeUnmount(() => {
     <StatusBar />
     <ContextMenu />
     <NamePrompt />
+    <TemplatePicker />
+    <ImageLightbox />
   </div>
 </template>

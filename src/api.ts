@@ -3,6 +3,19 @@ import type { FsNode } from "./types";
 
 export const scanVault = (root: string) => invoke<FsNode[]>("vault_scan", { root });
 
+export interface TemplateEntry {
+  name: string;
+  path: string;
+  content: string;
+}
+
+/** 列出知识库 `.templates/*.md`（vault_scan 会跳过点目录，必须走专用命令）。 */
+export const templateList = (root: string) => invoke<TemplateEntry[]>("template_list", { root });
+
+/** 把已有文档复制成模板，返回模板文件路径。 */
+export const templateSave = (root: string, path: string) =>
+  invoke<string>("template_save", { root, path });
+
 export const readDoc = (path: string) => invoke<string>("doc_read", { path });
 
 export const writeDoc = (path: string, content: string) =>

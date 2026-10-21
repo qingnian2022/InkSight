@@ -19,6 +19,7 @@ mod doc;
 mod git_sync;
 mod node;
 mod pins;
+mod template;
 mod tray;
 mod util;
 mod vault;
@@ -67,6 +68,8 @@ pub fn run() {
             git_sync::git_sync_to_remote,
             git_sync::git_sync_abort,
             git_sync::git_sync_reset_remote,
+            template::template_list,
+            template::template_save,
             pins::pin_list,
             pins::pin_set
         ])

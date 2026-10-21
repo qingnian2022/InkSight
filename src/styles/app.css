@@ -1814,8 +1814,23 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .ProseMirror img {
+  /* 语雀式图片：块级居中、圆角描边、点击放大 */
+  display: block;
   max-width: 100%;
-  border-radius: var(--r-md);
+  margin: 14px auto;
+  border-radius: var(--r-lg);
+  border: 0.5px solid var(--border);
+  background: var(--code-bg);
+  cursor: zoom-in;
+}
+
+.rich-editor .milkdown .ProseMirror th img,
+.rich-editor .milkdown .ProseMirror td img {
+  display: inline-block;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
 }
 
 /* 顶部工具栏与项目自身的工具栏对齐 */
@@ -2390,18 +2405,10 @@ body.resizing .app-body {
   position: relative;
 }
 
-/* 富文本模式：悬浮在 Crepe 顶栏右端 */
-.rich-editor .wp-wrap {
-  position: absolute;
-  top: 7px;
-  right: 10px;
-  z-index: 30;
-}
-
 .wp-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+  /* fixed：放在标签栏里也不会被 overflow 裁剪，坐标由组件计算 */
+  position: fixed;
+  z-index: 2600;
   width: 196px;
   padding: 6px;
   background: var(--surface);
@@ -2958,4 +2965,218 @@ body.resizing .app-body {
 
 .tab-move {
   transition: transform 220ms ease;
+}
+
+/* ---------- 工具栏 ⋯ 溢出菜单 ---------- */
+.toolbar-more {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toolbar-more:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.toolbar-more-menu {
+  position: fixed;
+  z-index: 2200;
+  display: none;
+  grid-template-columns: repeat(4, 36px);
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+}
+
+.toolbar-more-menu > .top-bar-item,
+.toolbar-more-menu > .md-tb-item {
+  width: 36px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  justify-content: center;
+}
+
+/* ---------- 图片灯箱 ---------- */
+.img-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(22, 22, 24, 0.82);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: zoom-out;
+}
+
+.img-lightbox img {
+  max-width: 88vw;
+  max-height: 82vh;
+  border-radius: 10px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
+
+.img-lightbox-caption {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ---------- 模板选择器 ---------- */
+.tpl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2800;
+  background: rgba(28, 32, 31, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.tpl-modal {
+  width: 560px;
+  max-width: calc(100vw - 40px);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tpl-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+.tpl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.tpl-card:hover {
+  background: var(--surface-hover);
+}
+
+.tpl-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tpl-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tpl-custom {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.tpl-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tpl-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.tpl-default {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.tpl-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.tpl-btn {
+  height: 32px;
+  padding: 0 18px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.tpl-btn:hover {
+  background: var(--surface-hover);
+}
+
+.tpl-btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.tpl-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+/* 标签栏右侧的列宽切换（与其它 tool-btn 同高） */
+.tabbar-actions .wp-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.tabbar-actions .wp-btn {
+  height: 30px;
+  padding: 0 8px;
+  font-size: 12px;
 }

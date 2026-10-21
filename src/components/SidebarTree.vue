@@ -36,7 +36,7 @@ const rowsWithSep = computed(() => {
         <Icon name="chevron" :size="12" class="chev" />
       </button>
       <span class="rail-head-spacer" />
-      <button class="tool-btn" title="新建文档 Ctrl+N" aria-label="新建文档" @click="newDoc">
+      <button class="tool-btn" title="新建文档 Ctrl+N" aria-label="新建文档" @click="() => newDoc()">
         <Icon name="plus" :size="15" />
       </button>
       <button class="tool-btn" title="刷新目录" aria-label="刷新目录" @click="refresh">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { activate, closeTab, newDoc, state, toggleTheme } from "../store";
 import AccentPicker from "./AccentPicker.vue";
+import WidthPicker from "./WidthPicker.vue";
 import Icon from "./Icon.vue";
 </script>
 
@@ -36,11 +37,12 @@ import Icon from "./Icon.vue";
       </div>
     </TransitionGroup>
 
-    <button class="tab-new" title="新建文档 Ctrl+N" aria-label="新建文档" @click="newDoc">
+    <button class="tab-new" title="新建文档 Ctrl+N" aria-label="新建文档" @click="() => newDoc()">
       <Icon name="plus" :size="15" />
     </button>
 
     <div class="tabbar-actions">
+      <WidthPicker />
       <AccentPicker />
       <button
         class="tool-btn"

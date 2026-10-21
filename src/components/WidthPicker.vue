@@ -5,6 +5,17 @@ import Icon from "./Icon.vue";
 
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
+const btnRef = ref<HTMLElement | null>(null);
+// 菜单用 fixed 定位：标签栏有 overflow-x，absolute 会被裁剪
+const menuPos = ref({ top: 0, left: 0 });
+
+function toggle() {
+  open.value = !open.value;
+  if (open.value && btnRef.value) {
+    const r = btnRef.value.getBoundingClientRect();
+    menuPos.value = { top: Math.round(r.bottom + 6), left: Math.round(r.right - 196) };
+  }
+}
 const currentLabel = computed(
   () => EDITOR_WIDTHS.find((w) => w.key === state.editorWidth)?.label ?? "标准",
 );
@@ -41,14 +52,21 @@ onBeforeUnmount(() => {
       :aria-expanded="open"
       title="正文列宽"
       aria-label="正文列宽"
-      @click="open = !open"
+      ref="btnRef"
+      @click="toggle"
     >
       <Icon name="columns" :size="16" />
       <span class="md-tb-label">{{ currentLabel }}</span>
       <Icon name="chevron" :size="11" />
     </button>
 
-    <div v-if="open" class="wp-menu" role="menu" aria-label="列宽选项">
+    <div
+      v-if="open"
+      class="wp-menu"
+      role="menu"
+      aria-label="列宽选项"
+      :style="{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }"
+    >
       <button
         v-for="opt in EDITOR_WIDTHS"
         :key="opt.key"

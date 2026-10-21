@@ -14,6 +14,8 @@ import { createApp, h } from "vue";
 import App from "./App.vue";
 import { setAutoSave, setEditorWidth, state } from "./store";
 import { openNamePrompt } from "./ui/namePrompt";
+import { openTemplatePicker } from "./ui/templatePicker";
+import { openImageLightbox } from "./ui/imageLightbox";
 import { getPmCtx } from "./editor/pmCtxRef";
 import { insertAtBoundary, runTableCmd } from "./editor/tableCmds";
 import type { SyncStatus } from "./api";
@@ -42,6 +44,41 @@ if (q.get("skin") === "macos" || q.get("skin") === "default") {
   localStorage.setItem("md-rust.skin", skin);
   document.documentElement.dataset.skin = skin;
   state.skin = skin;
+}
+
+// ?wp=1 —— 展开列宽菜单（目检 fixed 定位）
+if (q.get("wp") === "1") {
+  setTimeout(() => {
+    (document.querySelector<HTMLElement>(".wp-btn") ?? null)?.click();
+  }, 1600);
+}
+
+// ?ovf=1 —— 把富文本工具栏压窄并展开 ⋯ 溢出菜单（目检）
+if (q.get("ovf") === "1") {
+  setTimeout(() => {
+    const inner = document.querySelector<HTMLElement>(".top-bar-inner");
+    const bar = inner?.parentElement as HTMLElement | null;
+    if (bar) bar.style.width = "420px";
+    setTimeout(() => (document.querySelector<HTMLElement>(".toolbar-more") ?? null)?.click(), 300);
+  }, 1600);
+}
+
+// ?tpl=1 —— 打开模板选择器；?lightbox=1 —— 打开图片灯箱
+if (q.get("tpl") === "1") {
+  setTimeout(() => {
+    void openTemplatePicker(state.root);
+  }, 600);
+}
+if (q.get("lightbox") === "1") {
+  setTimeout(() => {
+    openImageLightbox(
+      "data:image/svg+xml;utf8," +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" rx="12" fill="#e8e8ec"/><text x="320" y="190" text-anchor="middle" font-size="22" fill="#86868b">示例图片</text></svg>`,
+        ),
+      "示例图注（读取 alt 文本）",
+    );
+  }, 600);
 }
 
 // ?accent=%230f5a8a —— 临时换主色，用于候选配色对比；不落盘
@@ -260,7 +297,7 @@ if (q.get("tb") === "1") {
           probe.textContent = results.join("\n");
           probe.style.cssText = "position:fixed;left:6px;bottom:30px;background:#fff;color:#000;font:10px monospace;padding:4px;z-index:99999;border:1px solid #ccc;white-space:pre-wrap;max-width:560px";
           document.body.appendChild(probe);
-        }, 900);
+        }, 1600);
       }, 200);
     };
 

@@ -105,7 +105,7 @@ watch(
         从左侧目录选择一篇 Markdown，或新建一篇。正文会直接渲染，光标停在哪一行，哪一行才显示
         Markdown 标记。
       </p>
-      <button class="primary-btn" @click="newDoc">新建文档</button>
+      <button class="primary-btn" @click="() => newDoc()">新建文档</button>
       <p class="empty-hint">纯文本存储 · 不锁定格式 · 可用 Git 管理</p>
     </div>
   </div>

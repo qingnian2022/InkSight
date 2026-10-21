@@ -12,11 +12,13 @@ import {
   toggleLinePrefix,
 } from "../editor/viewRef";
 import { state } from "../store";
+import { attachToolbarOverflow } from "../editor/toolbarOverflow";
 import Icon from "./Icon.vue";
-import WidthPicker from "./WidthPicker.vue";
 
 const menuOpen = ref(false);
 const pickerRef = ref<HTMLElement | null>(null);
+const leftRef = ref<HTMLElement | null>(null);
+let detachOverflow: (() => void) | null = null;
 
 const blockLabels: Record<string, string> = {
   paragraph: "正文",
@@ -88,13 +90,28 @@ function onDocumentClick(event: MouseEvent) {
   }
 }
 
-onMounted(() => document.addEventListener("mousedown", onDocumentClick));
-onBeforeUnmount(() => document.removeEventListener("mousedown", onDocumentClick));
+onMounted(() => {
+  document.addEventListener("mousedown", onDocumentClick);
+  // 宽度不够时把靠后的命令收进 ⋯ 菜单
+  if (leftRef.value) {
+    detachOverflow = attachToolbarOverflow(leftRef.value, {
+      itemSelector: ".md-tb-item",
+      dividerSelector: ".md-tb-divider",
+      keepFirst: 1,
+      gap: 2,
+    });
+  }
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("mousedown", onDocumentClick);
+  detachOverflow?.();
+  detachOverflow = null;
+});
 </script>
 
 <template>
   <div class="md-toolbar" role="toolbar" aria-label="格式工具栏">
-    <div class="md-toolbar-left">
+    <div ref="leftRef" class="md-toolbar-left">
       <div ref="pickerRef" class="block-picker">
         <button
           class="md-tb-item md-tb-text"
@@ -225,7 +242,6 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onDocumentClick)
     </div>
 
     <div class="md-toolbar-right">
-      <WidthPicker />
       <span class="md-tb-divider" />
       <button class="md-tb-item" title="撤销 Ctrl+Z" aria-label="撤销" @click="doUndo">
         <Icon name="undo" :size="20" />

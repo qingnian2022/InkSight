@@ -9,12 +9,14 @@ import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
+import { normalizeEmphasis } from "../editor/normalize-emphasis";
+import { attachToolbarOverflow } from "../editor/toolbarOverflow";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
 import { activeTab, isUntitledPath, markDirty, state } from "../store";
+import { openImageLightbox } from "../ui/imageLightbox";
 import ColorPalette from "./ColorPalette.vue";
 import TableToolbar from "./TableToolbar.vue";
-import WidthPicker from "./WidthPicker.vue";
 
 /**
  * 把文档里的图片地址转成 webview 可加载的 asset:// 地址。
@@ -59,8 +61,20 @@ let boundPath = "";
 let seq = 0;
 // 只有真的动过键盘才写回，避免「切进来看看」就把全文重排一遍
 let edited = false;
+let detachOverflow: (() => void) | null = null;
+
+/** 点击正文图片 → 语雀式暗色放大预览 */
+function onHostClick(e: MouseEvent) {
+  const el = e.target as HTMLElement | null;
+  const img = el?.closest?.("img") as HTMLImageElement | null;
+  if (!img || !host.value?.contains(img)) return;
+  e.preventDefault();
+  openImageLightbox(img.currentSrc || img.src, img.alt || "");
+}
 
 async function teardown() {
+  detachOverflow?.();
+  detachOverflow = null;
   if (!crepe) return;
   const old = crepe;
   const path = boundPath;
@@ -196,7 +210,8 @@ async function mount() {
   });
 
   // 内联 HTML 彩色文字（<font>/<span style="color:...">）渲染支持
-  instance.editor.use(mergeInlineColorHtml).use(coloredTextSchema);
+  // normalizeEmphasis 先跑：把同步/导入里的全角星号、`**加粗**` 反引号包法救回来
+  instance.editor.use(normalizeEmphasis).use(mergeInlineColorHtml).use(coloredTextSchema);
 
   let ready = false;
 
@@ -229,6 +244,18 @@ async function mount() {
     setPmView(view);
     setPmCtx(ctx);
   });
+
+  // 工具栏渐进收纳：宽度不够时把靠后的命令收进 ⋯ 菜单
+  const inner = host.value?.querySelector<HTMLElement>(".top-bar-inner");
+  if (inner) {
+    detachOverflow?.();
+    detachOverflow = attachToolbarOverflow(inner, {
+      itemSelector: ".top-bar-item",
+      dividerSelector: ".top-bar-divider",
+      keepFirst: 1,
+      gap: 2,
+    });
+  }
 }
 
 onMounted(mount);
@@ -254,10 +281,9 @@ watch(
 </script>
 
 <template>
-  <div class="rich-editor">
+  <div class="rich-editor" @click="onHostClick">
     <div ref="host" class="rich-editor-body" data-rich-editor />
     <ColorPalette />
     <TableToolbar :view="pmView" />
-    <WidthPicker />
   </div>
 </template>

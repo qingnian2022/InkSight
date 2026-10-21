@@ -16,12 +16,14 @@ import {
   renameNode,
   scanVault,
   stripExt,
+  templateSave,
   trashNode,
   writeDoc,
 } from "./api";
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
+import { applyTemplate, pickTemplate } from "./ui/templatePicker";
 import {
   gitSyncAbort,
   gitSyncFromRemote,
@@ -351,22 +353,42 @@ export function isUntitledPath(path: string): boolean {
   return path.startsWith(UNTITLED_PREFIX);
 }
 
-/** 新建：只开一个内存中的「未命名」标签，磁盘上不创建文件；保存时才落盘。 */
-export async function newDoc() {
+/** 新建：走模板选择器（有默认模板则直接用），只开内存标签、保存时才落盘。 */
+export async function newDoc(forcePicker = false) {
   if (!state.root) return;
+  const tpl = await pickTemplate(state.root, forcePicker);
+  if (!tpl) return;
   const seq = state.tabs.filter((t) => isUntitledPath(t.path)).length + 1;
   const path = `${UNTITLED_PREFIX}${seq}`;
+  const name = seq > 1 ? `未命名 ${seq}` : "未命名";
+  const content = applyTemplate(tpl.content, name);
   state.tabs.push({
     path,
-    name: seq > 1 ? `未命名 ${seq}` : "未命名",
-    content: "",
+    name,
+    content,
     dirty: false,
   });
   state.activePath = path;
   state.readonly = state.editorMode === "source";
   state.saveState = "saved";
-  state.charCount = 0;
+  state.charCount = content.replace(/\s+/g, "").length;
   state.cursor = { line: 1, col: 1 };
+}
+
+/** 把已有文档存为模板：复制进知识库 `.templates/`，随后出现在新建模板列表里。 */
+export async function saveAsTemplate(path: string) {
+  if (!state.root) return;
+  try {
+    const target = await templateSave(state.root, path);
+    notify(`已存为模板：${stripExt(fileName(target))}`);
+  } catch (err) {
+    state.error = errorText(err);
+  }
+}
+
+/** 显式打开模板选择器新建（右键菜单「从模板新建」）。 */
+export async function newDocFromTemplate() {
+  await newDoc(true);
 }
 
 export async function removeActiveDoc() {
@@ -396,8 +418,11 @@ export async function createDocIn(dir: string) {
   if (!state.root) return;
   const name = await openNamePrompt({ title: "新建文档", initial: "未命名" });
   if (!name) return;
+  const tpl = await pickTemplate(state.root, true);
+  if (!tpl) return;
   try {
     const path = await createDoc(dir, name);
+    if (tpl.content) await writeDoc(path, applyTemplate(tpl.content, name));
     state.expanded.add(dir);
     await refresh();
     const node = findNode(state.tree, path) ?? { name: fileName(path), path, isDir: false };
