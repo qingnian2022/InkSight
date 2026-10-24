@@ -3180,3 +3180,63 @@ body.resizing .app-body {
   padding: 0 8px;
   font-size: 12px;
 }
+
+/* ---------- 表格：列宽自适应 + 工具条对齐按钮 ---------- */
+/* 列宽按内容分配（语雀同款）；拖动过的列仍以 colwidth 作为期望宽度 */
+.milkdown .milkdown-table-block table {
+  table-layout: auto !important;
+  width: 100%;
+}
+
+.milkdown .milkdown-table-block th,
+.milkdown .milkdown-table-block td {
+  vertical-align: middle;
+}
+
+/* 工具条对齐按钮激活态 */
+.tbl-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------- 表格：列宽自适应 + 工具条对齐按钮 ---------- */
+/* 列宽按内容分配（语雀同款）；拖动过的列仍以 colwidth 作为期望宽度 */
+.milkdown .milkdown-table-block table {
+  table-layout: auto !important;
+  width: 100%;
+}
+
+.milkdown .milkdown-table-block th,
+.milkdown .milkdown-table-block td {
+  vertical-align: middle;
+}
+
+/* 工具条对齐按钮激活态 */
+.tbl-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 表格铺满正文宽度：Crepe 的 .table-wrapper 会收缩包裹表格，导致表格只有内容宽 */
+.milkdown .milkdown-table-block,
+.milkdown .milkdown-table-block > div,
+.milkdown .milkdown-table-block .table-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.milkdown .milkdown-table-block .table-wrapper table {
+  width: 100% !important;
+}
+
+/* 表格铺满正文宽度：Crepe 的 .table-wrapper 会收缩包裹表格，导致表格只有内容宽 */
+.milkdown .milkdown-table-block,
+.milkdown .milkdown-table-block > div,
+.milkdown .milkdown-table-block .table-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.milkdown .milkdown-table-block .table-wrapper table {
+  width: 100% !important;
+}

@@ -14,6 +14,9 @@ import { isInTable, selectedRect } from "@milkdown/prose/tables";
 import type { EditorView } from "@milkdown/prose/view";
 import { getPmCtx } from "./pmCtxRef";
 
+export type TableAlign = "left" | "center" | "right";
+
+
 export type TableCmd =
   | "rowBefore"
   | "rowAfter"
@@ -153,4 +156,88 @@ export function insertAtBoundary(direction: "col" | "row", index: number): boole
   }
   commands.call(selectRowCommand.key, { index: target });
   return commands.call(addRowBeforeCommand.key);
+}
+
+/* ---------------- 语雀式：列对齐 / 列宽自适应 ---------------- */
+
+/**
+ * 设置当前列的文本对齐（左/中/右）。
+ * GFM 只支持按列对齐（`:---:` / `:---:` / `---:`），所以语义上以列为单位：
+ * 选中任意单元格 → 该列所有单元格一起对齐，保存后可跨设备保留。
+ *
+ * 不用 milkdown 的 setAlign 命令（依赖 CellSelection，合成事件下容易静默失败），
+ * 直接用 TableMap 定位整列单元格后 setNodeMarkup，行为确定。
+ */
+export function setTableAlign(align: TableAlign): boolean {
+  const ctx = getPmCtx();
+  if (!ctx) return false;
+  const view = ctx.get(editorViewCtx);
+  if (!view) return false;
+  normalizeSelection(view);
+  if (!isInTable(view.state)) return false;
+
+  const rect = selectedRect(view.state);
+  const tablePos = rect.tableStart - 1;
+  const table = view.state.doc.nodeAt(tablePos);
+  if (!table) return false;
+
+  const seen = new Set<number>();
+  let tr = view.state.tr;
+  let changed = false;
+  for (let row = 0; row < rect.map.height; row += 1) {
+    const pos = rect.map.positionAt(row, rect.left, table);
+    if (seen.has(pos)) continue; // 跨行合并单元格只改一次
+    seen.add(pos);
+    const cell = table.nodeAt(pos);
+    if (!cell) continue;
+    if (cell.attrs.alignment === align) continue;
+    tr = tr.setNodeMarkup(tablePos + 1 + pos, undefined, { ...cell.attrs, alignment: align });
+    changed = true;
+  }
+  if (changed) view.dispatch(tr);
+  return true;
+}
+
+/** 读取光标所在列的对齐方式（用于工具条高亮）。 */
+export function currentTableAlign(): TableAlign | "" {
+  const ctx = getPmCtx();
+  if (!ctx) return "";
+  const view = ctx.get(editorViewCtx);
+  if (!view || !isInTable(view.state)) return "";
+  const rect = selectedRect(view.state);
+  const table = view.state.doc.nodeAt(rect.tableStart - 1);
+  const headerCell = table?.firstChild?.maybeChild(rect.left);
+  const align = headerCell?.attrs.alignment;
+  return align === "left" || align === "center" || align === "right" ? align : "";
+}
+
+/**
+ * 列宽自适应：清掉所有单元格的 colwidth，让浏览器按内容分配宽度。
+ * （Markdown 不保存列宽，重开文档本来就按内容自适应，这里只是把当前会话
+ * 里手动拖出来的固定宽度一并清掉。）
+ */
+export function autoFitTable(): boolean {
+  const ctx = getPmCtx();
+  if (!ctx) return false;
+  const view = ctx.get(editorViewCtx);
+  if (!view) return false;
+  normalizeSelection(view);
+  if (!isInTable(view.state)) return false;
+  const rect = selectedRect(view.state);
+  const tablePos = rect.tableStart - 1;
+  const table = view.state.doc.nodeAt(tablePos);
+  if (!table) return false;
+
+  let tr = view.state.tr;
+  let changed = false;
+  view.state.doc.nodesBetween(tablePos, tablePos + table.nodeSize, (node, pos) => {
+    const isCell = node.type.name === "table_cell" || node.type.name === "table_header";
+    if (isCell && node.attrs.colwidth) {
+      tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, colwidth: null });
+      changed = true;
+    }
+    return true;
+  });
+  if (changed) view.dispatch(tr);
+  return true;
 }

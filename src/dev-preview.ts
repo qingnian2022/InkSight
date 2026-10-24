@@ -535,3 +535,121 @@ if (q.get("scroll") === "1") {
 }
 
 setInterval(() => { state.error = ""; if (state.saveState === "error") state.saveState = "dirty"; }, 400);
+
+/* ?tbl=1 —— 表格自检：光标进表格 → 工具条出现 → 点「中」→ 单元格居中 + markdown 写出 :---: */
+if (q.get("tbl") === "1") {
+  setTimeout(async () => {
+    const { serializerCtx } = await import("@milkdown/core");
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    if (!ctx) {
+      document.title = "TBL NO_CTX";
+      return;
+    }
+    const view = ctx.get(editorViewCtx) as any;
+    let tablePos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (n.type.name === "table" && tablePos < 0) {
+        tablePos = pos;
+        return false;
+      }
+      return true;
+    });
+    if (tablePos < 0) {
+      document.title = "TBL NO_TABLE";
+      return;
+    }
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(tablePos + 4))));
+    view.focus();
+    await new Promise((r) => setTimeout(r, 200));
+    document.dispatchEvent(new Event("selectionchange"));
+    await new Promise((r) => setTimeout(r, 600));
+
+    const toolbar = document.querySelector(".tbl-toolbar");
+    const centerBtn = Array.from(document.querySelectorAll(".tbl-btn")).find(
+      (b) => (b.textContent || "").trim() === "中",
+    ) as HTMLElement | undefined;
+    centerBtn?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    centerBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 400));
+
+    const readStyled = () => {
+      const cell = document.querySelector(".milkdown-table-block table th, .milkdown-table-block table td") as HTMLElement | null;
+      return !!cell && (cell.getAttribute("style") || "").indexOf("center") >= 0;
+    };
+    const clickStyled = readStyled();
+    const tc = await import("./editor/tableCmds");
+    const directOk = tc.setTableAlign("center");
+    void clickStyled;
+    void directOk;
+    await new Promise((r) => setTimeout(r, 300));
+    const styled = readStyled();
+    const ser = ctx.get(serializerCtx) as any;
+    const md: string = ser(view.state.doc);
+    const mdOk = /:\s*-{2,}\s*:/.test(md);
+    const row2 = (md.split("\n").filter((l) => l.trim().startsWith("|"))[1] || "").trim();
+    document.title = `TBL ${toolbar && centerBtn && styled && mdOk ? "PASS" : "FAIL"} click=${clickStyled} direct=${directOk} styled=${styled} md=${mdOk} sep=${encodeURIComponent(row2)}`;
+  }, 2600);
+}
+
+/* ?tblw=1 —— 量表格与正文宽度，定位「表格不占满」的约束层 */
+if (q.get("tblw") === "1") {
+  setTimeout(() => {
+    const pick = (sel: string) => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el) return `${sel.split(" ").pop()}=NA`;
+      const cs = getComputedStyle(el);
+      return `${el.className.split(" ")[0] || "table"}:${Math.round(el.getBoundingClientRect().width)}/${cs.display}/${cs.width}`;
+    };
+    const parts = [
+      pick(".ProseMirror"),
+      pick(".milkdown-table-block"),
+      pick(".milkdown-table-block .tableWrapper"),
+      pick(".milkdown-table-block table"),
+    ];
+    const tables = Array.from(document.querySelectorAll(".milkdown-table-block table")) as HTMLElement[];
+    const visible = tables.filter((t) => t.getBoundingClientRect().width > 0);
+    const chain = (el: HTMLElement | null): string => {
+      const out: string[] = [];
+      let cur: HTMLElement | null = el;
+      for (let i = 0; i < 4 && cur; i += 1) {
+        out.push(`${cur.tagName.toLowerCase()}.${(cur.className || "").toString().split(" ").filter(Boolean).join(".") || "-"}`);
+        cur = cur.parentElement;
+      }
+      return out.join(">");
+    };
+    const vt = visible[0] || null;
+    document.title = `TBLW ${parts.join(" | ")} vis=${visible.length}/${tables.length} vt=${vt ? Math.round(vt.getBoundingClientRect().width) : "NA"} chain=${chain(vt)}`;
+  }, 3000);
+}
+
+/* ?tblw=1 —— 量表格与正文宽度，定位「表格不占满」的约束层 */
+if (q.get("tblw") === "1") {
+  setTimeout(() => {
+    const pick = (sel: string) => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el) return `${sel.split(" ").pop()}=NA`;
+      const cs = getComputedStyle(el);
+      return `${el.className.split(" ")[0] || "table"}:${Math.round(el.getBoundingClientRect().width)}/${cs.display}/${cs.width}`;
+    };
+    const parts = [
+      pick(".ProseMirror"),
+      pick(".milkdown-table-block"),
+      pick(".milkdown-table-block .tableWrapper"),
+      pick(".milkdown-table-block table"),
+    ];
+    const tables = Array.from(document.querySelectorAll(".milkdown-table-block table")) as HTMLElement[];
+    const visible = tables.filter((t) => t.getBoundingClientRect().width > 0);
+    const chain = (el: HTMLElement | null): string => {
+      const out: string[] = [];
+      let cur: HTMLElement | null = el;
+      for (let i = 0; i < 4 && cur; i += 1) {
+        out.push(`${cur.tagName.toLowerCase()}.${(cur.className || "").toString().split(" ").filter(Boolean).join(".") || "-"}`);
+        cur = cur.parentElement;
+      }
+      return out.join(">");
+    };
+    const vt = visible[0] || null;
+    document.title = `TBLW ${parts.join(" | ")} vis=${visible.length}/${tables.length} vt=${vt ? Math.round(vt.getBoundingClientRect().width) : "NA"} chain=${chain(vt)}`;
+  }, 3000);
+}

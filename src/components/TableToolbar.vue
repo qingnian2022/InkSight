@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import type { EditorView } from "@milkdown/prose/view";
-import { insertAtBoundary, runTableCmd } from "../editor/tableCmds";
+import {
+  autoFitTable,
+  currentTableAlign,
+  insertAtBoundary,
+  runTableCmd,
+  setTableAlign,
+  type TableAlign,
+} from "../editor/tableCmds";
 import Icon from "./Icon.vue";
 
 /**
@@ -15,6 +22,8 @@ const props = defineProps<{ view: EditorView | null }>();
 const show = ref(false);
 const pos = ref({ top: 0, left: 0, tableLeft: 0, tableTop: 0 });
 const plusCols = ref<{ left: number; index: number }[]>([]);
+/** 当前列的对齐方式（工具条高亮用） */
+const align = ref<TableAlign | "">("");
 const plusRows = ref<{ top: number; index: number }[]>([]);
 let hideTimer: number | undefined;
 let refreshTimer: number | undefined;
@@ -70,6 +79,8 @@ function place(block: HTMLElement) {
   const lastRow = allRows[allRows.length - 1]?.getBoundingClientRect();
   if (lastRow) rowPos.push({ top: lastRow.bottom, index: allRows.length });
   plusRows.value = rowPos;
+
+  align.value = currentTableAlign();
 }
 
 function update() {
@@ -111,6 +122,16 @@ function onScroll() {
 
 function run(cmd: Parameters<typeof runTableCmd>[0]) {
   runTableCmd(cmd);
+  requestAnimationFrame(update);
+}
+
+function applyAlign(next: TableAlign) {
+  setTableAlign(next);
+  requestAnimationFrame(update);
+}
+
+function fitColumns() {
+  autoFitTable();
   requestAnimationFrame(update);
 }
 
@@ -158,6 +179,38 @@ onBeforeUnmount(() => {
       </button>
       <button class="tbl-btn danger" title="删除当前列" @mousedown.prevent @click="run('delCol')">
         删列
+      </button>
+      <span class="tbl-sep" />
+      <button
+        class="tbl-btn"
+        :class="{ active: align === 'left' }"
+        title="当前列左对齐（保存为 :---）"
+        @mousedown.prevent
+        @click="applyAlign('left')"
+      >
+        左
+      </button>
+      <button
+        class="tbl-btn"
+        :class="{ active: align === 'center' }"
+        title="当前列居中（保存为 :---:）"
+        @mousedown.prevent
+        @click="applyAlign('center')"
+      >
+        中
+      </button>
+      <button
+        class="tbl-btn"
+        :class="{ active: align === 'right' }"
+        title="当前列右对齐（保存为 ---:）"
+        @mousedown.prevent
+        @click="applyAlign('right')"
+      >
+        右
+      </button>
+      <span class="tbl-sep" />
+      <button class="tbl-btn" title="列宽自适应内容" @mousedown.prevent @click="fitColumns">
+        <Icon name="refresh" :size="12" />自适应
       </button>
       <span class="tbl-sep" />
       <button class="tbl-btn danger" title="删除整个表格" @mousedown.prevent @click="run('delTable')">
