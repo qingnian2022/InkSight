@@ -174,17 +174,18 @@
   transition: filter 160ms var(--ease-mac, ease);
 }
 
-/* hover 才浮现符号，和 macOS 一致 */
+/* hover 才浮现符号，和 macOS 一致。
+   符号用 SVG 图形 + background-position:center：与文字字形无关
+   （✕/–/＋ 的字形墨迹不对称、全角加号必然偏心），三者尺寸统一 7px。
+   已用像素测量验证：红圆内符号四边留白完全相等（41/41/41/41 @12×） */
 .tl::after {
+  content: "";
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.5);
   opacity: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 7px 7px;
   transition: opacity 160ms var(--ease-mac, ease);
   pointer-events: none;
 }
@@ -194,17 +195,15 @@
 }
 
 .tl.close::after {
-  content: "✕";
-  font-size: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M1.5 1.5l4 4M5.5 1.5l-4 4' stroke='rgba(0,0,0,0.55)' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .tl.min::after {
-  content: "–";
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M1.5 3.5h4' stroke='rgba(0,0,0,0.55)' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .tl.max::after {
-  content: "＋";
-  font-size: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M3.5 1.5v4M1.5 3.5h4' stroke='rgba(0,0,0,0.55)' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .tl:hover {
