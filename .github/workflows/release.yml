@@ -1,0 +1,65 @@
+name: release
+
+# 打 tag（v0.3.0）或手动触发时，在 GitHub 的 Windows 构建机打包并发布
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      # 未配置该 secret 时，同步步骤会自动跳过
+      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 校验版本号与 tag 一致
+        shell: bash
+        run: |
+          CONF_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "conf=$CONF_VERSION tag=${GITHUB_REF_NAME}"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "v$CONF_VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag 与 tauri.conf.json 的 version 不一致（tag=${GITHUB_REF_NAME}，conf=$CONF_VERSION）"
+            exit 1
+          fi
+
+      - name: 前端类型检查与构建
+        run: npm run build
+
+      - name: 打包并发布到 GitHub Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ${{ github.ref_name }}
+          releaseBody: 见 Release 说明
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          args: ''
+
+      # 可选：把产物同步到 Gitee（客户端更新源仍指向 Gitee 时需要）
+      - name: 同步到 Gitee Release
+        if: ${{ env.GITEE_TOKEN != '' }}
+        run: node scripts/publish-gitee.mjs --notes "${{ github.ref_name }}"
