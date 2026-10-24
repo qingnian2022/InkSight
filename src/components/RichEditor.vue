@@ -10,6 +10,7 @@ import { codeTheme } from "../editor/code-theme";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { normalizeEmphasis } from "../editor/normalize-emphasis";
+import { tableSchemaOverride } from "../editor/table-schema";
 import { attachToolbarOverflow } from "../editor/toolbarOverflow";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
@@ -212,6 +213,9 @@ async function mount() {
   // 内联 HTML 彩色文字（<font>/<span style="color:...">）渲染支持
   // normalizeEmphasis 先跑：把同步/导入里的全角星号、`**加粗**` 反引号包法救回来
   instance.editor.use(normalizeEmphasis).use(mergeInlineColorHtml).use(coloredTextSchema);
+
+  // 表格 schema 放宽（允许只有表头的表格）：必须在 Crepe/preset-gfm 之后注册才生效
+  instance.editor.use(tableSchemaOverride);
 
   let ready = false;
 

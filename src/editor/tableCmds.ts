@@ -44,29 +44,68 @@ function normalizeSelection(view: EditorView) {
   }
 }
 
-/**
- * 删掉整个表格，原位保留一个空段落（空行），光标落入其中。
- * 用于删除最后一行/最后一列：表格即将塌掉时，退化为「删除表格 + 留空行」。
- */
-function deleteTableLeaveBlank(view: EditorView): boolean {
-  const { state } = view;
-  const { $from } = state.selection;
-  let depth = $from.depth;
-  let tablePos = -1;
-  let tableSize = 0;
-  while (depth > 0) {
-    const node = $from.node(depth);
-    if (node.type.name === "table" || node.type.spec.tableRole === "table") {
-      tablePos = $from.before(depth);
-      tableSize = node.nodeSize;
-      break;
+/** 直接事务删除当前行（不依赖 milkdown 的 selectRow/CellSelection 命令链）。 */
+function deleteRowAt(view: any, rect: any): boolean {
+  const tablePos = rect.tableStart - 1;
+  const table = view.state.doc.nodeAt(tablePos);
+  if (!table) return false;
+  // TableMap.positionAt 给的是「单元格」位置，行位置要按行索引遍历取
+  let rowPos = -1;
+  let row: any = null;
+  table.forEach((r: any, at: number, index: number) => {
+    if (index === rect.top) {
+      rowPos = at;
+      row = r;
     }
-    depth -= 1;
+  });
+  if (!row) return false;
+  const from = tablePos + 1 + rowPos;
+  const tr = view.state.tr.delete(from, from + row.nodeSize);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(1, Math.min(from, tr.doc.content.size - 1))), 1));
+  view.dispatch(tr);
+  return true;
+}
+
+/** 直接事务删除当前列：自下而上删掉每行对应单元格。 */
+function deleteColAt(view: any, rect: any): boolean {
+  const tablePos = rect.tableStart - 1;
+  const table = view.state.doc.nodeAt(tablePos);
+  if (!table) return false;
+  const ranges = new Map<number, { from: number; to: number }>();
+  for (let r = 0; r < rect.map.height; r += 1) {
+    const cellPos = rect.map.positionAt(r, rect.left, table);
+    if (ranges.has(cellPos)) continue;
+    const cell = table.nodeAt(cellPos);
+    if (!cell) continue;
+    ranges.set(cellPos, { from: tablePos + 1 + cellPos, to: tablePos + 1 + cellPos + cell.nodeSize });
   }
-  if (tablePos < 0) return false;
-  const tr = state.tr;
-  tr.replaceWith(tablePos, tablePos + tableSize, state.schema.nodes.paragraph.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(tablePos + 1), 1));
+  if (!ranges.size) return false;
+  let tr = view.state.tr;
+  [...ranges.values()]
+    .sort((a, b) => b.from - a.from)
+    .forEach(({ from, to }) => {
+      tr = tr.delete(from, to);
+    });
+  view.dispatch(tr);
+  return true;
+}
+
+/** 把某一列的所有单元格内容清空，保留列结构。 */
+function clearColContent(view: any, rect: any, colIndex: number): boolean {
+  const tablePos = rect.tableStart - 1;
+  const table = view.state.doc.nodeAt(tablePos);
+  if (!table) return false;
+  const paragraph = view.state.schema.nodes.paragraph.create();
+  let tr = view.state.tr;
+  const seen = new Set<number>();
+  for (let row = 0; row < rect.map.height; row += 1) {
+    const cellPos = rect.map.positionAt(row, colIndex, table);
+    if (seen.has(cellPos)) continue;
+    seen.add(cellPos);
+    const cell = table.nodeAt(cellPos);
+    if (!cell) continue;
+    tr = tr.setNodeMarkup(tablePos + 1 + cellPos, undefined, cell.attrs, paragraph);
+  }
   view.dispatch(tr);
   return true;
 }
@@ -98,16 +137,13 @@ export function runTableCmd(name: TableCmd): boolean {
     // dispatch 无返回值所以恒为 false，不能拿它做失败短路。
     // GFM 表头行（第 0 行）不可删：删掉后下一数据行会被顶成表头。
     case "delRow":
+      // 表头行不可删；数据行可以一路删到只剩表头（schema 已放宽为 table_row*）
       if (rect.top === 0) return false;
-      // 删的是最后一行数据：表格将塌掉 → 直接删除表格，原位留一个空行
-      if (rect.map.height <= 2) return deleteTableLeaveBlank(view);
-      commands.call(selectRowCommand.key, { index: rect.top });
-      return commands.call(deleteSelectedCellsCommand.key);
+      return deleteRowAt(view, rect);
     case "delCol":
-      // 删的是最后一列：表格将塌掉 → 直接删除表格，原位留一个空行
-      if (rect.map.width <= 1) return deleteTableLeaveBlank(view);
-      commands.call(selectColCommand.key, { index: rect.left });
-      return commands.call(deleteSelectedCellsCommand.key);
+      // 只剩一列时不再删表：清空该列内容
+      if (rect.map.width <= 1) return clearColContent(view, rect, rect.left);
+      return deleteColAt(view, rect);
     case "delTable":
       commands.call(selectTableCommand.key);
       return commands.call(deleteSelectedCellsCommand.key);

@@ -536,7 +536,9 @@ if (q.get("scroll") === "1") {
 
 setInterval(() => { state.error = ""; if (state.saveState === "error") state.saveState = "dirty"; }, 400);
 
-/* ?tbl=1 —— 表格自检：光标进表格 → 工具条出现 → 点「中」→ 单元格居中 + markdown 写出 :---: */
+/* ---------- 表格自检钩子（仅 dev-preview，不影响应用） ---------- */
+
+/** ?tbl=1：光标进表格 → 工具条出现 → 点「中」→ 单元格居中 + markdown 写出对齐标记 */
 if (q.get("tbl") === "1") {
   setTimeout(async () => {
     const { serializerCtx } = await import("@milkdown/core");
@@ -580,76 +582,93 @@ if (q.get("tbl") === "1") {
     const clickStyled = readStyled();
     const tc = await import("./editor/tableCmds");
     const directOk = tc.setTableAlign("center");
-    void clickStyled;
-    void directOk;
     await new Promise((r) => setTimeout(r, 300));
     const styled = readStyled();
     const ser = ctx.get(serializerCtx) as any;
     const md: string = ser(view.state.doc);
     const mdOk = /:\s*-{2,}\s*:/.test(md);
-    const row2 = (md.split("\n").filter((l) => l.trim().startsWith("|"))[1] || "").trim();
-    document.title = `TBL ${toolbar && centerBtn && styled && mdOk ? "PASS" : "FAIL"} click=${clickStyled} direct=${directOk} styled=${styled} md=${mdOk} sep=${encodeURIComponent(row2)}`;
+    document.title = `TBL ${toolbar && centerBtn && styled && mdOk ? "PASS" : "FAIL"} click=${clickStyled} direct=${directOk} styled=${styled} md=${mdOk}`;
   }, 2600);
 }
 
-/* ?tblw=1 —— 量表格与正文宽度，定位「表格不占满」的约束层 */
-if (q.get("tblw") === "1") {
-  setTimeout(() => {
-    const pick = (sel: string) => {
-      const el = document.querySelector(sel) as HTMLElement | null;
-      if (!el) return `${sel.split(" ").pop()}=NA`;
-      const cs = getComputedStyle(el);
-      return `${el.className.split(" ")[0] || "table"}:${Math.round(el.getBoundingClientRect().width)}/${cs.display}/${cs.width}`;
-    };
-    const parts = [
-      pick(".ProseMirror"),
-      pick(".milkdown-table-block"),
-      pick(".milkdown-table-block .tableWrapper"),
-      pick(".milkdown-table-block table"),
-    ];
-    const tables = Array.from(document.querySelectorAll(".milkdown-table-block table")) as HTMLElement[];
-    const visible = tables.filter((t) => t.getBoundingClientRect().width > 0);
-    const chain = (el: HTMLElement | null): string => {
-      const out: string[] = [];
-      let cur: HTMLElement | null = el;
-      for (let i = 0; i < 4 && cur; i += 1) {
-        out.push(`${cur.tagName.toLowerCase()}.${(cur.className || "").toString().split(" ").filter(Boolean).join(".") || "-"}`);
-        cur = cur.parentElement;
-      }
-      return out.join(">");
-    };
-    const vt = visible[0] || null;
-    document.title = `TBLW ${parts.join(" | ")} vis=${visible.length}/${tables.length} vt=${vt ? Math.round(vt.getBoundingClientRect().width) : "NA"} chain=${chain(vt)}`;
-  }, 3000);
-}
+/** ?tbldel=1：数据行可一路删到只剩表头；再删无效；表头表仍可序列化/回读 */
+if (q.get("tbldel") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { serializerCtx } = await import("@milkdown/core");
+    const ctx = getPmCtx() as any;
+    if (!ctx) {
+      document.title = "TBDEL NO_CTX";
+      return;
+    }
+    const view = ctx.get(editorViewCtx) as any;
+    const tcmd = await import("./editor/tableCmds");
 
-/* ?tblw=1 —— 量表格与正文宽度，定位「表格不占满」的约束层 */
-if (q.get("tblw") === "1") {
-  setTimeout(() => {
-    const pick = (sel: string) => {
-      const el = document.querySelector(sel) as HTMLElement | null;
-      if (!el) return `${sel.split(" ").pop()}=NA`;
-      const cs = getComputedStyle(el);
-      return `${el.className.split(" ")[0] || "table"}:${Math.round(el.getBoundingClientRect().width)}/${cs.display}/${cs.width}`;
+    const findTable = () => {
+      let pos = -1;
+      let node: any = null;
+      view.state.doc.descendants((n: any, p: number) => {
+        if (n.type.name === "table" && pos < 0) {
+          pos = p;
+          node = n;
+          return false;
+        }
+        return true;
+      });
+      return { pos, node };
     };
-    const parts = [
-      pick(".ProseMirror"),
-      pick(".milkdown-table-block"),
-      pick(".milkdown-table-block .tableWrapper"),
-      pick(".milkdown-table-block table"),
-    ];
-    const tables = Array.from(document.querySelectorAll(".milkdown-table-block table")) as HTMLElement[];
-    const visible = tables.filter((t) => t.getBoundingClientRect().width > 0);
-    const chain = (el: HTMLElement | null): string => {
-      const out: string[] = [];
-      let cur: HTMLElement | null = el;
-      for (let i = 0; i < 4 && cur; i += 1) {
-        out.push(`${cur.tagName.toLowerCase()}.${(cur.className || "").toString().split(" ").filter(Boolean).join(".") || "-"}`);
-        cur = cur.parentElement;
-      }
-      return out.join(">");
+    const caretRow = (rowIndex: number) => {
+      const { pos, node } = findTable();
+      let rowStart = -1;
+      let rowNode: any = null;
+      node.forEach((r: any, at: number, index: number) => {
+        if (index === rowIndex) {
+          rowStart = pos + 1 + at;
+          rowNode = r;
+        }
+      });
+      if (!rowNode) return false;
+      let target = -1;
+      rowNode.descendants((child: any, cp: number) => {
+        if (target < 0 && child.isTextblock) target = rowStart + 1 + cp + 1;
+        return target < 0;
+      });
+      if (target < 0) return false;
+      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(target), 1)));
+      return true;
     };
-    const vt = visible[0] || null;
-    document.title = `TBLW ${parts.join(" | ")} vis=${visible.length}/${tables.length} vt=${vt ? Math.round(vt.getBoundingClientRect().width) : "NA"} chain=${chain(vt)}`;
-  }, 3000);
+
+    const first = findTable();
+    if (!first.node) {
+      document.title = "TBDEL NO_TABLE";
+      return;
+    }
+    const startRows = first.node.childCount;
+
+    // 反复删最后一行，直到只剩表头（childCount === 1）
+    let steps = 0;
+    for (let i = 0; i < 8; i += 1) {
+      const { node } = findTable();
+      if (!node || node.childCount <= 1) break;
+      caretRow(node.childCount - 1);
+      if (tcmd.runTableCmd("delRow")) steps += 1;
+      await new Promise((r) => setTimeout(r, 90));
+    }
+    const headerOnly = findTable();
+    const headerRows = headerOnly.node ? headerOnly.node.childCount : -1;
+
+    // 再删一次：只剩表头时应无效，表格仍在
+    caretRow(0);
+    const extra = tcmd.runTableCmd("delRow");
+    await new Promise((r) => setTimeout(r, 120));
+    const finalTable = findTable();
+    const finalRows = finalTable.node ? finalTable.node.childCount : -1;
+
+    const ser = ctx.get(serializerCtx) as any;
+    const md: string = ser(view.state.doc);
+    const tableLines = md.split("\n").filter((l) => l.trim().startsWith("|")).length;
+
+    const pass = headerRows === 1 && finalRows === 1 && tableLines === 2;
+    document.title = `TBDEL ${pass ? "PASS" : "FAIL"} start=${startRows} steps=${steps} rows=${headerRows} final=${finalRows} mdLines=${tableLines} extra=${extra}`;
+  }, 2800);
 }
