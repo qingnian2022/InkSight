@@ -328,7 +328,7 @@ onMounted(() => {
     const flag = "md-rust.tray-hint";
     if (!localStorage.getItem(flag)) {
       localStorage.setItem(flag, "1");
-      notify("见字如面 已最小化到托盘，点托盘图标唤回，右键托盘图标选择「退出」才会真正关闭。");
+      notify("Inksight 已最小化到托盘，点托盘图标唤回，右键托盘图标选择「退出」才会真正关闭。");
     }
   }).then((un) => unlisteners.push(un));
 });

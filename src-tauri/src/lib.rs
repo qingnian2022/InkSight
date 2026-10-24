@@ -1,4 +1,4 @@
-//! md-rust（见字如面）Tauri 后端入口。
+//! Inksight（见字如面）Tauri 后端入口。
 //!
 //! 代码按职责拆分：
 //! - `app_paths`  应用级路径（数据目录 / 打开文件夹 / 版本信息）
@@ -35,6 +35,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // 点 ✕ 不退出：隐藏窗口、进程驻留托盘；真正退出走托盘菜单「退出」
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

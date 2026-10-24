@@ -65,11 +65,11 @@ onBeforeUnmount(() => {
 
     <div class="titlebar-left" data-tauri-drag-region>
       <img class="titlebar-logo" src="/app-icon.png" alt="" draggable="false" />
-      <span class="titlebar-title" data-tauri-drag-region>见字如面</span>
+      <span class="titlebar-title" data-tauri-drag-region>Inksight</span>
     </div>
 
     <!-- macOS 皮肤：标题居中 -->
-    <span v-if="state.skin === 'macos'" class="titlebar-center">见字如面</span>
+    <span v-if="state.skin === 'macos'" class="titlebar-center">Inksight</span>
 
     <div class="titlebar-controls">
       <SyncMenu />

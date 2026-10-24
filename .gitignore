@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 target
+docs/*
 
 # Editor directories and files
 .vscode/*
@@ -24,3 +25,7 @@ target
 *.njsproj
 *.sln
 *.sw?
+
+# 签名私钥（updater）绝不能进仓库
+*.key
+*.key.pub

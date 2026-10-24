@@ -8,7 +8,7 @@ use tauri_plugin_opener::OpenerExt;
 pub fn app_info() -> serde_json::Value {
     serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
-        "name": "见字如面"
+        "name": "Inksight"
     })
 }
 

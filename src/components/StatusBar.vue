@@ -1,6 +1,25 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { isUntitledPath, saveActive, state } from "../store";
+import { checkForUpdates, updateState } from "../update";
+
+/** 版本号（构建时注入，不需要额外 IPC） */
+const appVersion = ref("");
+
+void import("@tauri-apps/api/app")
+  .then((m) => m.getVersion())
+  .then((v) => {
+    appVersion.value = v;
+  })
+  .catch(() => {
+    appVersion.value = "";
+  });
+
+const updateLabel = computed(() => {
+  if (updateState.busy) return updateState.message || "更新中…";
+  if (updateState.available) return `有新版本 v${updateState.available}`;
+  return "检查更新";
+});
 
 const statusText = computed(() => {
   switch (state.saveState) {
@@ -60,6 +79,21 @@ const path = computed(() => {
       <span v-if="path" class="status-sep" />
       <span>UTF-8</span>
       <span>LF</span>
+      <span v-if="appVersion" class="status-sep" />
+      <span v-if="appVersion" class="ver">v{{ appVersion }}</span>
+      <button
+        class="status-btn update-btn"
+        :class="{ busy: updateState.busy, hot: !!updateState.available }"
+        :title="updateState.error || '检查是否有新版本'"
+        :disabled="updateState.checking || updateState.busy"
+        @click="checkForUpdates"
+      >
+        <span
+          class="update-dot"
+          :class="{ active: updateState.checking || updateState.busy, hot: !!updateState.available, err: !!updateState.error }"
+        />
+        {{ updateLabel }}
+      </button>
     </div>
   </footer>
 </template>

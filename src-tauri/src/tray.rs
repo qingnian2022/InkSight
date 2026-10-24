@@ -16,14 +16,14 @@ pub fn show_main(app: &tauri::AppHandle) {
 
 /// 应用 setup 阶段初始化托盘图标与菜单。
 pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let toggle = MenuItem::with_id(app, "toggle", "打开见字如面", true, None::<&str>)?;
+    let toggle = MenuItem::with_id(app, "toggle", "打开 Inksight", true, None::<&str>)?;
     let new_doc = MenuItem::with_id(app, "new", "新建文档", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&toggle, &new_doc, &quit])?;
 
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("见字如面 — 我的知识库")
+        .tooltip("Inksight — 我的知识库")
         .menu(&menu)
         .show_menu_on_left_click(false) // 左键留给「切换窗口」
         .on_menu_event(|app, event| match event.id.as_ref() {
