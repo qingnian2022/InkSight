@@ -1,5 +1,5 @@
 import { computed, reactive } from "vue";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   copyNode,
   createDir,
@@ -23,6 +23,7 @@ import {
 import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
+import { openConfirm } from "./ui/confirmPrompt";
 import { applyTemplate, pickTemplate } from "./ui/templatePicker";
 import {
   gitSyncAbort,
@@ -404,11 +405,12 @@ export async function newDocFromTemplate() {
 export async function removeActiveDoc() {
   const tab = activeTab.value;
   if (!tab) return;
-  const ok = await confirm(`把「${tab.name}」移到 .trash？可以在文件管理器里找回。`, {
+  const ok = await openConfirm({
     title: "移到回收站",
-    kind: "warning",
-    okLabel: "移到回收站",
-    cancelLabel: "取消",
+    message: `把「${tab.name}」移到 .trash？`,
+    detail: "文件会保留在知识库的 .trash 目录，可在文件管理器里找回。",
+    okText: "移到回收站",
+    danger: true,
   });
   if (!ok) return;
   try {
@@ -512,11 +514,12 @@ export async function copyNodePath(path: string) {
 
 /** 删除文件 / 文件夹：移到 <vault>/.trash/；相关标签一并关闭。 */
 export async function trashPath(path: string, label: string) {
-  const ok = await confirm(`把「${label}」移到 .trash？可以在文件管理器里找回。`, {
+  const ok = await openConfirm({
     title: "删除",
-    kind: "warning",
-    okLabel: "移到回收站",
-    cancelLabel: "取消",
+    message: `把「${label}」移到 .trash？`,
+    detail: "文件会保留在知识库的 .trash 目录，可在文件管理器里找回。",
+    okText: "移到回收站",
+    danger: true,
   });
   if (!ok) return;
   try {

@@ -72,6 +72,7 @@ pub fn run() {
             git_sync::git_sync_reset_remote,
             template::template_list,
             template::template_save,
+            template::template_delete,
             pins::pin_list,
             pins::pin_set
         ])

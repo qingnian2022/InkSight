@@ -78,3 +78,17 @@ pub fn template_save(root: String, path: String) -> Result<String, String> {
     std::fs::write(&target, content).map_err(|e| format!("E_IO: {e}"))?;
     Ok(target.to_string_lossy().into_owned())
 }
+
+/// 删除一个自定义模板。
+/// 只允许删 `.templates/` 下的 `.md`，防止越权删到知识库正文。
+#[tauri::command(rename_all = "camelCase")]
+pub fn template_delete(root: String, path: String) -> Result<(), String> {
+    let dir = templates_dir(Path::new(&root));
+    let dir = std::fs::canonicalize(&dir).map_err(|e| format!("E_IO: {e}"))?;
+    let target = std::fs::canonicalize(&path).map_err(|e| format!("E_IO: {e}"))?;
+    if !target.starts_with(&dir) || !crate::util::is_markdown(&target) {
+        return Err("E_INVALID: 只能删除 .templates 下的模板".into());
+    }
+    std::fs::remove_file(&target).map_err(|e| format!("E_IO: {e}"))?;
+    Ok(())
+}

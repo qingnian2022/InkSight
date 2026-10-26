@@ -16,6 +16,10 @@ export const templateList = (root: string) => invoke<TemplateEntry[]>("template_
 export const templateSave = (root: string, path: string) =>
   invoke<string>("template_save", { root, path });
 
+/** 删除 `.templates/` 下的一个模板。 */
+export const templateDelete = (root: string, path: string) =>
+  invoke<void>("template_delete", { root, path });
+
 export const readDoc = (path: string) => invoke<string>("doc_read", { path });
 
 export const writeDoc = (path: string, content: string) =>

@@ -1,7 +1,7 @@
 import { reactive } from "vue";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { openConfirm } from "./ui/confirmPrompt";
 
 /**
  * 升级检查（手动触发）：
@@ -47,11 +47,12 @@ export async function checkForUpdates(): Promise<void> {
     updateState.available = update.version;
     updateState.message = `发现新版本 v${update.version}`;
 
-    const go = await confirm(`发现新版本 v${update.version}${update.body ? `\n\n${update.body}` : ""}\n\n现在下载并安装吗？`, {
-      title: "检查更新",
-      okLabel: "下载并安装",
-      cancelLabel: "稍后",
-      kind: "info",
+    const go = await openConfirm({
+      title: "发现新版本",
+      message: `新版本 v${update.version}，现在下载并安装吗？`,
+      detail: update.body ?? "",
+      okText: "下载并安装",
+      cancelText: "稍后",
     });
     if (!go) {
       updateState.message = `有新版本 v${update.version}（已跳过）`;
@@ -88,11 +89,11 @@ export async function checkForUpdates(): Promise<void> {
     updateState.busy = false;
     updateState.progress = 0;
 
-    const restart = await confirm("新版本已安装，需要重启应用才能生效。现在重启吗？", {
+    const restart = await openConfirm({
       title: "升级完成",
-      okLabel: "立即重启",
-      cancelLabel: "稍后手动重启",
-      kind: "info",
+      message: "新版本已安装，需要重启应用才能生效。现在重启吗？",
+      okText: "立即重启",
+      cancelText: "稍后手动重启",
     });
     if (restart) await relaunch();
     else updateState.message = "重启后生效";

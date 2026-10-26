@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { openConfirm } from "../ui/confirmPrompt";
 import Icon from "./Icon.vue";
 import {
   isTauri,
@@ -115,11 +115,12 @@ async function connect() {
 }
 
 async function resetRemote() {
-  const ok = await confirm("用云端版本覆盖本地？未同步的本地修改会丢失。", {
+  const ok = await openConfirm({
     title: "用云端覆盖本地",
-    kind: "warning",
-    okLabel: "覆盖",
-    cancelLabel: "取消",
+    message: "用云端版本覆盖本地？",
+    detail: "未同步的本地修改会丢失。",
+    okText: "覆盖",
+    danger: true,
   });
   if (ok) await syncResetRemote();
 }

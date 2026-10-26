@@ -3077,6 +3077,7 @@ body.resizing .app-body {
 }
 
 .tpl-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3112,6 +3113,45 @@ body.resizing .app-body {
   color: var(--text-secondary);
   font-size: 10px;
   font-weight: 400;
+}
+
+/* 自定义模板的删除按钮：悬停卡片才出现 */
+.tpl-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.tpl-card:hover .tpl-del,
+.tpl-card.active .tpl-del {
+  opacity: 1;
+}
+
+.tpl-del:hover {
+  background: var(--surface-active);
+  color: #d33;
+}
+
+.tpl-card.busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.tpl-error {
+  margin: 0;
+  font-size: 11px;
+  color: #d33;
 }
 
 .tpl-desc {
@@ -3328,5 +3368,103 @@ body.resizing .app-body {
 
 @keyframes update-pulse {
   from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+/* ---------- 主题内确认弹窗（替代系统 dialog） ---------- */
+
+.cp-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 18, 16, 0.28);
+  animation: cp-fade 120ms ease;
+}
+
+.cp-box {
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  padding: 18px 18px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+}
+
+.cp-title {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cp-message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.cp-detail {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.cp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.cp-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  /* 取消按钮用浅底，和弹窗白底区分开 */
+  background: var(--surface-sunken);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.cp-btn:hover {
+  background: var(--surface-active);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.cp-btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 500;
+}
+
+.cp-btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: transparent;
+  color: #fff;
+}
+
+.cp-btn.primary.danger {
+  background: #d94a45;
+  border-color: transparent;
+  color: #fff;
+}
+
+.cp-btn.primary.danger:hover {
+  background: #c33f3a;
+  color: #fff;
+}
+
+@keyframes cp-fade {
+  from { opacity: 0; }
   to { opacity: 1; }
 }

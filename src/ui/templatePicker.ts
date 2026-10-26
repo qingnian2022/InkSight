@@ -1,11 +1,19 @@
 import { reactive } from "vue";
-import { templateList } from "../api";
+import { templateDelete, templateList } from "../api";
 
 /**
  * 新建文档的模板选择器（Promise 风格，和 namePrompt 同一套交互）。
  * - 内置模板：空白 / 日记 / 会议纪要 / 读书笔记
- * - 自定义模板：知识库 `.templates/*.md`，文件名即模板名
- * - 占位符：{{date}} 今天日期、{{time}} 当前时间、{{title}} 文档标题
+ * - 自定义模板：知识库 `.templates/*.md`，文件名即模板名，可删除
+ * - 占位符（新建文档时求值）：
+ *     {{date}}                 2026-10-26
+ *     {{date:YYYY年M月D日}}     2026年10月26日
+ *     {{time}}                 14:30
+ *     {{time:HH:mm:ss}}        14:30:05
+ *     {{datetime}}             2026-10-26 14:30
+ *     {{weekday}}              周一
+ *     {{title}}                文档标题
+ *   格式符：YYYY YY MM M DD D HH H mm ss ddd
  */
 
 export interface DocTemplate {
@@ -18,23 +26,50 @@ export interface DocTemplate {
 
 const LS_DEFAULT_TPL = "md-rust.tplDefault";
 
-function today(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
-function nowTime(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+/** 支持的格式符；用一次性正则替换，避免 M 把 MM 的结果再吃掉 */
+const FMT_TOKEN = /YYYY|YY|MM|M|DD|D|HH|H|mm|ss|ddd/g;
+
+function formatDate(d: Date, fmt: string): string {
+  const map: Record<string, string> = {
+    YYYY: String(d.getFullYear()),
+    YY: String(d.getFullYear()).slice(2),
+    MM: pad(d.getMonth() + 1),
+    M: String(d.getMonth() + 1),
+    DD: pad(d.getDate()),
+    D: String(d.getDate()),
+    HH: pad(d.getHours()),
+    H: String(d.getHours()),
+    mm: pad(d.getMinutes()),
+    ss: pad(d.getSeconds()),
+    ddd: WEEKDAYS[d.getDay()],
+  };
+  return fmt.replace(FMT_TOKEN, (token) => map[token] ?? token);
+}
+
+function today(d = new Date()): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function nowTime(d = new Date()): string {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function applyTemplate(content: string, title: string): string {
+  const d = new Date();
   return content
-    .replace(/\{\{date\}\}/g, today())
-    .replace(/\{\{time\}\}/g, nowTime())
-    .replace(/\{\{title\}\}/g, title);
+    .replace(/\{\{\s*date\s*:\s*([^}]+?)\s*\}\}/g, (_m, f: string) => formatDate(d, f.trim()))
+    .replace(/\{\{\s*date\s*\}\}/g, today(d))
+    .replace(/\{\{\s*time\s*:\s*([^}]+?)\s*\}\}/g, (_m, f: string) => formatDate(d, f.trim()))
+    .replace(/\{\{\s*time\s*\}\}/g, nowTime(d))
+    .replace(/\{\{\s*datetime\s*\}\}/g, `${today(d)} ${nowTime(d)}`)
+    .replace(/\{\{\s*weekday\s*\}\}/g, WEEKDAYS[d.getDay()])
+    .replace(/\{\{\s*title\s*\}\}/g, title);
 }
 
 export const BUILTIN_TEMPLATES: DocTemplate[] = [
@@ -81,6 +116,17 @@ export async function loadCustomTemplates(root: string | null): Promise<DocTempl
 function firstLine(content: string): string {
   const line = content.split("\n").find((l) => l.trim()) ?? "";
   return line.replace(/^#+\s*/, "").trim().slice(0, 18) || "自定义模板";
+}
+
+/** 删除自定义模板；若删的正好是默认模板，顺带清掉默认设置。 */
+export async function deleteCustomTemplate(root: string | null, tpl: DocTemplate): Promise<void> {
+  if (!root || !tpl.custom) return;
+  const path = tpl.id.replace(/^custom:/, "");
+  await templateDelete(root, path);
+  if (getDefaultTemplateId() === tpl.id) setDefaultTemplateId(null);
+  const customs = await loadCustomTemplates(root);
+  templatePickerState.items = [...BUILTIN_TEMPLATES, ...customs];
+  if (templatePickerState.selectedId === tpl.id) templatePickerState.selectedId = "blank";
 }
 
 export function getDefaultTemplateId(): string | null {
