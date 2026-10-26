@@ -24,6 +24,7 @@ import type { FsNode, OutlineItem, SaveState, Tab } from "./types";
 import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 import { openConfirm } from "./ui/confirmPrompt";
+import { showToast } from "./ui/toast";
 import { applyTemplate, pickTemplate } from "./ui/templatePicker";
 import {
   gitSyncAbort,
@@ -388,12 +389,19 @@ export async function newDoc(forcePicker = false) {
 
 /** 把已有文档存为模板：复制进知识库 `.templates/`，随后出现在新建模板列表里。 */
 export async function saveAsTemplate(path: string) {
-  if (!state.root) return;
+  if (!state.root) {
+    showToast("还没有打开知识库，无法存为模板", "error");
+    return;
+  }
   try {
     const target = await templateSave(state.root, path);
-    notify(`已存为模板：${stripExt(fileName(target))}`);
+    const name = stripExt(fileName(target));
+    notify(`已存为模板：${name}`);
+    showToast(`已存为模板「${name}」，新建文档时可选择`);
   } catch (err) {
-    state.error = errorText(err);
+    const msg = errorText(err);
+    state.error = msg;
+    showToast(`存为模板失败：${msg}`, "error");
   }
 }
 

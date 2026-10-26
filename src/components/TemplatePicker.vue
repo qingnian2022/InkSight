@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { openConfirm } from "../ui/confirmPrompt";
+import { showToast } from "../ui/toast";
 import { state } from "../store";
 import {
   deleteCustomTemplate,
@@ -30,8 +31,10 @@ async function remove(tpl: DocTemplate) {
   errorText.value = "";
   try {
     await deleteCustomTemplate(state.root, tpl);
+    showToast(`已删除模板「${tpl.name}」`);
   } catch (err) {
     errorText.value = err instanceof Error ? err.message : String(err);
+    showToast(`删除模板失败：${errorText.value}`, "error");
   } finally {
     busyId.value = null;
   }
