@@ -100,6 +100,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
       <p class="tpl-hint">
         自定义模板：目录树右键文档 →「存为模板」，或把 .md 放进知识库
         <b>.templates/</b>；变量 <b>&#123;&#123;date&#125;&#125;</b> /
+        <b>&#123;&#123;date+1&#125;&#125;</b> /
         <b>&#123;&#123;date:YYYY年M月D日&#125;&#125;</b> /
         <b>&#123;&#123;time&#125;&#125;</b> /
         <b>&#123;&#123;weekday&#125;&#125;</b> /

@@ -7,7 +7,9 @@ import { templateDelete, templateList } from "../api";
  * - 自定义模板：知识库 `.templates/*.md`，文件名即模板名，可删除
  * - 占位符（新建文档时求值）：
  *     {{date}}                 2026-10-26
+ *     {{date+1}} / {{date-3}}  后一天 / 前三天（负号往前推）
  *     {{date:YYYY年M月D日}}     2026年10月26日
+ *     {{date+1:MM月DD日}}       2026年10月27日
  *     {{time}}                 14:30
  *     {{time:HH:mm:ss}}        14:30:05
  *     {{datetime}}             2026-10-26 14:30
@@ -60,14 +62,28 @@ function nowTime(d = new Date()): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** 日期类变量：{{date}}、{{date+1}}、{{date-3}}、{{date+1:YYYY年M月D日}}、{{datetime±N}} */
+const DATE_VAR = /\{\{\s*(date|datetime)\s*([+-]\d{1,3})?\s*(?::\s*([^}]+?))?\s*\}\}/g;
+
+function shiftDays(d: Date, days: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 export function applyTemplate(content: string, title: string): string {
   const d = new Date();
   return content
-    .replace(/\{\{\s*date\s*:\s*([^}]+?)\s*\}\}/g, (_m, f: string) => formatDate(d, f.trim()))
-    .replace(/\{\{\s*date\s*\}\}/g, today(d))
+    .replace(DATE_VAR, (_m, kind: string, offset: string | undefined, fmt: string | undefined) => {
+      const day = shiftDays(d, offset ? Number(offset) : 0);
+      if (fmt && fmt.trim()) {
+        // 带格式时完全按格式输出；datetime 也允许 {{datetime+1:MM月DD日}}
+        return formatDate(day, fmt.trim());
+      }
+      return kind === "datetime" ? `${today(day)} ${nowTime(d)}` : today(day);
+    })
     .replace(/\{\{\s*time\s*:\s*([^}]+?)\s*\}\}/g, (_m, f: string) => formatDate(d, f.trim()))
     .replace(/\{\{\s*time\s*\}\}/g, nowTime(d))
-    .replace(/\{\{\s*datetime\s*\}\}/g, `${today(d)} ${nowTime(d)}`)
     .replace(/\{\{\s*weekday\s*\}\}/g, WEEKDAYS[d.getDay()])
     .replace(/\{\{\s*title\s*\}\}/g, title);
 }
