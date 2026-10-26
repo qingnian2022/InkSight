@@ -57,7 +57,7 @@ const rowsWithSep = computed(() => {
       <TransitionGroup name="tree">
         <div
           v-for="row in rowsWithSep"
-          :key="row.node.path"
+          :key="row.key"
           class="tree-row"
           role="treeitem"
           :data-path="row.node.isVirtual ? undefined : row.node.path"

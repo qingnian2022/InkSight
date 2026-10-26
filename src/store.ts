@@ -115,17 +115,27 @@ export const activeTab = computed(
   () => state.tabs.find((t) => t.path === state.activePath) ?? null,
 );
 
+/**
+ * 目录树可见行（含展开的子项）。
+ * 置顶项在原位置保留一份，同时在上方「置顶」文件夹里有一份副本 ——
+ * 同一路径可能出现两次，所以用 key 区分（副本加 `pinned:` 前缀）。
+ */
 export const visibleRows = computed(() => {
-  const rows: { node: FsNode; depth: number }[] = [];
-  const walk = (nodes: FsNode[], depth: number) => {
+  const rows: { node: FsNode; depth: number; key: string; pinnedCopy: boolean }[] = [];
+  const walk = (nodes: FsNode[], depth: number, inPinned: boolean) => {
     for (const node of nodes) {
-      rows.push({ node, depth });
+      rows.push({
+        node,
+        depth,
+        key: inPinned ? `pinned:${node.path}` : node.path,
+        pinnedCopy: inPinned,
+      });
       if (node.isDir && state.expanded.has(node.path) && node.children?.length) {
-        walk(node.children, depth + 1);
+        walk(node.children, depth + 1, inPinned || node.isVirtual === true);
       }
     }
   };
-  walk(state.tree, 0);
+  walk(state.tree, 0, false);
   return rows;
 });
 

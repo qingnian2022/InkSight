@@ -10,7 +10,7 @@ use crate::util::is_markdown;
 const MAX_DEPTH: usize = 12;
 const SKIP_DIRS: [&str; 5] = [".git", ".trash", "node_modules", "target", ".obsidian"];
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FsNode {
     name: String,
@@ -68,26 +68,23 @@ fn scan(dir: &Path, depth: usize) -> Vec<FsNode> {
     dirs
 }
 
-/// 递归把置顶条目从原位置摘出（连同其子树），按树序收进 hoisted。
-fn drain_pinned(nodes: &mut Vec<FsNode>, pins: &[String], hoisted: &mut Vec<FsNode>) {
-    for node in nodes.iter_mut() {
-        if let Some(children) = node.children.as_mut() {
-            drain_pinned(children, pins, hoisted);
+/// 递归收集置顶条目（含其子树）的**副本**，原位置保持不变。
+fn collect_pinned(nodes: &[FsNode], pins: &[String], hoisted: &mut Vec<FsNode>) {
+    for node in nodes {
+        if pins.iter().any(|p| *p == node.path) {
+            // 命中顶层置顶项：整棵子树一起复制，不再往下找（避免重复）
+            hoisted.push(node.clone());
+            continue;
         }
-    }
-    let mut i = 0;
-    while i < nodes.len() {
-        if pins.iter().any(|p| *p == nodes[i].path) {
-            hoisted.push(nodes.remove(i));
-        } else {
-            i += 1;
+        if let Some(children) = node.children.as_ref() {
+            collect_pinned(children, pins, hoisted);
         }
     }
 }
 
 /// 递归列出知识库中的 Markdown 文件与目录。
-/// 有置顶条目时，树顶出现一个虚拟「置顶」文件夹，置顶项（任意层级）连同
-/// 其子树都集中显示在该文件夹下（磁盘位置不动，仅显示层提升）。
+/// 有置顶条目时，树顶出现一个虚拟「置顶」文件夹，置顶项（任意层级）
+/// **同时**保留在原位置：置顶只是额外多一份快捷入口，不隐藏原来的位置。
 #[tauri::command(rename_all = "camelCase")]
 pub fn vault_scan(root: String) -> Result<Vec<FsNode>, String> {
     let path = PathBuf::from(&root);
@@ -98,8 +95,8 @@ pub fn vault_scan(root: String) -> Result<Vec<FsNode>, String> {
     let mut tree = scan(&path, 0);
     if !pins.is_empty() {
         let mut pinned: Vec<FsNode> = Vec::new();
-        drain_pinned(&mut tree, &pins, &mut pinned);
-        // drain 按树序收集，这里重排成用户置顶的顺序
+        collect_pinned(&tree, &pins, &mut pinned);
+        // collect 按树序收集，这里重排成用户置顶的顺序
         pinned.sort_by_key(|n| pins.iter().position(|p| *p == n.path).unwrap_or(usize::MAX));
         let folder = FsNode {
             name: "置顶".into(),
