@@ -388,20 +388,22 @@ body.resizing .app-body {
   background: none;
 }
 
-/* 虚拟「置顶」文件夹：浅色底（非主题强调色）与普通文件夹区分 */
+/* 虚拟「置顶」文件夹：默认无底（和普通文件夹一致）
+   展开时给普通行 hover 的同款浅底，悬停再深一档 */
 .tree-row.pinned-folder {
   height: 40px;
   margin-bottom: 8px;
-  background: #f6f4ef;
+  background: transparent;
 }
 
-.tree-row.pinned-folder:hover {
-  background: #efece4;
+.tree-row.pinned-folder[aria-expanded="true"] {
+  background: var(--surface-hover);
 }
 
+/* 悬停优先于展开态：折叠/展开都给可点反馈 */
 .tree-row.pinned-folder:hover {
-  background: var(--accent-soft);
-  filter: brightness(0.97);
+  background: var(--surface-active);
+  filter: none;
 }
 
 .tree-row.pinned-folder .label {
