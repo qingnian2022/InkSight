@@ -7,6 +7,11 @@ import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { codeTheme } from "../editor/code-theme";
+import { calloutPlugin, insertCallout, type CalloutType } from "../editor/callouts";
+import { headingFoldPlugin, toggleFoldAtCursor } from "../editor/heading-fold";
+import { foldBlockPlugin, insertFoldBlock } from "../editor/fold-block";
+import { remarkSplitCallout } from "../editor/remark-split-callout";
+import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { normalizeEmphasis } from "../editor/normalize-emphasis";
@@ -63,6 +68,24 @@ let seq = 0;
 // 只有真的动过键盘才写回，避免「切进来看看」就把全文重排一遍
 let edited = false;
 let detachOverflow: (() => void) | null = null;
+let detachKeyGuard: (() => void) | null = null;
+
+/**
+ * 删除键兜底：提示块 / 折叠块里只剩隐藏标记时，Backspace/Delete 直接删整块。
+ * 用 DOM 捕获阶段监听，绕开 Crepe 内置 keymap 抢先处理的问题。
+ */
+function attachDeleteGuard(view: EditorView) {
+  detachKeyGuard?.();
+  const handler = (event: KeyboardEvent) => {
+    if (event.key !== "Backspace" && event.key !== "Delete") return;
+    const done = deleteQuoteBlockAtEdge(view.state, (tr) => view.dispatch(tr as never), event.key);
+    if (!done) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  view.dom.addEventListener("keydown", handler, true);
+  detachKeyGuard = () => view.dom.removeEventListener("keydown", handler, true);
+}
 
 /** 点击正文图片 → 语雀式暗色放大预览 */
 function onHostClick(e: MouseEvent) {
@@ -76,6 +99,8 @@ function onHostClick(e: MouseEvent) {
 async function teardown() {
   detachOverflow?.();
   detachOverflow = null;
+  detachKeyGuard?.();
+  detachKeyGuard = null;
   if (!crepe) return;
   const old = crepe;
   const path = boundPath;
@@ -93,6 +118,67 @@ async function teardown() {
   }
 
   await old.destroy();
+}
+
+/** 清掉斜杠菜单残留的「/xxx」查询文字（Crepe 选完菜单不会自动删） */
+function clearSlashQuery(view: EditorView) {
+  const { state } = view;
+  const { $from, from } = state.selection;
+  const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+  const hit = /[/／][^\s/／]*$/.exec(before);
+  if (!hit) return;
+  view.dispatch(state.tr.delete(from - hit[0].length, from));
+}
+
+/** 斜杠菜单：插入提示块（延后一帧，等 Crepe 自己的菜单清理完成） */
+function slashCallout(ctx: any, type: CalloutType) {
+  try {
+    const view = ctx.get(editorViewCtx) as EditorView;
+    window.setTimeout(() => {
+      try {
+        clearSlashQuery(view);
+        if (insertCallout(view as any, type)) view.focus();
+      } catch {
+        /* 忽略 */
+      }
+    }, 0);
+  } catch {
+    /* 上下文未就绪时忽略 */
+  }
+}
+
+/** 斜杠菜单：折叠 / 展开当前标题 */
+function slashFold(ctx: any) {
+  try {
+    const view = ctx.get(editorViewCtx) as EditorView;
+    window.setTimeout(() => {
+      try {
+        clearSlashQuery(view);
+        toggleFoldAtCursor(view as any);
+      } catch {
+        /* 忽略 */
+      }
+    }, 0);
+  } catch {
+    /* 同上 */
+  }
+}
+
+/** 斜杠菜单：插入折叠块 */
+function slashFoldBlock(ctx: any) {
+  try {
+    const view = ctx.get(editorViewCtx) as EditorView;
+    window.setTimeout(() => {
+      try {
+        clearSlashQuery(view);
+        if (insertFoldBlock(view as any)) view.focus();
+      } catch {
+        /* 忽略 */
+      }
+    }, 0);
+  } catch {
+    /* 同上 */
+  }
 }
 
 async function mount() {
@@ -166,6 +252,34 @@ async function mount() {
           table: { label: "表格" },
           math: { label: "公式" },
         },
+        // 「/」菜单追加「语雀块」分组：提示块 + 折叠标题
+        buildMenu: (builder) => {
+          const group = builder.addGroup("yz-block", "语雀块");
+          const items: { key: string; type: CalloutType; label: string }[] = [
+            { key: "callout-note", type: "note", label: "提示块 · 说明" },
+            { key: "callout-tip", type: "tip", label: "提示块 · 提示" },
+            { key: "callout-important", type: "important", label: "提示块 · 重要" },
+            { key: "callout-warning", type: "warning", label: "提示块 · 注意" },
+            { key: "callout-caution", type: "caution", label: "提示块 · 警告" },
+          ];
+          items.forEach((item) => {
+            group.addItem(item.key, {
+              label: item.label,
+              icon: "",
+              onRun: (ctx) => slashCallout(ctx, item.type),
+            });
+          });
+          group.addItem("fold-heading", {
+            label: "折叠标题",
+            icon: "",
+            onRun: (ctx) => slashFold(ctx),
+          });
+          group.addItem("fold-block", {
+            label: "折叠块",
+            icon: "",
+            onRun: (ctx) => slashFoldBlock(ctx),
+          });
+        },
       },
       [Crepe.Feature.Placeholder]: {
         text: "开始写作，输入 / 唤起插入菜单",
@@ -214,8 +328,14 @@ async function mount() {
   // normalizeEmphasis 先跑：把同步/导入里的全角星号、`**加粗**` 反引号包法救回来
   instance.editor.use(normalizeEmphasis).use(mergeInlineColorHtml).use(coloredTextSchema);
 
+  // 提示块 / 折叠块：把「标题 + 正文」的软换行拆成两个段落
+  instance.editor.use(remarkSplitCallout);
+
   // 表格 schema 放宽（允许只有表头的表格）：必须在 Crepe/preset-gfm 之后注册才生效
   instance.editor.use(tableSchemaOverride);
+
+  // 语雀式提示块（> [!TIP]）与标题折叠
+  instance.editor.use(calloutPlugin).use(headingFoldPlugin).use(foldBlockPlugin);
 
   let ready = false;
 
@@ -247,6 +367,7 @@ async function mount() {
     pmView.value = view;
     setPmView(view);
     setPmCtx(ctx);
+    attachDeleteGuard(view);
   });
 
   // 工具栏渐进收纳：宽度不够时把靠后的命令收进 ⋯ 菜单

@@ -223,6 +223,40 @@ state.editorMode = "rich";
 state.charCount = 684;
 state.saveState = "dirty";
 
+// ?callout=1 —— 用提示块样张替换当前文档（目检 > [!TIP] 渲染）
+if (q.get("callout") === "1") {
+  const md = [
+    "# 提示块样张",
+    "",
+    "> [!TIP] 发布前检查",
+    "> 确认 version 已改、tag 已推。",
+    "",
+    "> [!WARNING]",
+    "",
+    "> [!NOTE] 说明",
+    "> 普通说明块，带一行正文。",
+    "",
+    "> /[!NOTE] 斜杠残留也能识别",
+    "> 这一行测试斜杠菜单残留字符。",
+    "",
+    "> 11[!NOTE]",
+    "",
+    "> 普通引用，不带标记。",
+    "",
+    "> [!FOLD] 附属资料",
+    "> 这里是被折叠的内容，点右侧箭头收起。",
+    "",
+    "## 可折叠的标题",
+    "",
+    "这一段应该被折叠起来。",
+    "",
+  ].join("\n");
+  state.tabs = [
+    { path: "D:/Notes/知识库/写作/callout.md", name: "callout", content: md, dirty: false },
+  ];
+  state.activePath = "D:/Notes/知识库/写作/callout.md";
+}
+
 createApp({ render: () => h(App) }).mount("#app");
 
 // —— 以下都要在 mount 之后执行 ——
@@ -672,3 +706,140 @@ if (q.get("tbldel") === "1") {
     document.title = `TBDEL ${pass ? "PASS" : "FAIL"} start=${startRows} steps=${steps} rows=${headerRows} final=${finalRows} mdLines=${tableLines} extra=${extra}`;
   }, 2800);
 }
+
+// ?probe=1 —— 把第一个提示块的 computed 样式写进 title，便于 headless 排查
+if (q.get("probe") === "1") {
+  setTimeout(() => {
+    const el = document.querySelector(".milkdown blockquote:not(.md-callout):not(.md-foldblock)") as HTMLElement | null;
+    if (!el) {
+      document.title = "PROBE no-callout";
+      return;
+    }
+    const list = [...document.querySelectorAll(".milkdown blockquote")].map((b) => {
+      const cs2 = getComputedStyle(b as HTMLElement);
+      return `${(b as HTMLElement).className || "quote"}:${cs2.borderLeftColor}`;
+    });
+    document.title = `BLOCKS ${list.join(" | ")}`;
+    if (list.length) return;
+    const cs = getComputedStyle(el);
+    document.title = `PROBE bg=${cs.backgroundColor} border=${cs.borderLeftColor} width=${cs.borderLeftWidth} calloutVar=${cs.getPropertyValue("--callout")} cls=${el.className}`;
+  }, 3500);
+}
+
+// ?caltest=1 —— 验证插入提示块后光标位置：插入标记后立刻“打字”，看文字在标记前还是后
+if (q.get("caltest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) {
+      document.title = "CALTEST no-view";
+      return;
+    }
+    const { insertCallout } = await import("./editor/callouts");
+    const end = view.state.doc.content.size;
+    view.dispatch(
+      view.state.tr.insert(end, view.state.schema.nodes.paragraph.create()),
+    );
+    view.dispatch(
+      view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(view.state.doc.content.size - 1))),
+    );
+    insertCallout(view, "note");
+    view.dispatch(view.state.tr.insertText("11"));
+    const all: string[] = [];
+    view.state.doc.descendants((n: any) => {
+      if (n.type.name === "blockquote") all.push(n.textContent);
+      return true;
+    });
+    document.title = `CALTEST last="${all[all.length - 1] ?? "none"}" n=${all.length}`;
+  }, 3000);
+}
+
+// ?foldtest=1 —— 点折叠块的箭头，验证正文是否真的被隐藏
+if (q.get("foldtest") === "1") {
+  setTimeout(() => {
+    const block = document.querySelector(".md-foldblock") as HTMLElement | null;
+    const btn = block?.querySelector(".md-fold-chevron") as HTMLElement | null;
+    if (!block || !btn) {
+      document.title = "FOLDTEST no-block";
+      return;
+    }
+    btn.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    setTimeout(() => {
+      const after = document.querySelector(".md-foldblock") as HTMLElement | null;
+      const paras = after ? [...after.querySelectorAll(":scope > p")] : [];
+      const body = paras[1] as HTMLElement | undefined;
+      const hidden = body ? getComputedStyle(body).display === "none" : null;
+      document.title = `FOLDTEST folded=${after?.dataset.folded} bodyHidden=${hidden} p=${paras.length}`;
+    }, 300);
+  }, 3200);
+}
+
+// ?hit=1 —— 报出坐标 (355,620) 命中的元素与祖先，用于定位那条蓝色竖条
+if (q.get("hit") === "1") {
+  setTimeout(() => {
+    const el = document.elementFromPoint(355, 620) as HTMLElement | null;
+    const info: string[] = [];
+    let cur = el;
+    for (let i = 0; i < 4 && cur; i += 1) {
+      const cs = getComputedStyle(cur);
+      info.push(`${cur.tagName.toLowerCase()}.${cur.className}:border=${cs.borderLeftColor}/${cs.borderLeftWidth},bg=${cs.backgroundColor}`);
+      cur = cur.parentElement;
+    }
+    document.title = `HIT ${info.join(" >> ")}`;
+  }, 3200);
+}
+
+// ?qinfo=1 —— 普通引用的位置/边框颜色，以及该点命中的元素
+if (q.get("qinfo") === "1") {
+  setTimeout(() => {
+    const bq = document.querySelector(".milkdown blockquote:not(.md-callout):not(.md-foldblock)") as HTMLElement | null;
+    if (!bq) {
+      document.title = "QINFO none";
+      return;
+    }
+    const r = bq.getBoundingClientRect();
+    const cs = getComputedStyle(bq);
+    const hit = document.elementFromPoint(r.left + 2, r.top + r.height / 2) as HTMLElement | null;
+    const hcs = hit ? getComputedStyle(hit) : null;
+    document.title = `QINFO rect=${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)}x${Math.round(r.height)} border=${cs.borderLeftColor}/${cs.borderLeftWidth} hit=${hit?.tagName}.${hit?.className} hitBorder=${hcs?.borderLeftColor}/${hcs?.borderLeftWidth}`;
+  }, 3200);
+}
+
+// ?pseudo=1 —— 看提示块 ::before/::after 是否画了额外的蓝色竖条
+if (q.get("pseudo") === "1") {
+  setTimeout(() => {
+    const el = document.querySelector(".md-callout") as HTMLElement | null;
+    if (!el) {
+      document.title = "PSEUDO none";
+      return;
+    }
+    const b = getComputedStyle(el, "::before");
+    const a = getComputedStyle(el, "::after");
+    document.title = `PSEUDO before{content=${b.content},bg=${b.backgroundColor},bw=${b.borderLeftWidth} ${b.borderLeftColor},w=${b.width},pos=${b.position}} after{content=${a.content},bg=${a.backgroundColor}}`;
+  }, 3200);
+}
+
+// ?deltest=1 —— 插入空提示块后按一次 Backspace，验证整块（含标记）是否被删
+if (q.get("deltest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "DELTEST no-view"; return; }
+    const { insertCallout } = await import("./editor/callouts");
+    const bqCount = () => { let n = 0; view.state.doc.descendants((x: any) => { if (x.type.name === "blockquote") n += 1; return true; }); return n; };
+    const noteCount = () => (view.state.doc.textContent.match(/\[!NOTE\]/g) ?? []).length;
+
+    view.dispatch(view.state.tr.insert(view.state.doc.content.size, view.state.schema.nodes.paragraph.create()));
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(view.state.doc.content.size - 1))));
+    insertCallout(view, "note");
+    await new Promise((r) => setTimeout(r, 150));
+    const before = bqCount();
+    view.focus();
+    view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    document.title = `DELTEST bq=${before}->${bqCount()} note=${noteCount()}`;
+  }, 3200);
+}
+

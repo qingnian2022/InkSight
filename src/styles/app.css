@@ -1683,7 +1683,8 @@ body.resizing .app-body {
   margin: 1.2em 0;
   padding: 0.5em 1.1em 0.5em 1.2em;
   border-radius: 0 var(--r-md) var(--r-md) 0;
-  background: var(--surface-sunken);
+  /* 中性底：引用不该跟主题色走（macOS 皮肤下 accent 是系统蓝） */
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   color: var(--text-secondary);
   box-sizing: border-box;
 }
@@ -1694,7 +1695,7 @@ body.resizing .app-body {
   bottom: 0;
   width: 4px;
   border-radius: 2px;
-  background: var(--accent);
+  background: color-mix(in srgb, var(--text-primary) 26%, transparent);
 }
 
 .rich-editor .milkdown .ProseMirror blockquote p {
@@ -3521,4 +3522,228 @@ body.resizing .app-body {
 .toast-leave-to {
   opacity: 0;
   transform: translate(-50%, 6px);
+}
+
+/* ---------- 引用 / 提示块（Tier A：> [!TIP] 语法） ---------- */
+
+/* Crepe 自带 blockquote::before 会画 4px 主题色竖条（macOS 皮肤下是蓝的），
+   这里直接去掉，改由下面的 border-left 着色 */
+.milkdown .ProseMirror blockquote::before {
+  content: none !important;
+}
+
+/* 普通引用：中性灰，不要主题色 */
+.milkdown .ProseMirror blockquote:not(.md-callout):not(.md-foldblock) {
+  margin: 10px 0;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  border-left: 3px solid color-mix(in srgb, var(--text-primary) 26%, transparent) !important;
+  border-radius: 0 8px 8px 0;
+  /* 中性浅底：不用主题色，也不要完全没底 */
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent) !important;
+  color: var(--text-primary);
+}
+
+.milkdown blockquote p {
+  margin: 4px 0;
+}
+
+/* 语义提示块：按类型直接给色值（不用自定义属性传递，避免被主题/顺序干扰） */
+.milkdown .ProseMirror blockquote.md-callout {
+  padding: 10px 14px;
+  box-sizing: border-box;
+  border-left-width: 4px;
+  border-left-style: solid;
+  color: var(--text-primary);
+}
+
+.milkdown .ProseMirror blockquote.md-callout[data-callout="note"] {
+  border-left-color: #6f92bd !important;
+  background: #eef3fa !important;
+  --callout: #6f92bd;
+}
+
+.milkdown .ProseMirror blockquote.md-callout[data-callout="tip"] {
+  border-left-color: #6aa87c !important;
+  background: #ecf5ee !important;
+  --callout: #6aa87c;
+}
+
+.milkdown .ProseMirror blockquote.md-callout[data-callout="important"] {
+  border-left-color: #9280c4 !important;
+  background: #f2effa !important;
+  --callout: #9280c4;
+}
+
+.milkdown .ProseMirror blockquote.md-callout[data-callout="warning"] {
+  border-left-color: #c9974f !important;
+  background: #fbf3e4 !important;
+  --callout: #c9974f;
+}
+
+.milkdown .ProseMirror blockquote.md-callout[data-callout="caution"] {
+  border-left-color: #c9787a !important;
+  background: #fbecec !important;
+  --callout: #c9787a;
+}
+
+/* 深色主题：同色系压暗 */
+html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callout="note"] { background: #1d2a38 !important; }
+html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callout="tip"] { background: #1e2f25 !important; }
+html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callout="important"] { background: #262237 !important; }
+html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callout="warning"] { background: #322a1c !important; }
+html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callout="caution"] { background: #332021 !important; }
+
+/* 首行标记 [!TIP] 只是元数据，渲染时隐藏 */
+.milkdown .md-callout-mark {
+  display: none;
+}
+
+/* 块内第一个文字块：字号字重都跟正文一致，靠底色/竖条区分类型 */
+.milkdown .ProseMirror blockquote.md-callout > p:first-child {
+  font-weight: inherit;
+  color: var(--text-primary);
+}
+
+/* 空块保底高度，避免折叠成一条细线 */
+.milkdown .ProseMirror blockquote.md-callout {
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+/* ---------- 标题折叠（视图层，不改文件） ---------- */
+
+.milkdown .md-fold-btn {
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+/* 标题带定位上下文，箭头才不会随字号偏移 */
+.milkdown h1,
+.milkdown h2,
+.milkdown h3,
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  position: relative;
+}
+
+.milkdown .md-fold-btn::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--text-tertiary);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 120ms ease;
+}
+
+.milkdown .md-fold-btn.folded::before {
+  transform: rotate(90deg);
+}
+
+.milkdown h1:hover .md-fold-btn,
+.milkdown h2:hover .md-fold-btn,
+.milkdown h3:hover .md-fold-btn,
+.milkdown h4:hover .md-fold-btn,
+.milkdown h5:hover .md-fold-btn,
+.milkdown h6:hover .md-fold-btn,
+.milkdown .md-fold-btn.folded {
+  opacity: 0.85;
+}
+
+.milkdown .md-fold-btn:hover {
+  opacity: 1;
+}
+
+.milkdown .md-fold-hidden {
+  display: none !important;
+}
+
+/* 提示块内嵌的引用：不再叠一层边框/底色，避免双重色块 */
+.milkdown blockquote.md-callout blockquote {
+  margin: 6px 0;
+  padding-left: 0;
+  border-left: 0;
+  background: transparent !important;
+}
+
+/* ---------- 折叠块（> [!FOLD] 标题） ---------- */
+
+.milkdown .ProseMirror blockquote.md-foldblock {
+  margin: 10px 0;
+  padding: 8px 14px;
+  /* 中性灰：折叠块是结构元素，不该跟着主题色变蓝 */
+  border-left: 3px solid color-mix(in srgb, var(--text-primary) 26%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+
+.milkdown .ProseMirror blockquote.md-foldblock > p:first-child {
+  position: relative;
+  margin: 0;
+  padding-right: 20px;
+  color: var(--text-primary);
+}
+
+.milkdown .ProseMirror blockquote.md-foldblock > p:not(:first-child) {
+  margin: 8px 0 0;
+  color: var(--text-primary);
+}
+
+.milkdown .md-fold-mark {
+  display: none;
+}
+
+/* 标题行末尾的折叠箭头：整行高度垂直居中 */
+.milkdown .md-fold-chevron {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+}
+
+.milkdown .md-fold-chevron::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 5px solid var(--text-tertiary);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  transition: transform 120ms ease;
+}
+
+.milkdown .md-fold-chevron.folded::before {
+  transform: rotate(-90deg);
+}
+
+.milkdown blockquote.md-foldblock:hover .md-fold-chevron {
+  opacity: 0.9;
+}
+
+/* 折叠态下首行给点提示，避免内容消失得莫名 */
+.milkdown blockquote.md-foldblock[data-folded="true"] > p:first-child::after {
+  content: "（已收起）";
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
