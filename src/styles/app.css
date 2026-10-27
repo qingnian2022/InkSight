@@ -1727,10 +1727,13 @@ body.resizing .app-body {
 
 .rich-editor .milkdown .milkdown-list-item-block li .label-wrapper,
 .rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
-  width: 18px;
+  /* 两位数序号（10. 11.）比 18px 宽，改成最小宽度 + 自适应，右侧留 4px 间隙 */
+  width: auto;
+  min-width: 18px;
   height: 28px;
-  padding: 0;
+  padding: 0 4px 0 0;
   line-height: 28px;
+  text-align: right;
 }
 
 .rich-editor .milkdown .milkdown-list-item-block li .label-wrapper {

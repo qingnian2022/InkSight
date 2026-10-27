@@ -12,6 +12,7 @@ import { headingFoldPlugin, toggleFoldAtCursor } from "../editor/heading-fold";
 import { foldBlockPlugin, insertFoldBlock } from "../editor/fold-block";
 import { remarkSplitCallout } from "../editor/remark-split-callout";
 import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
+import { toggleList } from "../editor/list-commands";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { normalizeEmphasis } from "../editor/normalize-emphasis";
@@ -223,6 +224,22 @@ async function mount() {
             }
             // 颜色双按钮放文本样式组末尾（加粗 / 斜体 / 删除线之后，语雀同款位置）
             formatting.items.push(...buildColorTopBarItems());
+
+            // 列表按钮：直接改写内置项的 onRun，实现「再点取消 / 互相转换」
+            // （不能改 items 数组：渲染器持有原引用，重新 addItem 会留下重复按钮）
+            const listItems = builder.getGroup("list").group.items;
+            const bulletItem = listItems.find((i) => i.key === "bullet-list");
+            const orderedItem = listItems.find((i) => i.key === "ordered-list");
+            if (bulletItem) {
+              bulletItem.onRun = (ctx) => {
+                toggleList(ctx, "bullet");
+              };
+            }
+            if (orderedItem) {
+              orderedItem.onRun = (ctx) => {
+                toggleList(ctx, "ordered");
+              };
+            }
           },
       },
       // 「/」插入菜单的中文文案（图标沿用默认）
@@ -252,8 +269,14 @@ async function mount() {
           table: { label: "表格" },
           math: { label: "公式" },
         },
-        // 「/」菜单追加「语雀块」分组：提示块 + 折叠标题
+        // 「/」菜单：列表项同样换成支持取消/转换的实现，再追加「语雀块」分组
         buildMenu: (builder) => {
+          const slashLists = builder.getGroup("list").group.items;
+          slashLists.forEach((item) => {
+            if (item.key === "bullet-list") item.onRun = (ctx) => { toggleList(ctx, "bullet"); };
+            if (item.key === "ordered-list") item.onRun = (ctx) => { toggleList(ctx, "ordered"); };
+          });
+
           const group = builder.addGroup("yz-block", "语雀块");
           const items: { key: string; type: CalloutType; label: string }[] = [
             { key: "callout-note", type: "note", label: "提示块 · 说明" },

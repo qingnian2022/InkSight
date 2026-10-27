@@ -246,6 +246,23 @@ if (q.get("callout") === "1") {
     "> [!FOLD] 附属资料",
     "> 这里是被折叠的内容，点右侧箭头收起。",
     "",
+    "1. 第一项",
+    "2. 第二项",
+    "3. 第三项",
+    "",
+    "1. 项1",
+    "2. 项2",
+    "3. 项3",
+    "4. 项4",
+    "5. 项5",
+    "6. 项6",
+    "7. 项7",
+    "8. 项8",
+    "9. 项9",
+    "10. 项10",
+    "11. 项11",
+    "12. 项12",
+    "",
     "## 可折叠的标题",
     "",
     "这一段应该被折叠起来。",
@@ -843,3 +860,261 @@ if (q.get("deltest") === "1") {
   }, 3200);
 }
 
+
+// ?listtest=1 —— 排查列表：普通段落转列表 / 再点一次 / 互相转换 / 有序编号
+if (q.get("listtest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { commandsCtx } = await import("@milkdown/kit/core");
+    const { wrapInBulletListCommand, wrapInOrderedListCommand, turnIntoTextCommand } = await import(
+      "@milkdown/kit/preset/commonmark"
+    );
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "LISTTEST no-view"; return; }
+
+    const chain = () => {
+      const $f = view.state.selection.$from;
+      const out: string[] = [];
+      for (let d = 1; d <= $f.depth; d += 1) {
+        const n = $f.node(d);
+        out.push(`${n.type.name}${n.attrs?.listType ? "/" + n.attrs.listType : ""}${n.attrs?.label ? "(" + n.attrs.label + ")" : ""}`);
+      }
+      return out.join(">");
+    };
+    const labelsIn = () => {
+      const $f = view.state.selection.$from;
+      for (let d = $f.depth; d > 0; d -= 1) {
+        const n = $f.node(d);
+        if (n.type.name !== "bullet_list" && n.type.name !== "ordered_list") continue;
+        const ls: string[] = [];
+        n.forEach((li: any) => ls.push(`${li.attrs.listType ?? "-"}${li.attrs.label ?? ""}`));
+        return ls.join("|");
+      }
+      return "-";
+    };
+
+    // 取最后一个普通段落（样张末尾「这一段应该被折叠起来。」）
+    let paraPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (n.type.name === "paragraph" && n.textContent.includes("折叠")) paraPos = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paraPos)));
+
+    const cmds = ctx.get(commandsCtx);
+    const steps: string[] = [];
+    cmds.call(wrapInOrderedListCommand.key);
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`ordered1[${chain()}] items=${labelsIn()}`);
+    cmds.call(wrapInOrderedListCommand.key);
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`ordered2[${chain()}]`);
+    cmds.call(wrapInBulletListCommand.key);
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`toBullet[${chain()}] items=${labelsIn()}`);
+    cmds.call(turnIntoTextCommand.key);
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`toText[${chain()}]`);
+
+    document.title = `LISTTEST ${steps.join(" || ")}`;
+  }, 3400);
+}
+
+// ?labeltest=1 —— 有序列表新增项后 label 是否按序重算（1./2./3.）
+if (q.get("labeltest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { commandsCtx } = await import("@milkdown/kit/core");
+    const { wrapInOrderedListCommand, splitListItemCommand } = await import("@milkdown/kit/preset/commonmark");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "LABELTEST no-view"; return; }
+    let paraPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (n.type.name === "paragraph" && n.textContent.includes("折叠")) paraPos = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paraPos)));
+    const cmds = ctx.get(commandsCtx);
+    cmds.call(wrapInOrderedListCommand.key);
+    await new Promise((r) => setTimeout(r, 60));
+    cmds.call(splitListItemCommand.key);
+    await new Promise((r) => setTimeout(r, 60));
+    cmds.call(splitListItemCommand.key);
+    await new Promise((r) => setTimeout(r, 120));
+    const labels: string[] = [];
+    view.state.doc.descendants((n: any) => {
+      if (n.type.name === "list_item" && n.attrs.listType === "ordered") labels.push(n.attrs.label);
+      return true;
+    });
+    const dom = [...document.querySelectorAll(".milkdown-list-item-block li .label")].map((e) => e.textContent?.trim());
+    document.title = `LABELTEST doc=[${labels.join(",")}] dom=[${dom.slice(-3).join(",")}]`;
+  }, 3400);
+}
+
+// ?listfix=1 —— 验证新的列表切换：包成列表 / 再点取消 / 互相转换 / 编号
+if (q.get("listfix") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { toggleList } = await import("./editor/list-commands");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "LISTFIX no-view"; return; }
+
+    const chain = () => {
+      const $f = view.state.selection.$from;
+      const out: string[] = [];
+      for (let d = 1; d <= $f.depth; d += 1) {
+        const n = $f.node(d);
+        out.push(`${n.type.name}${n.attrs?.listType ? "/" + n.attrs.listType : ""}${n.attrs?.label ? "(" + n.attrs.label + ")" : ""}`);
+      }
+      return out.join(">");
+    };
+    const labelsIn = () => {
+      const $f = view.state.selection.$from;
+      for (let d = $f.depth; d > 0; d -= 1) {
+        const n = $f.node(d);
+        if (n.type.name !== "bullet_list" && n.type.name !== "ordered_list") continue;
+        const ls: string[] = [];
+        n.forEach((li: any) => ls.push(`${li.attrs.label}`));
+        return ls.join("|");
+      }
+      return "-";
+    };
+    const findPara = () => {
+      let p = -1;
+      view.state.doc.descendants((n: any, pos: number) => {
+        if (n.type.name === "paragraph" && n.textContent.includes("折叠")) p = pos + 1;
+        return true;
+      });
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, p)));
+    };
+
+    const steps: string[] = [];
+    findPara();
+    toggleList(ctx, "ordered");
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`ordered[${chain()}]`);
+    toggleList(ctx, "ordered");
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`again[${chain()}]`);
+    toggleList(ctx, "bullet");
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`bullet[${chain()}]`);
+    toggleList(ctx, "ordered");
+    await new Promise((r) => setTimeout(r, 80));
+    steps.push(`toOrdered[${chain()}] labels=${labelsIn()}`);
+    // 多项目列表转换：样张里的 3 项列表
+    let itemPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (itemPos < 0 && n.type.name === "paragraph" && n.textContent.includes("第一项")) itemPos = pos + 1;
+      return true;
+    });
+    if (itemPos > 0) {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, itemPos)));
+      toggleList(ctx, "bullet");
+      await new Promise((r) => setTimeout(r, 80));
+      steps.push(`multiToBullet[${chain()}]`);
+      toggleList(ctx, "ordered");
+      await new Promise((r) => setTimeout(r, 80));
+      steps.push(`multiToOrdered labels=${labelsIn()}`);
+    }
+
+    // 取消整个有序列表：内容应变成普通段落且不丢项
+    const textBefore = view.state.doc.textContent;
+    toggleList(ctx, "ordered");
+    await new Promise((r) => setTimeout(r, 120));
+    let paras = 0;
+    view.state.doc.descendants((n: any) => {
+      if (n.type.name === "paragraph" && /项\d|第一项/.test(n.textContent)) paras += 1;
+      return true;
+    });
+    const textAfter = view.state.doc.textContent;
+    steps.push(`cancelList[${chain()}] same=${textBefore === textAfter} len=${textBefore.length}->${textAfter.length}`);
+
+    document.title = `LISTFIX ${steps.join(" || ")}`;
+  }, 3400);
+}
+
+// ?topbar=1 —— 工具栏列表按钮：列出 aria-label，并点击「有序列表」验证是否走新命令
+if (q.get("topbar") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "TOPBAR no-view"; return; }
+    const items = [...document.querySelectorAll<HTMLElement>(".top-bar-item")].map(
+      (el) => el.getAttribute("aria-label") || el.getAttribute("title") || el.dataset.key || "?",
+    );
+    const btn = [...document.querySelectorAll<HTMLElement>(".top-bar-item")].find(
+      (el) => (el.getAttribute("aria-label") || "").includes("有序"),
+    );
+    let paraPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (n.type.name === "paragraph" && n.textContent.includes("折叠")) paraPos = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paraPos)));
+    btn?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    btn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const $f = view.state.selection.$from;
+    const tops: string[] = [];
+    for (let d = 1; d <= $f.depth; d += 1) tops.push($f.node(d).type.name);
+    document.title = `TOPBAR items=[${items.join(",")}] btn=${!!btn} chain=${tops.join(">")}`;
+  }, 3400);
+}
+
+// ?topbar2=1 —— 工具栏：点无序两次（第二次取消）→ 点有序（转换）→ 再点（取消）
+if (q.get("topbar2") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "TOPBAR2 no-view"; return; }
+
+    const chain = () => {
+      const $f = view.state.selection.$from;
+      const out: string[] = [];
+      for (let d = 1; d <= $f.depth; d += 1) {
+        const n = $f.node(d);
+        out.push(n.type.name + (n.attrs?.listType ? "/" + n.attrs.listType : ""));
+      }
+      return out.join(">");
+    };
+    const btnAt = (lo: number, hi: number) =>
+      [...document.querySelectorAll<HTMLElement>(".top-bar-item")].find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left > lo && r.left < hi && r.top < 200;
+      }) ?? null;
+    const fire = (el: HTMLElement | null) =>
+      el?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+
+    let paraPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (n.type.name === "paragraph" && n.textContent.includes("折叠")) paraPos = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paraPos)));
+
+    const bulletBtn = btnAt(488, 504);
+    const orderedBtn = btnAt(522, 540);
+    const out: string[] = [];
+
+    fire(bulletBtn);
+    await new Promise((r) => setTimeout(r, 180));
+    out.push(`bullet1=${chain()}`);
+    fire(bulletBtn);
+    await new Promise((r) => setTimeout(r, 180));
+    out.push(`bullet2=${chain()}`);
+    fire(orderedBtn);
+    await new Promise((r) => setTimeout(r, 180));
+    out.push(`ordered1=${chain()}`);
+    fire(orderedBtn);
+    await new Promise((r) => setTimeout(r, 180));
+    out.push(`ordered2=${chain()}`);
+
+    document.title = `TOPBAR2 ${out.join(" ")}`;
+  }, 3400);
+}
