@@ -10,7 +10,10 @@ import SyncMenu from "./SyncMenu.vue";
  * 和最小化 / 最大化 / 关闭，颜色与内部主题保持一致。
  * 浏览器里（npm run dev）没有 Tauri 后端，只显示应用名，不渲染窗口按钮。
  */
-const isTauri = "__TAURI_INTERNALS__" in window;
+// DEV 预览用 ?winbtns=1 强制渲染窗口按钮（正式构建里该分支被替换为 false）
+const isTauri =
+  "__TAURI_INTERNALS__" in window ||
+  (import.meta.env.DEV && new URLSearchParams(location.search).has("winbtns"));
 const maximized = ref(false);
 let unlisten: (() => void) | null = null;
 
@@ -52,17 +55,6 @@ onBeforeUnmount(() => {
     :class="{ 'is-macos': state.skin === 'macos' }"
     data-tauri-drag-region
   >
-    <div v-if="state.skin === 'macos'" class="traffic-lights" @pointerdown.stop>
-      <button class="tl close" aria-label="关闭" title="关闭（驻留托盘）" @click="close" />
-      <button class="tl min" aria-label="最小化" title="最小化" @click="minimize" />
-      <button
-        class="tl max"
-        :aria-label="maximized ? '还原' : '最大化'"
-        :title="maximized ? '向下还原' : '最大化'"
-        @click="toggleMaximize"
-      />
-    </div>
-
     <div class="titlebar-left" data-tauri-drag-region>
       <img class="titlebar-logo" src="/app-icon.png" alt="" draggable="false" />
       <span class="titlebar-title" data-tauri-drag-region>Inksight</span>
@@ -84,7 +76,8 @@ onBeforeUnmount(() => {
         <span class="as-slider" :class="{ on: state.autoSave }" />
       </button>
 
-      <div v-if="isTauri && state.skin !== 'macos'" class="win-btns">
+      <!-- 窗口按钮统一放右侧，顺序遵循 Windows：最小化 / 最大化 / 关闭 -->
+      <div v-if="isTauri" class="win-btns" @pointerdown.stop>
         <button class="win-btn" aria-label="最小化" title="最小化" @click="minimize">
           <Icon name="minus" :size="14" />
         </button>
