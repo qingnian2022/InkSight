@@ -2,6 +2,12 @@
 import { scrollToHeading } from "../editor/viewRef";
 import { outline, state } from "../store";
 import Icon from "./Icon.vue";
+
+/** 同名标题按出现顺序跳转，避免每次都跳到第一个 */
+function go(item: { text: string }) {
+  const same = outline.value.filter((o) => o.text === item.text);
+  scrollToHeading(item.text, Math.max(0, same.indexOf(item as (typeof same)[number])));
+}
 </script>
 
 <template>
@@ -18,7 +24,7 @@ import Icon from "./Icon.vue";
         :key="`${item.line}-${item.text}`"
         class="outline-item"
         :class="`lv${Math.min(item.level, 3)}`"
-        @click="scrollToHeading(item.text)"
+        @click="go(item)"
       >
         <span class="bar" />
         <span class="label">{{ item.text }}</span>

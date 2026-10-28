@@ -1,4 +1,5 @@
-import { $nodeSchema, $remark } from "@milkdown/kit/utils";
+import { $nodeSchema, $prose, $remark } from "@milkdown/kit/utils";
+import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 
 /**
  * 内联 HTML 彩色文字支持（<font style="color:..."> / <span style="color:...">）。
@@ -116,6 +117,19 @@ function mergeColoredRuns(children: any[]): any[] {
     out.push(...open.buffer);
   }
 
+  // 旧文件里可能有 <font><font> 套娃（反复改色的历史 bug），这里拍平：
+  // 外层颜色优先，内层 coloredText 拆成普通子节点，避免越存越多层
+  const flatten = (node: any): any[] => {
+    if (node?.type !== "coloredText") return [node];
+    const kids: any[] = [];
+    for (const child of node.children ?? []) kids.push(...flatten(child));
+    return [{ ...node, children: kids }];
+  };
+  const flat: any[] = [];
+  for (const node of out) flat.push(...flatten(node));
+  out.length = 0;
+  out.push(...flat);
+
   // 同色相邻段合并：导出工具会把一段彩色文字切成多段（`**A****B**`），
   // 不合并的话加粗标记只能覆盖第一段，后半段会丢粗体。
   const merged: any[] = [];
@@ -210,3 +224,35 @@ export const coloredTextSchema = $nodeSchema("coloredText", () => ({
     },
   },
 }));
+
+
+/**
+ * 文档级兜底：任何路径（局部重叠改色、外部粘贴、程序化插入）产生了
+ * coloredText 套 coloredText，都在事务结束后拍平成一层，保留外层颜色。
+ * 只在真的出现嵌套时才返回新事务，避免每次输入都重建文档。
+ */
+export const coloredTextCleanup = $prose(
+  (ctx) =>
+    new Plugin({
+      key: new PluginKey("md-colored-text-cleanup"),
+      appendTransaction(trs, _old, next) {
+        if (!trs.some((tr) => tr.docChanged)) return null;
+        const nested: { pos: number; node: any }[] = [];
+        next.doc.descendants((node, pos, parent) => {
+          if (node.type.name === "coloredText" && parent?.type.name === "coloredText") {
+            nested.push({ pos, node });
+          }
+          return true;
+        });
+        if (!nested.length) return null;
+
+        let tr = next.tr;
+        // 从后往前拆，前面的位置不受影响；深层嵌套会被后续事务继续拍平
+        for (const item of nested.reverse()) {
+          tr = tr.replaceWith(item.pos, item.pos + item.node.nodeSize, item.node.content);
+        }
+        void ctx;
+        return tr;
+      },
+    }),
+);

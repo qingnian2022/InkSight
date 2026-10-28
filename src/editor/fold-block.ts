@@ -4,6 +4,7 @@ import type { EditorState } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { wrapIn } from "@milkdown/kit/prose/commands";
 import { deleteQuoteBlockAtEdge } from "./block-delete";
+import { ANY_MARKER_RE, markerText } from "./markers";
 
 /**
  * 折叠块（Tier A）：存储是普通引用 + 首行标记
@@ -17,7 +18,7 @@ import { deleteQuoteBlockAtEdge } from "./block-delete";
 
 const foldKey = new PluginKey<Set<number>>("md-fold-block");
 const MARKER_RE = /\[!FOLD\]/i;
-const MARKER_TEXT = "[!FOLD] ";
+const MARKER_TEXT = markerText("fold");
 
 function buildDecorations(state: EditorState, folded: Set<number>): DecorationSet {
   const decos: Decoration[] = [];
@@ -89,7 +90,11 @@ export function insertFoldBlock(view: { state: EditorState; dispatch: (tr: unkno
     const text = node.firstChild?.textContent ?? "";
     if (MARKER_RE.test(text)) return true;
     const start = state.selection.$from.start(depth) + 1;
-    const tr = state.tr.insertText(MARKER_TEXT, start);
+    // 已有别的标记（提示块）时直接替换，避免一段里出现两个标记
+    const other = ANY_MARKER_RE.exec(text);
+    const tr = other
+      ? state.tr.insertText(MARKER_TEXT, start, start + other[0].length)
+      : state.tr.insertText(MARKER_TEXT, start);
     tr.setSelection(TextSelection.create(tr.doc, start + MARKER_TEXT.length));
     view.dispatch(tr.scrollIntoView());
     return true;

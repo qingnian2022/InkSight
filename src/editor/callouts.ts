@@ -4,6 +4,7 @@ import type { EditorState } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { wrapIn } from "@milkdown/kit/prose/commands";
 import { deleteQuoteBlockAtEdge } from "./block-delete";
+import { ANY_MARKER_RE, markerText } from "./markers";
 
 /**
  * 语雀式提示块（Tier A：纯 Markdown 兼容）。
@@ -60,7 +61,7 @@ function buildDecorations(doc: EditorState["doc"]): DecorationSet {
 
 /** 把当前块包成提示块；已在引用里则只改类型标记。 */
 function setCallout(type: CalloutType) {
-  const marker = `[!${type.toUpperCase()}] `;
+  const marker = markerText(type);
   return (state: EditorState, dispatch?: (tr: any) => void): boolean => {
     const { schema } = state;
     const bq = schema.nodes.blockquote;
@@ -73,7 +74,7 @@ function setCallout(type: CalloutType) {
       if (node.type !== bq) continue;
       const start = state.selection.$from.start(depth) + 1;
       const text = node.firstChild?.textContent ?? "";
-      const existing = MARKER_RE.exec(text);
+      const existing = ANY_MARKER_RE.exec(text);
       const tr = state.tr;
       if (existing) tr.insertText(marker, start, start + existing[0].length);
       else tr.insertText(marker, start);

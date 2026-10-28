@@ -11,10 +11,13 @@ import { calloutPlugin, insertCallout, type CalloutType } from "../editor/callou
 import { headingFoldPlugin, toggleFoldAtCursor } from "../editor/heading-fold";
 import { foldBlockPlugin, insertFoldBlock } from "../editor/fold-block";
 import { remarkSplitCallout } from "../editor/remark-split-callout";
+import { remarkFlattenQuote } from "../editor/remark-flatten-quote";
 import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
 import { toggleList } from "../editor/list-commands";
+import { attachToolbarTips } from "../editor/toolbar-tips";
+import { noNestedQuote } from "../editor/quote-normalize";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
-import { coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
+import { coloredTextCleanup, coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { normalizeEmphasis } from "../editor/normalize-emphasis";
 import { tableSchemaOverride } from "../editor/table-schema";
 import { attachToolbarOverflow } from "../editor/toolbarOverflow";
@@ -70,6 +73,7 @@ let seq = 0;
 let edited = false;
 let detachOverflow: (() => void) | null = null;
 let detachKeyGuard: (() => void) | null = null;
+let detachTips: (() => void) | null = null;
 
 /**
  * 删除键兜底：提示块 / 折叠块里只剩隐藏标记时，Backspace/Delete 直接删整块。
@@ -102,6 +106,8 @@ async function teardown() {
   detachOverflow = null;
   detachKeyGuard?.();
   detachKeyGuard = null;
+  detachTips?.();
+  detachTips = null;
   if (!crepe) return;
   const old = crepe;
   const path = boundPath;
@@ -349,16 +355,18 @@ async function mount() {
 
   // 内联 HTML 彩色文字（<font>/<span style="color:...">）渲染支持
   // normalizeEmphasis 先跑：把同步/导入里的全角星号、`**加粗**` 反引号包法救回来
-  instance.editor.use(normalizeEmphasis).use(mergeInlineColorHtml).use(coloredTextSchema);
+  instance.editor.use(normalizeEmphasis).use(mergeInlineColorHtml).use(coloredTextSchema).use(coloredTextCleanup);
 
   // 提示块 / 折叠块：把「标题 + 正文」的软换行拆成两个段落
   instance.editor.use(remarkSplitCallout);
+  // 打开文档时就把嵌套引用拍平（`> > 文字` → `> 文字`）
+  instance.editor.use(remarkFlattenQuote);
 
   // 表格 schema 放宽（允许只有表头的表格）：必须在 Crepe/preset-gfm 之后注册才生效
   instance.editor.use(tableSchemaOverride);
 
   // 语雀式提示块（> [!TIP]）与标题折叠
-  instance.editor.use(calloutPlugin).use(headingFoldPlugin).use(foldBlockPlugin);
+  instance.editor.use(calloutPlugin).use(headingFoldPlugin).use(foldBlockPlugin).use(noNestedQuote);
 
   let ready = false;
 
@@ -392,6 +400,12 @@ async function mount() {
     setPmCtx(ctx);
     attachDeleteGuard(view);
   });
+
+  // 功能提示要在收纳前绑定（收纳会把节点搬进 ⋯ 菜单，序号会变）
+  if (host.value) {
+    detachTips?.();
+    detachTips = attachToolbarTips(host.value);
+  }
 
   // 工具栏渐进收纳：宽度不够时把靠后的命令收进 ⋯ 菜单
   const inner = host.value?.querySelector<HTMLElement>(".top-bar-inner");

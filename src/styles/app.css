@@ -388,22 +388,11 @@ body.resizing .app-body {
   background: none;
 }
 
-/* 虚拟「置顶」文件夹：默认无底（和普通文件夹一致）
-   展开时给普通行 hover 的同款浅底，悬停再深一档 */
+/* 虚拟「置顶」文件夹：不设专属底色，展开/折叠都和普通行一致，
+   只保留 hover 反馈（用全局 .tree-row:hover 即可） */
 .tree-row.pinned-folder {
   height: 40px;
   margin-bottom: 8px;
-  background: transparent;
-}
-
-.tree-row.pinned-folder[aria-expanded="true"] {
-  background: var(--surface-hover);
-}
-
-/* 悬停优先于展开态：折叠/展开都给可点反馈 */
-.tree-row.pinned-folder:hover {
-  background: var(--surface-active);
-  filter: none;
 }
 
 .tree-row.pinned-folder .label {
@@ -1607,7 +1596,7 @@ body.resizing .app-body {
 .rich-editor .milkdown .ProseMirror {
   max-width: max(560px, var(--ed-max, 75%));
   margin: 0 auto;
-  padding: 44px 28px 32vh;
+  padding: 44px 28px 72vh;
   min-height: 60vh;
   color: var(--text-primary);
   caret-color: var(--accent);
@@ -1841,8 +1830,9 @@ body.resizing .app-body {
 
 /* 顶部工具栏与项目自身的工具栏对齐 */
 .rich-editor .milkdown .milkdown-top-bar {
-  min-height: var(--toolbar-h);
-  padding: 0 14px;
+  /* 仿语雀：比正文工具栏略矮、左右留白更小 */
+  min-height: 42px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -1864,10 +1854,10 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button {
-  height: 32px;
+  height: 28px;
   /* 收窄：标题按钮不该比图标按钮宽出一截 */
-  padding: 0 5px 0 7px;
-  border-radius: var(--r-md);
+  padding: 0 4px 0 6px;
+  border-radius: 6px;
   background: transparent;
 }
 
@@ -1882,10 +1872,10 @@ body.resizing .app-body {
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button .top-bar-heading-label {
   /* Crepe 默认给 80px 定宽，中文「标题 1」用不到这么宽 */
-  width: 44px;
-  min-width: 0;
-  font-size: 12.5px;
-  font-weight: 600;
+  width: auto;
+  min-width: 38px;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0;
   text-align: left;
 }
@@ -1903,25 +1893,30 @@ body.resizing .app-body {
   stroke: var(--text-tertiary);
 }
 
+/* 分组用 1px 竖线（语雀同款），不再靠大留白 */
 .rich-editor .milkdown .milkdown-top-bar .top-bar-divider {
-  /* 不显示分割线，改用它前后的间距做分组（见下方 + 选择器） */
-  display: none;
+  display: block;
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin: 0 8px;
+  background: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  align-self: center;
 }
 
-/* 隐藏分割线后，把「组起点」的下一个条目推远，形成留白分组 */
 .rich-editor .milkdown .milkdown-top-bar .top-bar-divider + .top-bar-item {
-  margin-left: 18px;
+  margin-left: 0;
 }
 
-/* Crepe 默认把图标染成 outline（浅褐灰），这里提到正文次级色 */
+/* 仿语雀：28px 方形按钮、16px 图标、深色图标 + 浅灰 hover */
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   margin: 0;
   padding: 0;
-  border-radius: var(--r-md);
+  border-radius: 6px;
   justify-content: center;
-  transition: background 140ms ease;
+  transition: background 120ms ease;
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item:hover {
@@ -1929,19 +1924,44 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item svg {
-  width: 18px;
-  height: 18px;
-  color: var(--text-secondary);
-  fill: var(--text-secondary);
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
+  fill: currentColor;
+  opacity: 0.78;
+  transition: opacity 120ms ease;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:hover svg,
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item.active svg {
+  opacity: 1;
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item.active {
-  background: var(--accent-soft);
+  background: var(--surface-active);
 }
 
-.rich-editor .milkdown .milkdown-top-bar .top-bar-item.active svg {
-  color: var(--accent);
-  fill: var(--accent);
+/* 颜色「A」+「▾」= 一个分裂按钮：hover 任一整块高亮，点击各走各的功能 */
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph) {
+  border-radius: 6px 0 0 6px;
+  margin-right: -2px;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-chevron) {
+  border-radius: 0 6px 6px 0;
+  width: 20px;
+}
+
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph):hover,
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph):has(+ .top-bar-item:hover),
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph):hover + .top-bar-item {
+  background: var(--surface-hover);
+}
+
+/* 色板打开时，整块（含 A）一起进入激活态 */
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-chevron).active,
+.rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph):has(+ .top-bar-item.active) {
+  background: var(--surface-active);
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-dropdown {
@@ -3749,4 +3769,42 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   font-weight: 400;
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+/* ---------- 工具栏功能提示（仿语雀深色 tooltip） ---------- */
+
+.tb-tip {
+  position: fixed;
+  z-index: 4200;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #2b2b2e;
+  color: #f5f6f7;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.tb-tip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 大纲跳转落点：工具栏是 .milkdown 内的 sticky 层（高 42px），
+   标题必须让开这一段，否则会滚到工具栏底下 */
+.rich-editor {
+  --md-topbar-h: 42px;
+}
+
+.milkdown h1,
+.milkdown h2,
+.milkdown h3,
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  scroll-margin-top: calc(var(--md-topbar-h) + 12px);
 }

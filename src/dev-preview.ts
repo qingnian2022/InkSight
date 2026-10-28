@@ -223,6 +223,45 @@ state.editorMode = "rich";
 state.charCount = 684;
 state.saveState = "dirty";
 
+// ?quotedoc=1 —— 含 `> > 嵌套引用` 的文档，验证打开即拍平
+if (q.get("quotedoc") === "1") {
+  const md = ["# 引用用例", "", "> 外层引用", ">", "> > 内层引用", "> > 内层第二行", "", "收尾段落。", ""].join("\n");
+  state.tabs = [
+    { path: "D:/Notes/知识库/写作/quote.md", name: "quote", content: md, dirty: false },
+  ];
+  state.activePath = "D:/Notes/知识库/写作/quote.md";
+}
+
+// ?colordoc=1 —— 含嵌套 <font> 的历史文档，验证是否被拍平
+if (q.get("colordoc") === "1") {
+  const md = [
+    "# 颜色用例",
+    "",
+    '<font style="color:#262626"><font style="color:#262626"><font style="color:#ffc21c">测试后无问题。</font></font></font>',
+    "",
+    "普通段落收尾。",
+    "",
+  ].join("\n");
+  state.tabs = [
+    { path: "D:/Notes/知识库/写作/color.md", name: "color", content: md, dirty: false },
+  ];
+  state.activePath = "D:/Notes/知识库/写作/color.md";
+}
+
+// ?outlinedoc=1 —— 多标题长文，用来测大纲跳转落点
+if (q.get("outlinedoc") === "1") {
+  const parts: string[] = [];
+  for (let i = 1; i <= 6; i += 1) {
+    parts.push(`## 章节 ${i}`, "");
+    for (let j = 1; j <= 8; j += 1) parts.push(`第 ${i}-${j} 段正文，用来撑高内容，验证大纲跳转的落点。`, "");
+  }
+  parts.push("## 末尾章节", "", "最后一段。", "");
+  state.tabs = [
+    { path: "D:/Notes/知识库/写作/outline.md", name: "outline", content: parts.join("\n"), dirty: false },
+  ];
+  state.activePath = "D:/Notes/知识库/写作/outline.md";
+}
+
 // ?callout=1 —— 用提示块样张替换当前文档（目检 > [!TIP] 渲染）
 if (q.get("callout") === "1") {
   const md = [
@@ -262,6 +301,10 @@ if (q.get("callout") === "1") {
     "10. 项10",
     "11. 项11",
     "12. 项12",
+    "",
+    "## 中段标题",
+    "",
+    "中间一段正文，用来把后面的标题推远，方便验证大纲跳转落点。",
     "",
     "## 可折叠的标题",
     "",
@@ -1117,4 +1160,226 @@ if (q.get("topbar2") === "1") {
 
     document.title = `TOPBAR2 ${out.join(" ")}`;
   }, 3400);
+}
+
+// ?divtest=1 —— 工具栏分隔线是否存在、尺寸与颜色
+if (q.get("divtest") === "1") {
+  setTimeout(() => {
+    const els = [...document.querySelectorAll<HTMLElement>(".milkdown-top-bar .top-bar-divider")];
+    const info = els.map((el) => {
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return `${Math.round(r.width)}x${Math.round(r.height)} bg=${cs.backgroundColor} disp=${cs.display}`;
+    });
+    const bar = document.querySelector(".milkdown-top-bar") as HTMLElement | null;
+    const barCs = bar ? getComputedStyle(bar) : null;
+    document.title = `DIVTEST n=${els.length} [${info.join(" | ")}] barH=${bar ? Math.round(bar.getBoundingClientRect().height) : "-"} border=${barCs?.borderBottomColor}`;
+  }, 3200);
+}
+
+// ?splittest=1 —— 颜色分裂按钮：两个按钮是否贴合、圆角是否只在外侧
+if (q.get("splittest") === "1") {
+  setTimeout(() => {
+    const a = document.querySelector<HTMLElement>(".milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph)");
+    const b = document.querySelector<HTMLElement>(".milkdown-top-bar .top-bar-item:has(.md-rust-color-chevron)");
+    if (!a || !b) { document.title = `SPLITTEST a=${!!a} b=${!!b}`; return; }
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const ca = getComputedStyle(a);
+    const cb = getComputedStyle(b);
+    document.title = `SPLITTEST A=${Math.round(ra.left)}w${Math.round(ra.width)}r=${ca.borderRadius} B=${Math.round(rb.left)}w${Math.round(rb.width)}r=${cb.borderRadius} gap=${Math.round(rb.left - ra.right)}`;
+  }, 3200);
+}
+
+// ?tiptest=1 —— 工具栏功能提示：标签顺序 + hover 是否弹出
+if (q.get("tiptest") === "1") {
+  setTimeout(() => {
+    const els = [...document.querySelectorAll<HTMLElement>(".milkdown-top-bar [data-tip]")];
+    const tips = els.map((el) => el.dataset.tip);
+    const target = els[3];
+    target?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+    setTimeout(() => {
+      const tip = document.querySelector(".tb-tip");
+      document.title = `TIPTEST n=${els.length} tips=[${tips.join(",")}] shown=${tip?.classList.contains("show")} text=${tip?.textContent}`;
+    }, 400);
+  }, 3200);
+}
+
+// ?outlinetest=1 —— 逐条点大纲，记录滚动位置与标题相对偏移（强制瞬时滚动便于测量）
+if (q.get("outlinetest") === "1") {
+  setTimeout(async () => {
+    const scroller = document.querySelector(".milkdown") as HTMLElement | null;
+    const items = [...document.querySelectorAll<HTMLElement>(".outline-item")];
+    if (!scroller || !items.length) {
+      document.title = `OUTLINETEST scroller=${!!scroller} items=${items.length}`;
+      return;
+    }
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (arg?: boolean | ScrollIntoViewOptions) {
+      const opts = typeof arg === "object" && arg ? { ...arg, behavior: "auto" as ScrollBehavior } : arg;
+      return orig.call(this, opts as ScrollIntoViewOptions);
+    };
+
+    const rows: string[] = [];
+    for (const item of items) {
+      item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 260));
+      const text = item.textContent?.trim() ?? "";
+      const h = [...document.querySelectorAll<HTMLElement>(".milkdown h1, .milkdown h2, .milkdown h3")].find(
+        (el) => (el.textContent ?? "").trim() === text,
+      );
+      const top = h ? Math.round(h.getBoundingClientRect().top - scroller.getBoundingClientRect().top) : null;
+      rows.push(`${text}@${Math.round(scroller.scrollTop)}/${top}`);
+    }
+    // 反向点一遍，验证向上跳转方向
+    const back: string[] = [];
+    for (const item of [...items].reverse()) {
+      item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 220));
+      const text = item.textContent?.trim() ?? "";
+      const h = [...document.querySelectorAll<HTMLElement>(".milkdown h1, .milkdown h2, .milkdown h3")].find(
+        (el) => (el.textContent ?? "").trim() === text,
+      );
+      const top = h ? Math.round(h.getBoundingClientRect().top - scroller.getBoundingClientRect().top) : null;
+      back.push(`${text}@${Math.round(scroller.scrollTop)}/${top}`);
+    }
+    Element.prototype.scrollIntoView = orig;
+    document.title = `OUTLINETEST fwd:${rows.join(" | ")} || back:${back.join(" | ")}`;
+  }, 3600);
+}
+
+// ?bartest=1 —— 工具栏与滚动层的关系（位置/是否在滚动容器内）
+if (q.get("bartest") === "1") {
+  setTimeout(() => {
+    const bar = document.querySelector(".milkdown-top-bar") as HTMLElement | null;
+    const md = document.querySelector(".milkdown") as HTMLElement | null;
+    if (!bar || !md) { document.title = `BARTEST bar=${!!bar} md=${!!md}`; return; }
+    const cs = getComputedStyle(bar);
+    const rb = bar.getBoundingClientRect();
+    const rm = md.getBoundingClientRect();
+    document.title = `BARTEST pos=${cs.position} z=${cs.zIndex} h=${Math.round(rb.height)} barTop=${Math.round(rb.top)} mdTop=${Math.round(rm.top)} inside=${md.contains(bar)} parent=${bar.parentElement?.className}`;
+  }, 3200);
+}
+
+// ?colortest=1 —— 统计嵌套的彩色节点 / <font> 层数
+if (q.get("colortest") === "1") {
+  setTimeout(async () => {
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "COLORTEST no-view"; return; }
+    let total = 0;
+    let nested = 0;
+    view.state.doc.descendants((node: any, _pos: number, parent: any) => {
+      if (node.type.name !== "coloredText") return true;
+      total += 1;
+      if (parent && parent.type.name === "coloredText") nested += 1;
+      return true;
+    });
+    const domNested = document.querySelectorAll('[data-colored-text] [data-colored-text]').length;
+    document.title = `COLORTEST total=${total} nested=${nested} domNested=${domNested}`;
+  }, 3400);
+}
+
+// ?nesttest=1 —— 程序化制造 nested coloredText / 双标记，验证自动拍平与互斥
+if (q.get("nesttest") === "1") {
+  setTimeout(async () => {
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "NESTTEST no-view"; return; }
+    const schema = view.state.schema;
+    const type = schema.nodes.coloredText;
+    const text = schema.text("嵌套测试");
+
+    // 1) 直接插入「外层灰 + 内层黄」
+    const inner = type.create({ color: "#ffc21c" }, text);
+    const outer = type.create({ color: "#262626" }, inner);
+    let paraPos = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (paraPos < 0 && n.type.name === "paragraph" && n.textContent.includes("普通段落收尾")) paraPos = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.insert(paraPos, outer));
+    await new Promise((r) => setTimeout(r, 120));
+
+    let nested = 0;
+    let colors: string[] = [];
+    view.state.doc.descendants((n: any, _p: number, parent: any) => {
+      if (n.type.name !== "coloredText") return true;
+      colors.push(n.attrs.color);
+      if (parent && parent.type.name === "coloredText") nested += 1;
+      return true;
+    });
+
+    // 2) 提示块里插折叠块：应替换标记而不是叠加
+    const { insertCallout } = await import("./editor/callouts");
+    const { insertFoldBlock } = await import("./editor/fold-block");
+    let p2 = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (p2 < 0 && n.type.name === "paragraph" && n.textContent.includes("普通段落收尾")) p2 = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection((await import("@milkdown/prose/state")).TextSelection.create(view.state.doc, p2)));
+    insertCallout(view, "note");
+    await new Promise((r) => setTimeout(r, 100));
+    insertFoldBlock(view);
+    await new Promise((r) => setTimeout(r, 120));
+
+    let markerText = "";
+    view.state.doc.descendants((n: any) => {
+      if (!markerText && n.type.name === "blockquote") markerText = n.textContent.trim().slice(0, 40);
+      return true;
+    });
+    const markers = (view.state.doc.textContent.match(/\[!(NOTE|TIP|FOLD)\]/g) ?? []).length;
+    document.title = `NESTTEST nested=${nested} colors=${colors.join(",")} markers=${markers} text=${markerText}`;
+  }, 3400);
+}
+
+// ?quotetest=1 —— 连续套两层引用，验证是否被拍平成一层
+if (q.get("quotetest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { wrapIn } = await import("@milkdown/kit/prose/commands");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "QUOTETEST no-view"; return; }
+    let p = -1;
+    view.state.doc.descendants((n: any, pos: number) => {
+      if (p < 0 && n.type.name === "paragraph" && n.textContent.includes("普通段落收尾")) p = pos + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, p)));
+    const bq = view.state.schema.nodes.blockquote;
+    wrapIn(bq)(view.state, (tr: any) => view.dispatch(tr));
+    await new Promise((r) => setTimeout(r, 80));
+    wrapIn(bq)(view.state, (tr: any) => view.dispatch(tr));
+    await new Promise((r) => setTimeout(r, 150));
+
+    let total = 0;
+    let nested = 0;
+    view.state.doc.descendants((n: any, _pos: number, parent: any) => {
+      if (n.type.name !== "blockquote") return true;
+      total += 1;
+      if (parent && parent.type.name === "blockquote") nested += 1;
+      return true;
+    });
+    document.title = `QUOTETEST total=${total} nested=${nested}`;
+  }, 3400);
+}
+
+// ?quotecheck=1 —— 打开文档后统计引用嵌套
+if (q.get("quotecheck") === "1") {
+  setTimeout(() => {
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "QUOTECHECK no-view"; return; }
+    let total = 0;
+    let nested = 0;
+    view.state.doc.descendants((n: any, _p: number, parent: any) => {
+      if (n.type.name !== "blockquote") return true;
+      total += 1;
+      if (parent && parent.type.name === "blockquote") nested += 1;
+      return true;
+    });
+    document.title = `QUOTECHECK total=${total} nested=${nested}`;
+  }, 3200);
 }

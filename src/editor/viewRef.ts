@@ -1,6 +1,7 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { redo, undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
+import { getPmView } from "./pmViewRef";
 import { state } from "../store";
 
 let current: EditorView | null = null;
@@ -17,7 +18,49 @@ export function focusEditor() {
   current?.focus();
 }
 
-export function scrollToHeading(text: string) {
+/** 去掉 Markdown 标记，用于「大纲里的文字」和「渲染后的标题文字」比对 */
+function plain(text: string): string {
+  return text
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_~`]/g, "")
+    .trim();
+}
+
+/** 富文本模式：按标题文字定位并滚动（大纲点击用） */
+function scrollPmToHeading(text: string, occurrence: number): boolean {
+  const view = getPmView();
+  if (!view) return false;
+  const want = plain(text);
+
+  const exact: number[] = [];
+  const loose: number[] = [];
+  view.state.doc.descendants((node, pos, parent) => {
+    if (node.type.name !== "heading") return true;
+    // 只认顶层标题：引用/折叠块里的小标题不该被大纲命中
+    if (parent && parent.type.name !== "doc") return true;
+    const got = plain(node.textContent);
+    if (got === want) exact.push(pos);
+    else if (want && got.startsWith(want)) loose.push(pos);
+    return true;
+  });
+
+  const list = exact.length ? exact : loose;
+  const target = list[Math.min(occurrence, list.length - 1)];
+  if (target === undefined) return false;
+
+  const dom = view.nodeDOM(target) as HTMLElement | null;
+  if (!dom) return false;
+
+  // 只滚动，不动选区：改选区会触发 ProseMirror 自己把光标滚进视野，
+  // 和这里的定位互相抢，表现为"落点偏移 / 方向忽上忽下"。
+  dom.scrollIntoView({ block: "start", inline: "nearest", behavior: "smooth" });
+  return true;
+}
+
+export function scrollToHeading(text: string, occurrence = 0) {
+  // 富文本模式：CodeMirror 视图不存在，必须走 ProseMirror
+  if (scrollPmToHeading(text, occurrence)) return;
+
   const view = current;
   if (!view) return;
   const target = text.trim();

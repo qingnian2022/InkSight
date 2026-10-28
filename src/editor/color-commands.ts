@@ -120,7 +120,7 @@ export const COLOR_ICON = `<svg class="md-rust-color-glyph" width="20" height="2
 </svg>`;
 
 /** 色板按钮图标：小下拉箭头 */
-export const COLOR_CHEVRON_ICON = `<svg width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+export const COLOR_CHEVRON_ICON = `<svg class="md-rust-color-chevron" width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
   <path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
 </svg>`;
 
@@ -179,9 +179,25 @@ export function applyColor(ctx: Ctx, color: string) {
   if (!sel.$from.sameParent(sel.$to)) return;
 
   const nodeType = coloredTextSchema.type(ctx);
-  const slice = state.doc.slice(sel.from, sel.to);
+
+  // 先拆掉选区里已存在的彩色文字（否则会套娃：<font><font>…）
+  const tr = state.tr;
+  const existing: { from: number; to: number; content: any }[] = [];
+  state.doc.nodesBetween(sel.from, sel.to, (node, pos) => {
+    if (node.type.name !== "coloredText") return true;
+    if (pos >= sel.from && pos + node.nodeSize <= sel.to) {
+      existing.push({ from: pos, to: pos + node.nodeSize, content: node.content });
+      return false;
+    }
+    return true;
+  });
+  for (const item of existing.reverse()) tr.replaceWith(item.from, item.to, item.content);
+
+  const from = tr.mapping.map(sel.from, -1);
+  const to = tr.mapping.map(sel.to, 1);
+  const slice = tr.doc.slice(from, to);
   const node = nodeType.create({ color }, slice.content);
-  view.dispatch(state.tr.replaceWith(sel.from, sel.to, node));
+  view.dispatch(tr.replaceWith(from, to, node));
   view.focus();
   markLastUsed(color);
 }
