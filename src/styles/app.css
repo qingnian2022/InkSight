@@ -114,6 +114,8 @@ body.resizing .app-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* 窗口按钮贴到右缘：右侧不留内边距；左侧给图标留 12px */
+  padding: 0 0 0 12px;
   background: var(--titlebar-bg);
   border-bottom: 1px solid var(--border);
   user-select: none;
@@ -128,16 +130,16 @@ body.resizing .app-body {
 .titlebar-logo {
   width: 16px;
   height: 16px;
-  margin-left: 12px;
+  margin: 0;
   border-radius: 4px;
   pointer-events: none;
 }
 
 .titlebar-title {
-  padding-left: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  padding-left: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--titlebar-fg);
 }
 
@@ -150,6 +152,7 @@ body.resizing .app-body {
 .win-btns {
   display: flex;
   height: 100%;
+  margin-right: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 
@@ -1830,11 +1833,12 @@ body.resizing .app-body {
 
 /* 顶部工具栏与项目自身的工具栏对齐 */
 .rich-editor .milkdown .milkdown-top-bar {
-  /* 仿语雀：比正文工具栏略矮、左右留白更小 */
-  min-height: 42px;
+  /* 仿语雀：比正文工具栏略矮、左右留白更小；底色与正文一致，不额外压一层白 */
+  min-height: 44px;
   padding: 0 10px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /* 比正文底色更浅一档，但必须不透明：sticky 时正文会从下面穿过 */
+  background: color-mix(in srgb, var(--surface) 62%, var(--canvas));
 }
 
 .rich-editor .milkdown .milkdown-top-bar {
@@ -1854,7 +1858,7 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-heading-button {
-  height: 28px;
+  height: 32px;
   /* 收窄：标题按钮不该比图标按钮宽出一截 */
   padding: 0 4px 0 6px;
   border-radius: 6px;
@@ -1910,8 +1914,8 @@ body.resizing .app-body {
 
 /* 仿语雀：28px 方形按钮、16px 图标、深色图标 + 浅灰 hover */
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   margin: 0;
   padding: 0;
   border-radius: 6px;
@@ -1949,7 +1953,7 @@ body.resizing .app-body {
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-chevron) {
   border-radius: 0 6px 6px 0;
-  width: 20px;
+  width: 22px;
 }
 
 .rich-editor .milkdown .milkdown-top-bar .top-bar-item:has(.md-rust-color-glyph):hover,
@@ -3500,7 +3504,7 @@ body.resizing .app-body {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 46px;
+  bottom: 56px;
   transform: translateX(-50%);
   z-index: 3600;
   display: inline-flex;
@@ -3962,4 +3966,62 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
+}
+
+
+/* 目录树键盘焦点：只在键盘操作时出现，不抢鼠标点击的视觉 */
+.tree:focus-visible {
+  outline: none;
+}
+
+.tree-row.focused {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+
+/* 大纲当前章节：颜色与左侧短条一起强调，键盘焦点同款 */
+.outline-item.active .label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.outline-item.active .bar {
+  background: var(--accent);
+}
+
+.outline-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+
+/* ---------- 编辑区悬浮滚动条（隐藏原生占位，工具栏得以铺满整宽） ---------- */
+
+.rich-editor .milkdown {
+  scrollbar-width: none;
+}
+
+.rich-editor .milkdown::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.md-overlay-scrollbar {
+  position: absolute;
+  right: 4px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--border-strong);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  z-index: 25;
+}
+
+.md-overlay-scrollbar.show {
+  opacity: 0.55;
+}
+
+.md-overlay-scrollbar:hover {
+  opacity: 0.85;
 }

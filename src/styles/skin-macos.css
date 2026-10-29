@@ -149,37 +149,26 @@
   border-bottom: 0.5px solid var(--border);
 }
 
-:root[data-skin="macos"] .md-toolbar,
-:root[data-skin="macos"] .rich-editor .milkdown .milkdown-top-bar {
+:root[data-skin="macos"] .md-toolbar {
   background: var(--titlebar-bg);
   border-bottom: 0.5px solid var(--border);
+}
+
+/* 编辑区工具栏跟随正文底色，避免在内容上方多出一条色带 */
+:root[data-skin="macos"] .rich-editor .milkdown .milkdown-top-bar {
+  background: color-mix(in srgb, var(--surface) 62%, var(--canvas));
+  border-bottom: 1px solid var(--border);
 }
 
 .titlebar.is-macos {
   position: relative;
   justify-content: flex-start;
-  padding: 0 12px 0 14px;
+  /* 左右留白交给 .titlebar 统一处理 */
+  padding-right: 0;
 }
 
 .titlebar.is-macos .titlebar-controls {
   margin-left: auto;
-}
-
-/* 左侧 logo + 标题让位给交通灯，标题改居中 */
-.titlebar.is-macos .titlebar-left {
-  display: none;
-}
-
-.titlebar-center {
-  position: absolute;
-  left: 0;
-  right: 0;
-  text-align: center;
-  pointer-events: none;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: var(--titlebar-fg);
 }
 
 /* 亮色 chrome 上的控件配色（自动保存开关 / 同步 pill） */

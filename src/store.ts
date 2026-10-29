@@ -112,6 +112,8 @@ export const state = reactive({
   syncAt: 0,
   syncAuto: false,
   /* 打开中的文档被远端更新时就地重载：reloading 用于渲染遮罩，token 触发编辑器重建 */
+  /* 打开大文件时超过 150ms 才显示遮罩，避免闪烁 */
+  fileLoading: null as { name: string } | null,
   tabReloading: null as { path: string; name: string } | null,
   tabReloadToken: 0,
   /** 待用户决定的冲突（本地有未保存改动 + 远端也变了） */
@@ -316,6 +318,9 @@ export async function openDoc(node: FsNode) {
     return;
   }
   await flush();
+  const openTimer = window.setTimeout(() => {
+    if (state.activePath !== node.path) state.fileLoading = { name: stripExt(node.name) };
+  }, 150);
   try {
     const content = await readDoc(node.path);
     state.tabs.push({
@@ -330,6 +335,10 @@ export async function openDoc(node: FsNode) {
     state.charCount = content.replace(/\s+/g, "").length;
   } catch (err) {
     state.error = errorText(err);
+    showToast(`打开失败：${errorText(err)}`, "error", 4000);
+  } finally {
+    window.clearTimeout(openTimer);
+    state.fileLoading = null;
   }
 }
 
@@ -592,6 +601,7 @@ export async function syncNow() {
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
+    showToast(`同步失败：${errorText(err)}`, "error", 4000);
   } finally {
     state.syncBusy = false;
   }
@@ -694,6 +704,7 @@ export async function syncFromRemote() {
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
+    showToast(`同步失败：${errorText(err)}`, "error", 4000);
   } finally {
     state.syncBusy = false;
   }
@@ -718,6 +729,7 @@ export async function syncToRemote() {
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
+    showToast(`同步失败：${errorText(err)}`, "error", 4000);
   } finally {
     state.syncBusy = false;
   }
@@ -744,6 +756,7 @@ export async function syncSetup(remote: string) {
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
+    showToast(`同步失败：${errorText(err)}`, "error", 4000);
   } finally {
     state.syncBusy = false;
   }
@@ -965,6 +978,7 @@ export async function saveTab(tab: Tab) {
   } catch (err) {
     state.saveState = "error";
     state.error = errorText(err);
+    showToast(`保存失败：${errorText(err)}`, "error", 4000);
   }
 }
 

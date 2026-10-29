@@ -30,11 +30,16 @@ export function attachToolbarTips(root: HTMLElement): () => void {
   const items = Array.from(root.querySelectorAll<HTMLElement>(".top-bar-item"));
   items.forEach((el, index) => {
     const label = ITEM_LABELS[index];
-    if (label && !el.dataset.tip) el.dataset.tip = label;
+    if (!label) return;
+    if (!el.dataset.tip) el.dataset.tip = label;
+    if (!el.getAttribute("aria-label")) el.setAttribute("aria-label", label);
   });
 
   const heading = root.querySelector<HTMLElement>(".top-bar-heading-button");
-  if (heading && !heading.dataset.tip) heading.dataset.tip = "段落样式";
+  if (heading) {
+    if (!heading.dataset.tip) heading.dataset.tip = "段落样式";
+    if (!heading.getAttribute("aria-label")) heading.setAttribute("aria-label", "段落样式");
+  }
 
   const tip = document.createElement("div");
   tip.className = "tb-tip";

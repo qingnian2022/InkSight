@@ -17,5 +17,25 @@
   })();
 </script>
 </head>
-<body style="margin:0"><div id="app"></div>
+<body style="margin:0">
+<script>
+  window.onerror = function (msg, src, line, col, err) {
+    document.title = "ERR " + (err && err.stack ? err.stack.split("\n")[0] : msg);
+    var pre = document.createElement("pre");
+    pre.id = "boot-error";
+    pre.textContent = (err && err.stack) || msg;
+    pre.style.cssText = "color:#b3261e;padding:16px;font:12px/1.5 monospace;white-space:pre-wrap";
+    document.body.appendChild(pre);
+  };
+  window.addEventListener("unhandledrejection", function (e) {
+    var err = e.reason;
+    document.title = "REJ " + (err && err.message ? err.message : String(err));
+    var pre = document.createElement("pre");
+    pre.id = "boot-error";
+    pre.textContent = (err && err.stack) || String(err);
+    pre.style.cssText = "color:#b3261e;padding:16px;font:12px/1.5 monospace;white-space:pre-wrap";
+    document.body.appendChild(pre);
+  });
+</script>
+<div id="app"></div>
 <script type="module" src="/src/dev-preview.ts"></script></body></html>

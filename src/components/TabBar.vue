@@ -1,12 +1,32 @@
 <script setup lang="ts">
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { activate, closeTab, newDoc, state, toggleTheme } from "../store";
 import AccentPicker from "./AccentPicker.vue";
 import WidthPicker from "./WidthPicker.vue";
 import Icon from "./Icon.vue";
+
+/** 中键关闭标签：和浏览器/编辑器一致 */
+function onTabAux(event: MouseEvent, path: string) {
+  if (event.button !== 1) return;
+  event.preventDefault();
+  void closeTab(path);
+}
+
+/** 双击标签栏空白处：最大化/还原（仅桌面版） */
+function onBarDoubleClick(event: MouseEvent) {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  if ((event.target as HTMLElement).closest(".tab, button")) return;
+  void getCurrentWindow().toggleMaximize();
+}
 </script>
 
 <template>
-  <div class="tabbar" role="tablist" aria-label="已打开的文件">
+  <div
+    class="tabbar"
+    role="tablist"
+    aria-label="已打开的文件"
+    @dblclick="onBarDoubleClick"
+  >
     <button
       v-if="state.railCollapsed"
       class="tool-btn rail-toggle"
@@ -27,6 +47,7 @@ import Icon from "./Icon.vue";
         :aria-selected="tab.path === state.activePath"
         :title="tab.path"
         @click="activate(tab.path)"
+        @auxclick="onTabAux($event, tab.path)"
       >
         <Icon name="file" :size="14" />
         <span v-if="tab.dirty" class="dot" title="未保存" />

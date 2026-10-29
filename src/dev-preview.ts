@@ -1427,3 +1427,269 @@ if (q.get("conflictshot") === "1") {
     st.syncConflict = { path: tab?.path ?? "", name: tab?.name ?? "callout", remote: tab?.content ?? "" };
   }, 2600);
 }
+
+// ?hotkeytest=1 —— Ctrl+E 是否同时触发「行内代码」和「切换只读」
+if (q.get("hotkeytest") === "1") {
+  setTimeout(async () => {
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const { state: st } = await import("./store");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "HOTKEY no-view"; return; }
+    let pos = -1;
+    view.state.doc.descendants((n: any, p: number) => {
+      if (pos < 0 && n.type.name === "paragraph" && n.textContent.length > 4) pos = p + 1;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos, pos + 4)));
+    view.focus();
+    view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "e", ctrlKey: true, bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const mark = view.state.doc.textBetween(pos, pos + 4);
+    const hasCode = view.state.doc.rangeHasMark(pos, pos + 4, view.state.schema.marks.inlineCode);
+    document.title = `HOTKEY readonly=${st.readonly} inlineCode=${hasCode} text="${mark}"`;
+  }, 3200);
+}
+
+// ?uxtest=1 —— 十项交互改动的快速自检（能测的测，测不了的标注 skip）
+if (q.get("uxtest") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    const { TextSelection } = await import("@milkdown/prose/state");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    const out: string[] = [];
+
+    const items = [...document.querySelectorAll<HTMLElement>(".milkdown-top-bar .top-bar-item")];
+    out.push(`toolbar aria=${items.filter((el) => el.getAttribute("aria-label")).length}/${items.length} w=${Math.round(items[0]?.getBoundingClientRect().width ?? 0)}`);
+
+    let pos = -1;
+    view?.state.doc.descendants((n: any, p: number) => {
+      if (pos < 0 && n.type.name === "paragraph" && n.textContent.length > 6) pos = p + 1;
+      return true;
+    });
+    if (pos > 0) {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos, pos + 4)));
+      view.focus();
+      view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "e", ctrlKey: true, bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 150));
+      const code = view.state.doc.rangeHasMark(pos, pos + 4, view.state.schema.marks.inlineCode);
+      out.push(`ctrlE code=${code} readonly=${st.readonly}`);
+    }
+
+    const tree = document.querySelector<HTMLElement>(".tree");
+    if (tree) {
+      tree.focus();
+      tree.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 80));
+      out.push(`tree rows=${document.querySelectorAll(".tree-row").length} active=${tree.getAttribute("aria-activedescendant")}`);
+    } else {
+      out.push("tree skip");
+    }
+
+    if (!st.outlineOpen) st.outlineOpen = true;
+    const scroller = document.querySelector<HTMLElement>(".milkdown");
+    if (scroller && document.querySelector(".outline-item")) {
+      scroller.scrollTop = 600;
+      scroller.dispatchEvent(new Event("scroll"));
+      await new Promise((r) => setTimeout(r, 200));
+      const active = document.querySelector(".outline-item.active .label")?.textContent ?? "";
+      const list = document.querySelector<HTMLElement>(".outline");
+      list?.focus();
+      list?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 120));
+      out.push(`outline active="${active}" afterUp="${document.querySelector(".outline-item.active .label")?.textContent ?? ""}"`);
+    } else {
+      out.push("outline skip");
+    }
+
+    const tab = st.tabs[0];
+    if (tab) {
+      st.tabs.push({ ...tab, path: tab.path + "#tmp", name: tab.name + "-副本", content: tab.content, dirty: false });
+      await new Promise((r) => setTimeout(r, 50));
+      const first = document.querySelector<HTMLElement>(".tab");
+      const before = st.tabs.length;
+      first?.dispatchEvent(new MouseEvent("auxclick", { button: 1, bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 120));
+      out.push(`tabMiddle ${before}->${st.tabs.length}`);
+    }
+
+    out.push(`toastBottom=${getComputedStyle(document.querySelector(".toast") ?? document.body).bottom}`);
+    document.title = `UXTEST ${out.join(" | ")}`;
+  }, 3600);
+}
+
+// ?outlinespy=1 —— 滚动同步高亮是否跟随
+if (q.get("outlinespy") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.outlineOpen = true;
+    await new Promise((r) => setTimeout(r, 200));
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    const rows: string[] = [];
+    if (sc) {
+      for (const top of [0, 700, 1500]) {
+        sc.scrollTop = top;
+        sc.dispatchEvent(new Event("scroll"));
+        await new Promise((r) => setTimeout(r, 180));
+        rows.push(`${top}:${document.querySelector(".outline-item.active .label")?.textContent ?? "-"}`);
+      }
+    }
+    document.title = `OUTLINESPY ${rows.join(" | ")}`;
+  }, 3600);
+}
+
+// ?dialogtest=1 —— 确认框：打开后焦点在确认按钮、Esc 关闭
+if (q.get("dialogtest") === "1") {
+  setTimeout(async () => {
+    const { openConfirm } = await import("./ui/confirmPrompt");
+    const { confirmPromptState } = await import("./ui/confirmPrompt");
+    void openConfirm({ title: "测试", message: "焦点测试", okText: "确定" });
+    await new Promise((r) => setTimeout(r, 200));
+    const focused = document.activeElement?.textContent?.trim() ?? "";
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 120));
+    document.title = `DIALOGTEST focus="${focused}" open=${confirmPromptState.open}`;
+  }, 3400);
+}
+
+// ?scrollshot=1 —— 滚动后展示悬浮滚动条
+if (q.get("scrollshot") === "1") {
+  setTimeout(() => {
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    if (!sc) return;
+    sc.scrollTop = 420;
+    sc.dispatchEvent(new Event("scroll"));
+  }, 2600);
+}
+
+// ?scrollcheck=1 —— 悬浮滚动条的位置与可见性
+if (q.get("scrollcheck") === "1") {
+  setTimeout(async () => {
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    if (sc) {
+      sc.scrollTop = 420;
+      sc.dispatchEvent(new Event("scroll"));
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    const th = document.querySelector<HTMLElement>(".md-overlay-scrollbar");
+    // headless 下 CSS transition 不推进，这里关掉过渡便于截图验证
+    if (th) th.style.transition = "none";
+    document.title = `SCROLLCHK has=${!!th} top=${th?.style.top} h=${th?.style.height} op=${th ? getComputedStyle(th).opacity : "-"} bg=${th ? getComputedStyle(th).backgroundColor : "-"} rect=${th ? Math.round(th.getBoundingClientRect().left)+","+Math.round(th.getBoundingClientRect().top)+" "+Math.round(th.getBoundingClientRect().width)+"x"+Math.round(th.getBoundingClientRect().height) : "-"} hit=${(() => { const r = th?.getBoundingClientRect(); if (!r) return "-"; const el = document.elementFromPoint(r.left + 3, r.top + 10) as HTMLElement | null; return el ? el.className || el.tagName : "none"; })()}`;
+  }, 3200);
+}
+
+// ?bgcheck=1 —— 工具栏与正文实际底色
+if (q.get("bgcheck") === "1") {
+  setTimeout(() => {
+    const pick = (sel: string) => {
+      const el = document.querySelector<HTMLElement>(sel);
+      return el ? getComputedStyle(el).backgroundColor : "-";
+    };
+    document.title = `BGCHECK bar=${pick(".milkdown-top-bar")} md=${pick(".milkdown")} pm=${pick(".ProseMirror")} wrap=${pick(".editor-wrap")} rich=${pick(".rich-editor")} body2=${pick(".rich-editor-body")}`;
+  }, 3000);
+}
+
+// ?outlinematch=1 —— 点击大纲后：落点标题 vs 高亮项是否一致
+if (q.get("outlinematch") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.outlineOpen = true;
+    await new Promise((r) => setTimeout(r, 300));
+    const items = [...document.querySelectorAll<HTMLElement>(".outline-item")];
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    const rows: string[] = [];
+    for (const item of [items[2], items[0], items[4]].filter(Boolean)) {
+      const name = item.textContent?.trim() ?? "";
+      item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 900));
+      const active = document.querySelector(".outline-item.active .label")?.textContent?.trim() ?? "-";
+      const heads = [...document.querySelectorAll<HTMLElement>(".ProseMirror > h1, .ProseMirror > h2")];
+      const base = sc?.getBoundingClientRect().top ?? 0;
+      const nearest = heads
+        .map((h) => ({ t: h.textContent?.trim() ?? "", d: Math.abs(h.getBoundingClientRect().top - base - 54) }))
+        .sort((a, b) => a.d - b.d)[0];
+      rows.push(`${name}→active=${active}/top=${nearest?.t}`);
+    }
+    document.title = `OUTLINEMATCH ${rows.join(" | ")}`;
+  }, 3600);
+}
+
+// ?outlinevis=1 —— 滚动后：高亮项是否正确且在抽屉内可见
+if (q.get("outlinevis") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.outlineOpen = true;
+    await new Promise((r) => setTimeout(r, 250));
+    const list = document.querySelector<HTMLElement>(".outline");
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    const rows: string[] = [];
+    for (const top of [0, 900, 2100]) {
+      if (!sc) break;
+      sc.scrollTop = top;
+      await new Promise((r) => setTimeout(r, 450));
+      const active = document.querySelector<HTMLElement>(".outline-item.active");
+      const name = active?.textContent?.trim() ?? "-";
+      const visible = !!(active && list && active.offsetTop >= list.scrollTop && active.offsetTop + active.offsetHeight <= list.scrollTop + list.clientHeight);
+      rows.push(`${top}:${name}/vis=${visible}`);
+    }
+    document.title = `OUTLINEVIS ${rows.join(" | ")}`;
+  }, 3600);
+}
+
+// ?outlineclick=1 —— 点击远端章节后高亮与落点一致
+if (q.get("outlineclick") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.outlineOpen = true;
+    await new Promise((r) => setTimeout(r, 250));
+    const items = [...document.querySelectorAll<HTMLElement>(".outline-item")];
+    const target = items[items.length - 2];
+    target?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 1200));
+    const active = document.querySelector(".outline-item.active .label")?.textContent?.trim() ?? "-";
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    document.title = `OUTLINECLICK clicked=${target?.textContent?.trim()} active=${active} scrollTop=${Math.round(sc?.scrollTop ?? -1)}`;
+  }, 3600);
+}
+
+// ?outlinejump=1 —— 模拟平滑下滑：过程中高亮不应来回跳，停稳后与落点一致
+if (q.get("outlinejump") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.outlineOpen = true;
+    await new Promise((r) => setTimeout(r, 500));
+    const items = [...document.querySelectorAll<HTMLElement>(".outline-item")];
+    const sc = document.querySelector<HTMLElement>(".milkdown");
+    const target = items[5];
+    if (!sc || !target) {
+      document.title = `OUTLINEJUMP setup-fail items=${items.length} sc=${!!sc}`;
+      return;
+    }
+
+    const heads = [...document.querySelectorAll<HTMLElement>(".ProseMirror > h1, .ProseMirror > h2")];
+    const base = sc.getBoundingClientRect().top;
+    const dest = Math.round(heads[5].getBoundingClientRect().top - base + sc.scrollTop - 54);
+
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const seen: string[] = [];
+    for (let i = 1; i <= 10; i += 1) {
+      sc.scrollTop = Math.round((dest * i) / 10);
+      await new Promise((r) => setTimeout(r, 80));
+      seen.push(document.querySelector(".outline-item.active .label")?.textContent?.trim() ?? "-");
+    }
+    await new Promise((r) => setTimeout(r, 900));
+    const unique = [...new Set(seen)];
+    document.title = `OUTLINEJUMP dest=${dest} during=[${unique.join(",")}] final=${document.querySelector(".outline-item.active .label")?.textContent?.trim() ?? "-"}`;
+  }, 3600);
+}
+
+// ?wincheck=1 —— 窗口按钮右缘是否贴边
+if (q.get("wincheck") === "1") {
+  setTimeout(() => {
+    const btns = document.querySelector<HTMLElement>(".win-btns");
+    const close = document.querySelector<HTMLElement>(".win-close");
+    const bar = document.querySelector<HTMLElement>(".titlebar");
+    document.title = `WINCHECK innerW=${window.innerWidth} barRight=${Math.round(bar?.getBoundingClientRect().right ?? -1)} btnsRight=${Math.round(btns?.getBoundingClientRect().right ?? -1)} closeRight=${Math.round(close?.getBoundingClientRect().right ?? -1)} gap=${Math.round(window.innerWidth - (close?.getBoundingClientRect().right ?? window.innerWidth))}`;
+  }, 2600);
+}

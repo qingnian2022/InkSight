@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { isUntitledPath, saveActive, state } from "../store";
+import { isUntitledPath, saveActive, state, toggleReadonly } from "../store";
 import { checkForUpdates, updateState } from "../update";
 
 /** 版本号（构建时注入，不需要额外 IPC） */
@@ -59,6 +59,16 @@ const path = computed(() => {
     </button>
 
     <span class="status-sep" />
+
+    <button
+      v-if="state.activePath && state.editorMode === 'source'"
+      class="status-btn readonly-btn"
+      :title="state.readonly ? '切换为可编辑（Ctrl+Shift+E）' : '切换为只读（Ctrl+Shift+E）'"
+      :aria-pressed="state.readonly"
+      @click="toggleReadonly"
+    >
+      {{ state.readonly ? "只读" : "可编辑" }}
+    </button>
 
     <div class="status-group grow">
       <span>{{ chars }} 字</span>

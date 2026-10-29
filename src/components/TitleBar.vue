@@ -60,9 +60,6 @@ onBeforeUnmount(() => {
       <span class="titlebar-title" data-tauri-drag-region>Inksight</span>
     </div>
 
-    <!-- macOS 皮肤：标题居中 -->
-    <span v-if="state.skin === 'macos'" class="titlebar-center">Inksight</span>
-
     <div class="titlebar-controls">
       <SyncMenu />
 

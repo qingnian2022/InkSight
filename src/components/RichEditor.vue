@@ -16,6 +16,7 @@ import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
 import { toggleList } from "../editor/list-commands";
 import { attachToolbarTips } from "../editor/toolbar-tips";
 import { TextSelection } from "@milkdown/kit/prose/state";
+import { attachOverlayScrollbar } from "../editor/overlay-scrollbar";
 import { noNestedQuote } from "../editor/quote-normalize";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextCleanup, coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
@@ -74,6 +75,7 @@ let seq = 0;
 let edited = false;
 let detachOverflow: (() => void) | null = null;
 let detachKeyGuard: (() => void) | null = null;
+let detachScrollbar: (() => void) | null = null;
 let detachTips: (() => void) | null = null;
 
 /**
@@ -107,6 +109,8 @@ async function teardown() {
   detachOverflow = null;
   detachKeyGuard?.();
   detachKeyGuard = null;
+  detachScrollbar?.();
+  detachScrollbar = null;
   detachTips?.();
   detachTips = null;
   if (!crepe) return;
@@ -448,6 +452,11 @@ async function mount() {
     setPmView(view);
     setPmCtx(ctx);
     attachDeleteGuard(view);
+    // 原生滚动条会占掉右缘、让 sticky 工具栏露出空白，改用悬浮滚动条
+    if (host.value) {
+      detachScrollbar?.();
+      detachScrollbar = attachOverlayScrollbar(host.value);
+    }
   });
 
   // 功能提示要在收纳前绑定（收纳会把节点搬进 ⋯ 菜单，序号会变）

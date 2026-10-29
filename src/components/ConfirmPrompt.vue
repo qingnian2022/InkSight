@@ -1,15 +1,29 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { confirmPromptState, finishConfirm } from "../ui/confirmPrompt";
+import { rememberFocus, trapFocus } from "../ui/dialogFocus";
 
 const okBtn = ref<HTMLButtonElement | null>(null);
+const boxEl = ref<HTMLElement | null>(null);
+let releaseTrap: (() => void) | null = null;
+let restoreFocus: (() => void) | null = null;
 
 watch(
   () => confirmPromptState.open,
   async (open) => {
-    if (!open) return;
+    if (!open) {
+      releaseTrap?.();
+      releaseTrap = null;
+      restoreFocus?.();
+      restoreFocus = null;
+      return;
+    }
     await nextTick();
     okBtn.value?.focus();
+    if (boxEl.value) {
+      restoreFocus = rememberFocus();
+      releaseTrap = trapFocus(boxEl.value);
+    }
   },
 );
 
@@ -32,6 +46,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey, true));
 <template>
   <div v-if="confirmPromptState.open" class="cp-mask" @mousedown.self="finishConfirm(false)">
     <div
+      ref="boxEl"
       class="cp-box"
       role="dialog"
       aria-modal="true"

@@ -110,7 +110,8 @@ function onKeydown(event: KeyboardEvent) {
   } else if (event.key === "\\") {
     event.preventDefault();
     state.railCollapsed = !state.railCollapsed;
-  } else if (key === "e" && !event.shiftKey) {
+  } else if (key === "e" && event.shiftKey) {
+    // Ctrl+Shift+E 切换只读；Ctrl+E 留给「行内代码」（Milkdown 默认 Mod-e）
     event.preventDefault();
     void toggleReadonly();
   } else if (key === "o" && event.shiftKey) {

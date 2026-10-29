@@ -114,12 +114,19 @@ watch(
       <p class="empty-hint">纯文本存储 · 不锁定格式 · 可用 Git 管理</p>
     </div>
 
-    <!-- 就地重载遮罩：盖在编辑器上，不参与上面的 v-if/v-else 链 -->
-    <div v-if="state.tabReloading && state.tabReloading.path === state.activePath" class="reload-overlay">
+    <!-- 加载遮罩：打开大文件与远端重载共用一套样式 -->
+    <div
+      v-if="(state.tabReloading && state.tabReloading.path === state.activePath) || state.fileLoading"
+      class="reload-overlay"
+    >
       <div class="reload-card">
         <div class="reload-spinner" />
-        <div class="reload-title">正在载入远端版本</div>
-        <div class="reload-sub">{{ state.tabReloading.name }}</div>
+        <div class="reload-title">
+          {{ state.tabReloading ? "正在载入远端版本" : "正在打开文档" }}
+        </div>
+        <div class="reload-sub">
+          {{ state.tabReloading?.name ?? state.fileLoading?.name }}
+        </div>
         <div class="reload-bar"><span /></div>
       </div>
     </div>

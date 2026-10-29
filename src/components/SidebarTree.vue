@@ -1,8 +1,23 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { importInto, isPinned, newDoc, openDataFolder, openDoc, refresh, state, toggleExpand, visibleRows } from "../store";
+import { computed, nextTick, ref } from "vue";
+import {
+  importInto,
+  isPinned,
+  newDoc,
+  openDataFolder,
+  openDoc,
+  refresh,
+  renamePath,
+  state,
+  toggleExpand,
+  trashPath,
+  visibleRows,
+} from "../store";
 import type { FsNode } from "../types";
 import Icon from "./Icon.vue";
+
+const treeEl = ref<HTMLElement | null>(null);
+const focusIndex = ref(-1);
 
 function onRow(node: FsNode) {
   if (node.isDir) toggleExpand(node.path);
@@ -10,6 +25,67 @@ function onRow(node: FsNode) {
 }
 
 /** 分隔线挂在「置顶子树最后一行」之后：展开时是最后一个子项，折叠时是「置顶」行本身。 */
+/** 键盘导航：↑↓ 移动、→← 展开收起、Enter 打开、F2 重命名、Delete 删除 */
+async function onTreeKey(event: KeyboardEvent) {
+  const list = rowsWithSep.value;
+  if (!list.length) return;
+  if (focusIndex.value < 0) focusIndex.value = 0;
+  const row = list[focusIndex.value];
+
+  switch (event.key) {
+    case "ArrowDown":
+      event.preventDefault();
+      focusIndex.value = Math.min(list.length - 1, focusIndex.value + 1);
+      break;
+    case "ArrowUp":
+      event.preventDefault();
+      focusIndex.value = Math.max(0, focusIndex.value - 1);
+      break;
+    case "Home":
+      event.preventDefault();
+      focusIndex.value = 0;
+      break;
+    case "End":
+      event.preventDefault();
+      focusIndex.value = list.length - 1;
+      break;
+    case "ArrowRight":
+      if (row.node.isDir && !state.expanded.has(row.node.path)) {
+        event.preventDefault();
+        toggleExpand(row.node.path);
+      }
+      break;
+    case "ArrowLeft":
+      if (row.node.isDir && state.expanded.has(row.node.path)) {
+        event.preventDefault();
+        toggleExpand(row.node.path);
+      }
+      break;
+    case "Enter":
+      event.preventDefault();
+      onRow(row.node);
+      break;
+    case "F2":
+      if (!row.node.isVirtual) {
+        event.preventDefault();
+        await renamePath(row.node.path, row.node.name);
+      }
+      break;
+    case "Delete":
+      if (!row.node.isVirtual) {
+        event.preventDefault();
+        await trashPath(row.node.path, row.node.name);
+      }
+      break;
+    default:
+      return;
+  }
+
+  await nextTick();
+  const el = treeEl.value?.querySelector<HTMLElement>(`[data-idx="${focusIndex.value}"]`);
+  el?.scrollIntoView({ block: "nearest" });
+}
+
 const rowsWithSep = computed(() => {
   const list = visibleRows.value;
   const rows = list.map((row) => ({ ...row, sepAfter: false }));
@@ -53,23 +129,33 @@ const rowsWithSep = computed(() => {
       </button>
     </div>
 
-    <div class="tree" role="tree">
+    <div
+      ref="treeEl"
+      class="tree"
+      role="tree"
+      tabindex="0"
+      :aria-activedescendant="focusIndex >= 0 ? `tree-row-${focusIndex}` : undefined"
+      @keydown="onTreeKey"
+    >
       <TransitionGroup name="tree">
         <div
-          v-for="row in rowsWithSep"
+          v-for="(row, idx) in rowsWithSep"
           :key="row.key"
+          :id="`tree-row-${idx}`"
+          :data-idx="idx"
           class="tree-row"
           role="treeitem"
           :data-path="row.node.isVirtual ? undefined : row.node.path"
           :aria-expanded="row.node.isDir ? state.expanded.has(row.node.path) : undefined"
           :class="{
             selected: row.node.path === state.activePath,
+            focused: idx === focusIndex,
             dir: row.node.isDir,
             'pinned-folder': row.node.isVirtual,
             'has-sep': row.sepAfter,
           }"
           :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
-          @click="onRow(row.node)"
+          @click="focusIndex = idx; onRow(row.node)"
         >
           <span
             class="twisty"
