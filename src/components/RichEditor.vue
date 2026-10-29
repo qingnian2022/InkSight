@@ -15,6 +15,7 @@ import { remarkFlattenQuote } from "../editor/remark-flatten-quote";
 import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
 import { toggleList } from "../editor/list-commands";
 import { attachToolbarTips } from "../editor/toolbar-tips";
+import { TextSelection } from "@milkdown/kit/prose/state";
 import { noNestedQuote } from "../editor/quote-normalize";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextCleanup, coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
@@ -23,7 +24,7 @@ import { tableSchemaOverride } from "../editor/table-schema";
 import { attachToolbarOverflow } from "../editor/toolbarOverflow";
 import { setPmCtx } from "../editor/pmCtxRef";
 import { setPmView } from "../editor/pmViewRef";
-import { activeTab, isUntitledPath, markDirty, state } from "../store";
+import { activeTab, finishTabReload, isUntitledPath, markDirty, state } from "../store";
 import { openImageLightbox } from "../ui/imageLightbox";
 import ColorPalette from "./ColorPalette.vue";
 import TableToolbar from "./TableToolbar.vue";
@@ -188,8 +189,48 @@ function slashFoldBlock(ctx: any) {
   }
 }
 
+/** 就地重载时用来还原阅读位置与光标 */
+let snapshot: { scrollTop: number; pos: number } | null = null;
+
+function scrollerOf(view: EditorView): HTMLElement | null {
+  let el: HTMLElement | null = view.dom as HTMLElement;
+  while (el) {
+    const cs = getComputedStyle(el);
+    if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function captureView() {
+  const view = pmView.value;
+  if (!view) return;
+  snapshot = {
+    scrollTop: scrollerOf(view)?.scrollTop ?? 0,
+    pos: view.state.selection.from,
+  };
+}
+
+function restoreView(view: EditorView) {
+  if (!snapshot) return;
+  const { scrollTop, pos } = snapshot;
+  snapshot = null;
+  const scroller = scrollerOf(view);
+  if (scroller) scroller.scrollTop = scrollTop;
+  const safe = Math.min(Math.max(pos, 1), view.state.doc.content.size);
+  try {
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(safe))));
+    view.focus();
+  } catch {
+    /* 内容变短时忽略 */
+  }
+  if (scroller) scroller.scrollTop = scrollTop;
+}
+
 async function mount() {
   const mine = ++seq;
+  const isReload = !!boundPath && state.tabReloading?.path === boundPath;
+  if (isReload) captureView();
   await teardown();
   if (mine !== seq) return;
 
@@ -391,6 +432,14 @@ async function mount() {
   crepe = instance;
   boundPath = path;
 
+  if (isReload) {
+    instance.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      restoreView(view);
+    });
+    finishTabReload(path);
+  }
+
   // 把 ProseMirror 视图与 Milkdown Ctx 挂出来，
   // 表格工具条 / 右键表格命令从这里取
   instance.editor.action((ctx) => {
@@ -431,10 +480,15 @@ onBeforeUnmount(() => {
   void teardown();
 });
 
-watch(() => state.activePath, () => {
-  closeColorPalette();
-  void mount();
-});
+watch(
+  [() => state.activePath, () => state.tabReloadToken],
+  ([path], [prevPath]) => {
+    // 同一文档的重载走 snapshot 恢复，切文件则不恢复
+    if (path !== prevPath) snapshot = null;
+    closeColorPalette();
+    void mount();
+  },
+);
 
 watch(
   () => state.readonly,

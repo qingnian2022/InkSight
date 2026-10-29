@@ -111,6 +111,11 @@ export const state = reactive({
   syncMessage: "",
   syncAt: 0,
   syncAuto: false,
+  /* 打开中的文档被远端更新时就地重载：reloading 用于渲染遮罩，token 触发编辑器重建 */
+  tabReloading: null as { path: string; name: string } | null,
+  tabReloadToken: 0,
+  /** 待用户决定的冲突（本地有未保存改动 + 远端也变了） */
+  syncConflict: null as { path: string; name: string; remote: string } | null,
 });
 
 export const activeTab = computed(
@@ -579,13 +584,95 @@ export async function syncNow() {
     state.syncError = !res.ok;
     if (res.ok) state.syncAt = Date.now();
     await refreshSyncStatus();
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      // 拉取/推送后磁盘内容可能已变，让打开中的文档原地跟上
+      await syncOpenTabsFromDisk();
+    }
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
   } finally {
     state.syncBusy = false;
   }
+}
+
+/**
+ * 同步完成后让「已打开」的文档跟上磁盘：
+ * - 没有未保存改动 → 直接就地重载（编辑器显示 loading 遮罩）
+ * - 有未保存改动 → 挂起，交给 SyncConflictPrompt 让用户选
+ */
+export async function syncOpenTabsFromDisk() {
+  if (!isTauri || !state.root) return;
+  for (const tab of [...state.tabs]) {
+    if (tab.path.startsWith("::")) continue;
+    let disk = "";
+    try {
+      disk = await readDoc(tab.path);
+    } catch {
+      continue; // 文件已被远端删除等情况，忽略
+    }
+    if (disk === tab.content) continue;
+    if (tab.dirty) {
+      if (!state.syncConflict) {
+        state.syncConflict = { path: tab.path, name: tab.name, remote: disk };
+      }
+      continue;
+    }
+    await reloadTab(tab.path, disk);
+  }
+}
+
+/** 用磁盘内容就地替换某个标签页，触发编辑器重建（外部据此显示 loading） */
+const reloadMark = { at: 0 };
+
+export async function reloadTab(path: string, next?: string) {
+  const tab = state.tabs.find((t) => t.path === path);
+  if (!tab) return;
+  let content = next;
+  if (content === undefined) {
+    try {
+      content = await readDoc(path);
+    } catch {
+      return;
+    }
+  }
+  if (content === tab.content) return;
+
+  tab.content = content;
+  tab.dirty = false;
+  // 只有「当前打开的那篇」才需要遮罩与重建；后台标签等到切换时自然读到新内容
+  if (state.activePath !== path) return;
+  state.saveState = "saved";
+  state.tabReloading = { path, name: tab.name };
+  reloadMark.at = Date.now();
+  state.tabReloadToken += 1;
+}
+
+/** 编辑器重建完成后收尾：关遮罩 + 提示 */
+export function finishTabReload(path: string) {
+  if (state.tabReloading?.path !== path) return;
+  // 重建通常 <150ms：遮罩至少停留 320ms，避免一闪而过像闪屏
+  const wait = Math.max(0, 320 - (Date.now() - reloadMark.at));
+  window.setTimeout(() => {
+    if (state.tabReloading?.path !== path) return;
+    state.tabReloading = null;
+    showToast("已载入远端最新版本");
+  }, wait);
+}
+
+/** 冲突处理：使用远端（丢弃本地未保存） */
+export async function useRemoteForConflict() {
+  const conflict = state.syncConflict;
+  if (!conflict) return;
+  state.syncConflict = null;
+  await reloadTab(conflict.path, conflict.remote);
+}
+
+/** 冲突处理：先保留本地，本次跳过该文档 */
+export function keepLocalForConflict() {
+  state.syncConflict = null;
+  showToast("已保留本地内容，下次同步再提示");
 }
 
 /** 从远程同步：拉取远程内容，冲突以远程为准。 */
@@ -599,7 +686,11 @@ export async function syncFromRemote() {
     state.syncError = !res.ok;
     if (res.ok) state.syncAt = Date.now();
     await refreshSyncStatus();
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      // 拉取/推送后磁盘内容可能已变，让打开中的文档原地跟上
+      await syncOpenTabsFromDisk();
+    }
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);
@@ -619,7 +710,11 @@ export async function syncToRemote() {
     state.syncError = !res.ok;
     if (res.ok) state.syncAt = Date.now();
     await refreshSyncStatus();
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      // 拉取/推送后磁盘内容可能已变，让打开中的文档原地跟上
+      await syncOpenTabsFromDisk();
+    }
   } catch (err) {
     state.syncError = true;
     state.syncMessage = errorText(err);

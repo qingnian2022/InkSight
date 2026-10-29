@@ -3,7 +3,7 @@ import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch 
 import { EditorView } from "@codemirror/view";
 import { createEditorState, editableCompartment } from "../editor/setup";
 import { setView } from "../editor/viewRef";
-import { activeTab, newDoc, state } from "../store";
+import { activeTab, finishTabReload, newDoc, state } from "../store";
 import Icon from "./Icon.vue";
 
 // Crepe 会捎带 @codemirror/language-data 的全部语言包，按需加载以免拖慢首屏
@@ -61,7 +61,12 @@ onBeforeUnmount(() => {
   teardown();
 });
 
-watch(() => state.activePath, syncEditor);
+watch([() => state.activePath, () => state.tabReloadToken], async () => {
+  await syncEditor();
+  // 源码模式没有 RichEditor 的 mount 回调，重载收尾放在这里
+  const path = state.tabReloading?.path;
+  if (path && path === state.activePath) finishTabReload(path);
+});
 
 watch(
   () => state.editorMode,
@@ -107,6 +112,16 @@ watch(
       </p>
       <button class="primary-btn" @click="() => newDoc()">新建文档</button>
       <p class="empty-hint">纯文本存储 · 不锁定格式 · 可用 Git 管理</p>
+    </div>
+
+    <!-- 就地重载遮罩：盖在编辑器上，不参与上面的 v-if/v-else 链 -->
+    <div v-if="state.tabReloading && state.tabReloading.path === state.activePath" class="reload-overlay">
+      <div class="reload-card">
+        <div class="reload-spinner" />
+        <div class="reload-title">正在载入远端版本</div>
+        <div class="reload-sub">{{ state.tabReloading.name }}</div>
+        <div class="reload-bar"><span /></div>
+      </div>
     </div>
   </div>
 </template>

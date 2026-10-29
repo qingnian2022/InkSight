@@ -1383,3 +1383,47 @@ if (q.get("quotecheck") === "1") {
     document.title = `QUOTECHECK total=${total} nested=${nested}`;
   }, 3200);
 }
+
+// ?reloadtest=1 —— 模拟远端更新当前文档：遮罩 / 重建 / 位置恢复 / 内容替换
+if (q.get("reloadtest") === "1") {
+  setTimeout(async () => {
+    const { reloadTab, state: st } = await import("./store");
+    const ctx = getPmCtx() as any;
+    const view = ctx?.get(editorViewCtx) as any;
+    if (!view) { document.title = "RELOADTEST no-view"; return; }
+
+    const scroller = document.querySelector(".milkdown") as HTMLElement | null;
+    if (scroller) scroller.scrollTop = 220;
+    const beforeScroll = Math.round(scroller?.scrollTop ?? 0);
+    const tab = st.tabs.find((t) => t.path === st.activePath);
+    if (!tab) { document.title = "RELOADTEST no-tab"; return; }
+
+    const next = tab.content + "\n\n远端新增段落：同步后应立即出现。\n";
+    await reloadTab(tab.path, next);
+    await new Promise((r) => setTimeout(r, 80));
+    const overlayNow = !!document.querySelector(".reload-overlay");
+
+    await new Promise((r) => setTimeout(r, 900));
+    const overlayAfter = !!document.querySelector(".reload-overlay");
+    const newScroller = document.querySelector(".milkdown") as HTMLElement | null;
+    const afterScroll = Math.round(newScroller?.scrollTop ?? 0);
+    const hasText = (newScroller?.textContent ?? "").includes("远端新增段落");
+    document.title = `RELOADTEST overlayNow=${overlayNow} overlayAfter=${overlayAfter} scroll=${beforeScroll}->${afterScroll} text=${hasText}`;
+  }, 3400);
+}
+
+// ?overlayshot=1 / ?conflictshot=1 —— 静态展示重载遮罩与冲突确认框
+if (q.get("overlayshot") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    const tab = st.tabs.find((t) => t.path === st.activePath);
+    st.tabReloading = { path: tab?.path ?? "", name: tab?.name ?? "callout" };
+  }, 2600);
+}
+if (q.get("conflictshot") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    const tab = st.tabs.find((t) => t.path === st.activePath);
+    st.syncConflict = { path: tab?.path ?? "", name: tab?.name ?? "callout", remote: tab?.content ?? "" };
+  }, 2600);
+}

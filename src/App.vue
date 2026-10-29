@@ -6,6 +6,7 @@ import EditorPane from "./components/EditorPane.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import NamePrompt from "./components/NamePrompt.vue";
 import ConfirmPrompt from "./components/ConfirmPrompt.vue";
+import SyncConflictPrompt from "./components/SyncConflictPrompt.vue";
 import Toast from "./components/Toast.vue";
 import TemplatePicker from "./components/TemplatePicker.vue";
 import ImageLightbox from "./components/ImageLightbox.vue";
@@ -369,6 +370,7 @@ onBeforeUnmount(() => {
     <StatusBar />
     <ContextMenu />
     <NamePrompt />
+    <SyncConflictPrompt />
     <ConfirmPrompt />
     <Toast />
     <TemplatePicker />
