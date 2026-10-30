@@ -8,6 +8,8 @@ export interface RemoteNote {
   content: string;
   version: number;
   updatedAt: number;
+  /** 墓碑：该路径在服务端已被删除 */
+  deleted?: boolean;
 }
 
 export interface PullResult {
@@ -145,4 +147,19 @@ export async function serverUpdateProfile(
     username: String(body.username ?? ""),
     avatar: String(body.avatar ?? ""),
   };
+}
+
+
+/** 删除 = 服务端写墓碑，其他设备拉取后把本地文件移到回收站 */
+export async function serverDelete(url: string, token: string, path: string): Promise<number> {
+  const res = await fetch(`${base(url)}/notes?path=${encodeURIComponent(path)}`, {
+    method: "DELETE",
+    headers: headers(token),
+  });
+  const body = await readJson(res);
+  if (res.status === 401) throw new ServerAuthError(body?.message || "登录已失效");
+  // 旧服务端尚未实现 DELETE 时不阻断同步，只是这次删除传不上去
+  if (res.status === 404 || res.status === 405) return 0;
+  if (!res.ok) throw new Error(body?.message || `服务器返回 ${res.status}`);
+  return Number(body.version ?? 0);
 }

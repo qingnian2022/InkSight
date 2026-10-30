@@ -1789,3 +1789,78 @@ if (q.get("syncgit") === "1") {
     document.querySelector<HTMLElement>(".sync-pill")?.click();
   }, 3200);
 }
+
+// ?synchelp=1 —— 展开同步说明浮层（headless 无法 hover）
+if (q.get("synchelp") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.syncMode = "server";
+    document.querySelector<HTMLElement>(".sync-pill")?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    document.querySelector(".sync-info")?.dispatchEvent(new MouseEvent("mouseenter"));
+    await new Promise((r) => setTimeout(r, 120));
+    const pop = document.querySelector<HTMLElement>(".sync-info-pop");
+    if (pop) pop.style.transition = "none";
+    document.title = `SYNCHELP pop=${!!pop}`;
+  }, 3200);
+}
+
+// ?iconrect=1 —— 信息图标位置（用于精确裁图）
+if (q.get("iconrect") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.syncMode = "server";
+    document.querySelector<HTMLElement>(".sync-pill")?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    const el = document.querySelector<HTMLElement>(".sync-info");
+    if (!el) { document.title = "ICONRECT none"; return; }
+    const r = el.getBoundingClientRect();
+    document.title = `ICONRECT ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`;
+  }, 3200);
+}
+
+// ?avatarcase=color|img|bad —— 标题栏头像三种取值
+if (q.get("avatarcase")) {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.serverToken = "demo-token";
+    st.serverEmail = "jay@example.com";
+    st.serverUsername = "Jay";
+    const kind = q.get("avatarcase");
+    st.serverAvatar =
+      kind === "img"
+        ? "data:image/gif;base64,R0lGODlhAQABAIAAAP8AAAAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=="
+        : kind === "bad"
+          ? "not-a-color"
+          : "#1D9E75";
+    await new Promise((r) => setTimeout(r, 250));
+    const av = document.querySelector<HTMLElement>(".acct-avatar");
+    const cs = av ? getComputedStyle(av) : null;
+    document.title = `AVATARCASE ${kind} bg=${cs?.backgroundColor} img=${cs?.backgroundImage.slice(0, 24)} w=${Math.round(av?.getBoundingClientRect().width ?? 0)}`;
+  }, 3000);
+}
+
+// ?bootdemo=1[&end=1] —— 启动页动画演示（mid / 完成后）
+if (q.has("bootdemo")) {
+  const { state: st } = await import("./store");
+  st.boot.active = true;
+  st.boot.done = false;
+  st.boot.label = "正在从云端同步笔记";
+  if (q.has("end")) {
+    setTimeout(() => {
+      st.boot.done = true;
+    }, 2600);
+  }
+}
+
+// ?bootdemo2=1 —— 重播启动页（init 后重挂载，便于截图各阶段）
+if (q.has("bootdemo2")) {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.boot.active = false;
+    await new Promise((r) => setTimeout(r, 150));
+    st.boot.active = true;
+    st.boot.done = false;
+    st.boot.label = "正在从云端同步笔记";
+  }, 3100);
+}

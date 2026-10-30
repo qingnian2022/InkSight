@@ -50,3 +50,13 @@ export function avatarStyle(value: string): Record<string, string> {
   }
   return { background: value };
 }
+
+
+/** 头像值只接受 data:image/ 或 #RRGGBB，其余一律回落到默认色 */
+export function normalizeAvatar(value: string | null | undefined, fallback = "#7F77DD"): string {
+  const v = (value ?? "").trim();
+  if (!v) return fallback;
+  if (v.startsWith("data:image/")) return v;
+  if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+  return fallback;
+}

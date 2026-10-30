@@ -27,6 +27,7 @@ import {
 
 const open = ref(false);
 const editingRemote = ref(false);
+const helpOpen = ref(false);
 const remoteInput = ref("");
 const st = computed(() => state.syncStatus);
 const wrapEl = ref<HTMLElement | null>(null);
@@ -164,7 +165,7 @@ onBeforeUnmount(() => {
       :title="isTauri ? '同步方式可切换：Git / 自建服务器 / 两者同时' : '同步功能仅桌面版可用'"
       @click="toggle"
     >
-      <Icon name="refresh" :size="12" :class="{ 'sync-spin': state.syncBusy }" />
+      <Icon name="sync" :size="13" :class="{ 'sync-spin': state.syncBusy }" />
       <span>同步</span>
       <span class="sync-dot" :class="tone" />
     </button>
@@ -177,6 +178,23 @@ onBeforeUnmount(() => {
       <div class="sync-status">
         <span class="sync-dot" :class="tone" />
         <span class="sync-status-label">{{ label }}</span>
+        <button
+          class="sync-info"
+          type="button"
+          aria-label="同步说明"
+          aria-describedby="sync-help"
+          @mouseenter="helpOpen = true"
+          @mouseleave="helpOpen = false"
+          @focus="helpOpen = true"
+          @blur="helpOpen = false"
+          @click="helpOpen = !helpOpen"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+            <path d="M9.6 9.1a2.5 2.5 0 1 1 3.6 2.4c-.7.4-1.1 1-1.1 1.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="12" cy="17.1" r="1.1" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <span v-if="lastLine" class="sync-status-meta">{{ lastLine }}</span>
       </div>
 
@@ -259,6 +277,14 @@ onBeforeUnmount(() => {
         <span class="sync-line-dot" :class="{ ok: !!state.serverToken }" />
         <span>{{ state.serverToken ? state.serverUsername || state.serverEmail : "未登录 · 点击头像登录" }}</span>
       </div>
+
+      <Transition name="fade">
+        <div v-if="helpOpen" id="sync-help" class="sync-info-pop" role="tooltip">
+          <span class="sync-info-row"><b>Git</b>同步到代码仓库，多台机器共用一份</span>
+          <span class="sync-info-row"><b>服务器</b>登录账号后同步到自建服务</span>
+          <span class="sync-info-row"><b>同时</b>两条通道都执行；冲突内容另存副本</span>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>

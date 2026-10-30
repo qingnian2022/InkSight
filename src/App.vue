@@ -8,6 +8,7 @@ import NamePrompt from "./components/NamePrompt.vue";
 import ConfirmPrompt from "./components/ConfirmPrompt.vue";
 import SyncConflictPrompt from "./components/SyncConflictPrompt.vue";
 import AccountDialog from "./components/AccountDialog.vue";
+import BootSplash from "./components/BootSplash.vue";
 import Toast from "./components/Toast.vue";
 import TemplatePicker from "./components/TemplatePicker.vue";
 import ImageLightbox from "./components/ImageLightbox.vue";
@@ -372,6 +373,7 @@ onBeforeUnmount(() => {
     <StatusBar />
     <ContextMenu />
     <NamePrompt />
+    <BootSplash v-if="state.boot.active" />
     <AccountDialog />
     <SyncConflictPrompt />
     <ConfirmPrompt />

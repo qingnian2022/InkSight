@@ -312,7 +312,7 @@ async fn sync(
 
     let mut stmt = conn
         .prepare(
-            "SELECT path, content, version, updated_at FROM notes
+            "SELECT path, content, version, updated_at, deleted FROM notes
              WHERE user_id = ?1 AND updated_at > ?2 ORDER BY updated_at ASC",
         )
         .map_err(internal)?;
@@ -323,6 +323,7 @@ async fn sync(
                 "content": row.get::<_, String>(1)?,
                 "version": row.get::<_, i64>(2)?,
                 "updatedAt": row.get::<_, i64>(3)?,
+                "deleted": row.get::<_, i64>(4)? != 0,
             }))
         })
         .map_err(internal)?
@@ -367,7 +368,7 @@ async fn put_note(
         }
         let next = version + 1;
         conn.execute(
-            "UPDATE notes SET content = ?3, version = ?4, updated_at = ?5
+            "UPDATE notes SET content = ?3, version = ?4, updated_at = ?5, deleted = 0
              WHERE user_id = ?1 AND path = ?2",
             params![user_id, payload.path, payload.content, next, now_ms()],
         )
@@ -381,6 +382,58 @@ async fn put_note(
     )
     .map_err(internal)?;
     Ok(Json(json!({ "version": 1 })))
+}
+
+#[derive(Deserialize)]
+struct DeleteQuery {
+    path: String,
+}
+
+/// 删除 = 写墓碑：保留 path/version/updated_at，内容清空、deleted=1。
+/// 其他设备靠增量拉取看到墓碑后把本地文件移到回收站。
+async fn delete_note(
+    State(state): State<App>,
+    headers: HeaderMap,
+    Query(query): Query<DeleteQuery>,
+) -> Result<Json<Value>, ApiError> {
+    let conn = state.db.lock().map_err(internal)?;
+    let user_id = auth_user(&conn, &headers)?;
+    if query.path.trim().is_empty() {
+        return Err(err(StatusCode::BAD_REQUEST, "path 不能为空"));
+    }
+
+    let current: Option<i64> = conn
+        .query_row(
+            "SELECT version FROM notes WHERE user_id = ?1 AND path = ?2",
+            params![user_id, query.path],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(internal)?;
+
+    let next = match current {
+        Some(version) => {
+            let next = version + 1;
+            conn.execute(
+                "UPDATE notes SET content = '', version = ?3, updated_at = ?4, deleted = 1
+                 WHERE user_id = ?1 AND path = ?2",
+                params![user_id, query.path, next, now_ms()],
+            )
+            .map_err(internal)?;
+            next
+        }
+        None => {
+            conn.execute(
+                "INSERT INTO notes (user_id, path, content, version, updated_at, deleted)
+                 VALUES (?1, ?2, '', 1, ?3, 1)",
+                params![user_id, query.path, now_ms()],
+            )
+            .map_err(internal)?;
+            1
+        }
+    };
+
+    Ok(Json(json!({ "version": next, "deleted": true })))
 }
 
 #[tokio::main]
@@ -414,6 +467,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
              content    TEXT NOT NULL,
              version    INTEGER NOT NULL,
              updated_at INTEGER NOT NULL,
+             deleted    INTEGER NOT NULL DEFAULT 0,
              PRIMARY KEY (user_id, path)
          );
          CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(user_id, updated_at);",
@@ -423,6 +477,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = conn.execute("ALTER TABLE users ADD COLUMN username TEXT NOT NULL DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE notes ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0", []);
     let _ = conn.execute(
         "UPDATE sessions SET expires_at = ?1 WHERE expires_at = 0",
         params![now_ms() + SESSION_TTL_MS],
@@ -441,7 +496,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/auth/me", get(me))
         .route("/auth/profile", axum::routing::patch(update_profile))
         .route("/sync", get(sync))
-        .route("/notes", put(put_note))
+        .route("/notes", put(put_note).delete(delete_note))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
