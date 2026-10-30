@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openAccountDialog, setAutoSave, state } from "../store";
+import { avatarStyle, normalizeAvatar } from "../ui/avatar";
 import Icon from "./Icon.vue";
 import SyncMenu from "./SyncMenu.vue";
 
@@ -18,6 +19,7 @@ const maximized = ref(false);
 const accountInitial = computed(() =>
   (state.serverUsername || state.serverEmail || "?").trim().charAt(0).toUpperCase(),
 );
+const accountAvatar = computed(() => normalizeAvatar(state.serverAvatar));
 let unlisten: (() => void) | null = null;
 
 function minimize() {
@@ -73,8 +75,10 @@ onBeforeUnmount(() => {
         <span
           v-if="state.serverToken"
           class="acct-avatar"
-          :style="{ background: state.serverAvatar || '#7F77DD' }"
-        >{{ accountInitial }}</span>
+          :style="avatarStyle(accountAvatar)"
+        >
+          <template v-if="!accountAvatar.startsWith('data:image/')">{{ accountInitial }}</template>
+        </span>
         <span v-else class="acct-avatar guest">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <circle cx="8" cy="5.4" r="2.6" stroke="currentColor" stroke-width="1.2" />

@@ -7,7 +7,7 @@ import {
   state,
   updateServerProfile,
 } from "../store";
-import { avatarStyle, fileToAvatar } from "../ui/avatar";
+import { avatarStyle, fileToAvatar, normalizeAvatar } from "../ui/avatar";
 import { rememberFocus, trapFocus } from "../ui/dialogFocus";
 
 const AVATARS = ["#7F77DD", "#1D9E75", "#D85A30", "#D4537E", "#378ADD", "#639922", "#BA7517", "#5F5E5A"];
@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
 
         <template v-if="loggedIn && mode !== 'edit'">
           <div class="account-hero">
-            <span class="account-avatar hero" :style="avatarStyle(state.serverAvatar || AVATARS[0])">
+            <span class="account-avatar hero" :style="avatarStyle(normalizeAvatar(state.serverAvatar, AVATARS[0]))">
               <template v-if="!state.serverAvatar?.startsWith('data:image/')">{{ initial }}</template>
             </span>
             <div class="account-hero-name">{{ state.serverUsername || "未命名" }}</div>

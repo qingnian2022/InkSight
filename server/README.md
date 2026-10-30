@@ -31,7 +31,8 @@ docker compose -f ../docker-compose.sync.yml up -d --build
 | GET | `/auth/me` | 返回当前账号资料 |
 | PATCH | `/auth/profile` | body: `{username, avatar}`，更新昵称与头像 |
 | GET | `/sync?since=<ms>` | 返回该时间之后更新的笔记 + 新游标 |
-| PUT | `/notes` | body: `{path, content, baseVersion}`；版本不符返回 409 + 服务端内容 |
+| PUT | `/notes` | body: `{path, content, baseVersion}`；版本不符返回 409 + 服务端内容；命中墓碑则复活 |
+| DELETE | `/notes?path=...` | 写墓碑（`deleted=1`、内容清空、版本 +1），其他设备拉取后把本地文件移到回收站 |
 
 鉴权：`Authorization: Bearer <SYNC_TOKEN>`。
 
@@ -42,7 +43,13 @@ docker compose -f ../docker-compose.sync.yml up -d --build
 3. 点右上角头像 → 注册（可设用户名与头像）或登录
 4. 点「立即同步」
 
-首次同步会把本地全部 Markdown 推上去；两端同时改同一篇时，远端内容会另存为 `原名.server-时间.md`，不会覆盖本地。
+首次同步会把本地全部 Markdown 推上去；之后只传 baseline 指纹变过的文件。
+
+同步顺序与 git 一致：**先推送本地改动（含删除、改名）→ 再拉取远端增量**。
+
+- 删除：本地删掉的文件会在服务端写墓碑，其他设备拉取后移到回收站
+- 改名：识别为「新路径上传 + 旧路径墓碑」，其他设备表现为移动
+- 冲突：两端同时改同一篇时，远端内容另存 `原名.server-时间.md`
 
 ## 已部署实例（2026-10-29）
 

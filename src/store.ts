@@ -25,12 +25,14 @@ import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 import { openConfirm } from "./ui/confirmPrompt";
 import { showToast } from "./ui/toast";
+import { normalizeAvatar } from "./ui/avatar";
 import {
   fingerprint,
   serverLogin,
   serverLogout,
   ServerAuthError,
   serverPull,
+  serverDelete,
   serverPut,
   serverRegister,
   serverUpdateProfile,
@@ -140,6 +142,8 @@ export const state = reactive({
   serverAvatar: "",
   /** 账号弹窗开关（头像入口点击） */
   accountOpen: false,
+  /** 启动页：打开时无条件与远端同步一次 */
+  boot: { active: true, done: false, label: "正在打开知识库" },
   /** 服务端增量游标（毫秒时间戳） */
   serverCursor: 0,
   /* 打开中的文档被远端更新时就地重载：reloading 用于渲染遮罩，token 触发编辑器重建 */
@@ -506,6 +510,7 @@ export async function createDirIn(dir: string) {
     await createDir(dir, name);
     state.expanded.add(dir);
     await refresh();
+    scheduleSync();
   } catch (err) {
     state.error = errorText(err);
   }
@@ -532,6 +537,7 @@ export async function renamePath(path: string, currentName: string) {
       state.expanded.add(newPath);
     }
     await refresh();
+    scheduleSync();
   } catch (err) {
     state.error = errorText(err);
   }
@@ -588,6 +594,7 @@ export async function trashPath(path: string, label: string) {
       state.cursor = { line: 1, col: 1 };
     }
     await refresh();
+    scheduleSync();
   } catch (err) {
     state.error = errorText(err);
   }
@@ -609,6 +616,19 @@ function writeBaseline(next: Baseline) {
   localStorage.setItem(LS_SERVER_BASE, JSON.stringify(next));
 }
 
+/** 静默移除标签页（不写盘），用于远端墓碑把文件移到回收站后 */
+function dropTab(path: string) {
+  const index = state.tabs.findIndex((t) => t.path === path);
+  if (index < 0) return;
+  const wasActive = state.activePath === path;
+  state.tabs.splice(index, 1);
+  if (!wasActive) return;
+  const next = state.tabs[index] ?? state.tabs[index - 1] ?? null;
+  state.activePath = next?.path ?? "";
+  state.saveState = "saved";
+  state.charCount = next ? next.content.replace(/\s+/g, "").length : 0;
+}
+
 function collectMarkdown(nodes: FsNode[], out: string[] = []): string[] {
   for (const node of nodes) {
     if (node.isVirtual) continue;
@@ -618,23 +638,102 @@ function collectMarkdown(nodes: FsNode[], out: string[] = []): string[] {
   return out;
 }
 
-/** 服务器同步：先拉后推，本地改过而远端也改的，服务端内容先另存为冲突副本 */
+/**
+ * 服务器同步：和 git 一样「先提交本地，再拉取远端」。
+ *
+ * 1. 推送：只传 baseline 指纹变过的文件；基线里有、本地没有的写墓碑（改名会识别成「删旧 + 新增」）
+ * 2. 拉取：按游标取增量，墓碑则把本地文件移到回收站
+ * 3. 重建 baseline：记录指纹 + 服务端版本
+ */
 async function syncViaServer(): Promise<{ ok: boolean; message: string; changed: number }> {
   const url = state.serverUrl.trim();
   const token = state.serverToken.trim();
-  if (!url || !token) throw new Error("未配置同步服务器地址或令牌");
+  if (!url || !token) throw new Error("未配置同步服务器或未登录");
 
   const baseline = readBaseline();
   const versions: Record<string, number> = {};
   for (const [path, item] of Object.entries(baseline)) versions[path] = item.version;
 
-  const pulled = await serverPull(url, token, state.serverCursor);
-  let changed = 0;
-  let conflicts = 0;
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  let pushed = 0;
+  let removed = 0;
+  let renamed = 0;
+  let pulled = 0;
+  let conflicts = 0;
 
-  for (const note of pulled.notes) {
+  // ---------- 1) 推送本地变更 ----------
+  const snapshot: { path: string; content: string; fp: string }[] = [];
+  for (const path of collectMarkdown(state.tree)) {
+    try {
+      const content = await readDoc(path);
+      snapshot.push({ path, content, fp: fingerprint(content) });
+    } catch {
+      /* 读失败的文件本轮跳过 */
+    }
+  }
+  const localPaths = new Set(snapshot.map((f) => f.path));
+
+  for (const file of snapshot) {
+    const base = baseline[file.path];
+    // 内容与服务端版本都没变 → 不传
+    if (base && base.fp === file.fp && versions[file.path] === base.version) continue;
+
+    let next = await serverPut(url, token, {
+      path: file.path,
+      content: file.content,
+      baseVersion: base?.version ?? 0,
+    });
+    if (!next.ok) {
+      // 服务端也改过：先把服务端内容另存，再由本地覆盖（与 git「本地为准」一致）
+      await writeDoc(file.path.replace(/\.md$/i, `.server-${stamp}.md`), next.content ?? "");
+      conflicts += 1;
+      next = await serverPut(url, token, {
+        path: file.path,
+        content: file.content,
+        baseVersion: next.version,
+      });
+    }
+    versions[file.path] = next.version;
+    pushed += 1;
+  }
+
+  // ---------- 2) 删除 / 重命名 ----------
+  for (const [path, base] of Object.entries(baseline)) {
+    if (localPaths.has(path)) continue;
+    const movedTo = snapshot.find((f) => !baseline[f.path] && f.fp === base.fp);
+    await serverDelete(url, token, path);
+    delete versions[path];
+    removed += 1;
+    if (movedTo) renamed += 1;
+  }
+
+  // ---------- 3) 拉取远端增量 ----------
+  const result = await serverPull(url, token, state.serverCursor);
+  for (const note of result.notes) {
     versions[note.path] = note.version;
+
+    if (note.deleted) {
+      let local = "";
+      let exists = true;
+      try {
+        local = await readDoc(note.path);
+      } catch {
+        exists = false;
+      }
+      if (!exists) continue;
+
+      const base = baseline[note.path];
+      if (!base || base.fp === fingerprint(local)) {
+        await trashNode(state.root, note.path);
+        dropTab(note.path);
+        pulled += 1;
+      } else {
+        // 本地也改过：保留本地，下一轮推送会把它复活
+        conflicts += 1;
+      }
+      continue;
+    }
+
     let local = "";
     try {
       local = await readDoc(note.path);
@@ -644,63 +743,35 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
     if (local === note.content) continue;
 
     const base = baseline[note.path];
-    const localUntouched = !local || (base && base.fp === fingerprint(local));
-    if (localUntouched) {
+    const untouched = !local || (base && base.fp === fingerprint(local));
+    if (untouched) {
       await writeDoc(note.path, note.content);
-      changed += 1;
-      continue;
-    }
-
-    // 本地也改过：保留本地，远端内容落成冲突副本
-    const copy = note.path.replace(/\.md$/i, `.server-${stamp}.md`);
-    await writeDoc(copy, note.content);
-    conflicts += 1;
-    changed += 1;
-  }
-
-  for (const path of collectMarkdown(state.tree)) {
-    let content = "";
-    try {
-      content = await readDoc(path);
-    } catch {
-      continue;
-    }
-    if (!content.trim()) continue;
-
-    const next = await serverPut(url, token, {
-      path,
-      content,
-      baseVersion: versions[path] ?? 0,
-    });
-
-    if (!next.ok) {
-      const copy = path.replace(/\.md$/i, `.server-${stamp}.md`);
-      await writeDoc(copy, next.content ?? "");
-      conflicts += 1;
-      const retry = await serverPut(url, token, { path, content, baseVersion: next.version });
-      versions[path] = retry.version;
+      pulled += 1;
     } else {
-      versions[path] = next.version;
+      await writeDoc(note.path.replace(/\.md$/i, `.server-${stamp}.md`), note.content);
+      conflicts += 1;
     }
-    changed += 1;
   }
 
+  // ---------- 4) 重建 baseline ----------
+  await refresh();
   const nextBaseline: Baseline = {};
   for (const path of collectMarkdown(state.tree)) {
     try {
       const content = await readDoc(path);
       nextBaseline[path] = { fp: fingerprint(content), version: versions[path] ?? 0 };
     } catch {
-      /* 读不到就跳过 */
+      /* 忽略读失败 */
     }
   }
   writeBaseline(nextBaseline);
-  state.serverCursor = pulled.cursor;
-  localStorage.setItem(LS_SERVER_CURSOR, String(pulled.cursor));
+  state.serverCursor = result.cursor;
+  localStorage.setItem(LS_SERVER_CURSOR, String(result.cursor));
 
-  const parts = [`服务器已同步 ${changed} 篇`];
-  if (conflicts) parts.push(`${conflicts} 处冲突已另存`);
-  return { ok: true, message: parts.join("，"), changed };
+  const parts = [`↑${pushed}`, `↓${pulled}`];
+  if (removed) parts.push(`删${removed}${renamed ? `（改名${renamed}）` : ""}`);
+  if (conflicts) parts.push(`冲突${conflicts}`);
+  return { ok: true, message: `服务器：${parts.join(" ")}`, changed: pushed + pulled };
 }
 
 /** 切换同步通道，持久化并刷新状态 */
@@ -719,7 +790,7 @@ function applySession(profile: { email: string; token: string; username: string;
   state.serverEmail = profile.email;
   state.serverToken = profile.token;
   state.serverUsername = profile.username || profile.email.split("@")[0];
-  state.serverAvatar = profile.avatar || "#7F77DD";
+  state.serverAvatar = normalizeAvatar(profile.avatar);
   localStorage.setItem(LS_SERVER_EMAIL, state.serverEmail);
   localStorage.setItem(LS_SERVER_TOKEN, state.serverToken);
   localStorage.setItem(LS_SERVER_NAME, state.serverUsername);
@@ -826,12 +897,64 @@ export async function syncAll() {
     else showToast(`同步失败：${errorText(err)}`, "error", 4000);
   } finally {
     state.syncBusy = false;
+    if (syncPending) {
+      syncPending = false;
+      scheduleSync();
+    }
   }
+}
+
+/** 启动页收尾：淡出并交还编辑器 */
+export function finishBoot() {
+  state.boot.active = false;
+}
+
+/** 打开软件时无条件同步一次（不受「自动同步」开关限制），8 秒超时兜底 */
+export async function runStartupSync() {
+  if (!isTauri || !state.root) {
+    finishBoot();
+    return;
+  }
+  const started = Date.now();
+
+  const useGit = state.syncMode === "git" || state.syncMode === "both";
+  const useServer = state.syncMode === "server" || state.syncMode === "both";
+  const st = state.syncStatus;
+
+  if (useGit && useServer) state.boot.label = "正在同步（Git + 云端）";
+  else if (useGit) state.boot.label = "正在与 Git 仓库同步";
+  else if (useServer) state.boot.label = "正在从云端同步笔记";
+
+  const ready =
+    (useGit && st?.hasRemote && !st.conflicted) ||
+    (useServer && !!state.serverUrl.trim() && !!state.serverToken.trim());
+
+  if (!ready) {
+    state.boot.label = "离线模式，继续进入";
+  } else {
+    try {
+      await Promise.race([
+        syncAll(),
+        new Promise((r) => setTimeout(r, 8000)),
+      ]);
+      state.boot.label = state.syncError ? "离线，继续进入" : "同步完成";
+    } catch {
+      state.boot.label = "离线，继续进入";
+    }
+  }
+
+  // 启动页至少停留 2.4s，保证「写完字 + 横线」的过程完整呈现
+  const wait = Math.max(0, 2600 - (Date.now() - started));
+  window.setTimeout(() => {
+    state.boot.done = true;
+  }, wait);
 }
 
 /* ---------- git 同步 ---------- */
 
 let syncTimer: number | undefined;
+/** 同步进行中又有新改动：结束后补跑一次 */
+let syncPending = false;
 
 /** 自动同步开关；持久化到 localStorage。 */
 export function setSyncAuto(on: boolean) {
@@ -1060,10 +1183,28 @@ export async function syncResetRemote() {
 }
 
 /** 自动同步：写盘成功后防抖 5 秒触发一次；冲突 / 忙碌时跳过。 */
+/** 当前模式下同步通道是否就绪（git 看远程与冲突，服务器看登录态） */
+function syncChannelReady(): boolean {
+  const useGit = state.syncMode === "git" || state.syncMode === "both";
+  const useServer = state.syncMode === "server" || state.syncMode === "both";
+
+  if (useGit) {
+    const st = state.syncStatus;
+    if (!st?.hasRemote || st.conflicted) return false;
+  }
+  if (useServer) {
+    if (!state.serverUrl.trim() || !state.serverToken.trim()) return false;
+  }
+  return true;
+}
+
 function scheduleSync() {
-  if (!state.syncAuto || state.syncBusy || !isTauri) return;
-  const st = state.syncStatus;
-  if (!st?.hasRemote || st.conflicted) return;
+  if (!state.syncAuto || !isTauri) return;
+  if (state.syncBusy) {
+    syncPending = true;
+    return;
+  }
+  if (!syncChannelReady()) return;
   window.clearTimeout(syncTimer);
   syncTimer = window.setTimeout(() => void syncAll(), 5000);
 }
@@ -1329,6 +1470,9 @@ export function updateCursor(line: number, col: number) {
 }
 
 export async function init() {
+  if (new URLSearchParams(window.location.search).has("nosplash")) {
+    state.boot.active = false;
+  }
   const theme = localStorage.getItem(LS_THEME);
   setTheme(theme === "dark" ? "dark" : "light");
 
@@ -1358,10 +1502,12 @@ export async function init() {
     state.error = errorText(err);
   }
 
-  // git 同步：恢复开关状态；开启自动同步时启动先静默拉一次，防止落后云端
+  if (new URLSearchParams(window.location.search).has("nosplash")) {
+    state.boot.active = false;
+  }
+
+  // git 同步：恢复开关状态；启动时无条件与远端同步一次（启动页等待）
   initSyncAuto();
   await refreshSyncStatus();
-  if (state.syncAuto && state.syncStatus?.hasRemote && !state.syncStatus.conflicted) {
-    void syncAll();
-  }
+  void runStartupSync();
 }
