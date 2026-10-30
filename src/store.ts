@@ -25,6 +25,16 @@ import type { ImportReport } from "./api";
 import { namePromptState, openNamePrompt } from "./ui/namePrompt";
 import { openConfirm } from "./ui/confirmPrompt";
 import { showToast } from "./ui/toast";
+import {
+  fingerprint,
+  serverLogin,
+  serverLogout,
+  ServerAuthError,
+  serverPull,
+  serverPut,
+  serverRegister,
+  serverUpdateProfile,
+} from "./sync/server-client";
 import { applyTemplate, pickTemplate } from "./ui/templatePicker";
 import {
   gitSyncAbort,
@@ -42,6 +52,16 @@ const LS_ED_WIDTH = "md-rust.editor-width";
 const LS_AUTOSAVE = "md-rust.autosave";
 const LS_SYNC_AUTO = "md-rust.sync-auto";
 const LS_SYNC_REMOTE = "md-rust.sync-remote";
+const LS_SYNC_MODE = "md-rust.sync-mode";
+const LS_SERVER_URL = "md-rust.server-url";
+/** 内置同步服务地址：默认填好，用户不需要手输 */
+export const DEFAULT_SERVER_URL = "http://152.136.101.135:8787";
+const LS_SERVER_TOKEN = "md-rust.server-token";
+const LS_SERVER_EMAIL = "md-rust.server-email";
+const LS_SERVER_NAME = "md-rust.server-username";
+const LS_SERVER_AVATAR = "md-rust.server-avatar";
+const LS_SERVER_BASE = "md-rust.server-baseline";
+const LS_SERVER_CURSOR = "md-rust.server-cursor";
 const LS_ACCENT = "md-rust.accent";
 const LS_SKIN = "md-rust.skin";
 
@@ -111,6 +131,17 @@ export const state = reactive({
   syncMessage: "",
   syncAt: 0,
   syncAuto: false,
+  /** 同步通道：git / 自建服务器 / 两者同时 */
+  syncMode: "git" as "git" | "server" | "both",
+  serverUrl: "",
+  serverToken: "",
+  serverEmail: "",
+  serverUsername: "",
+  serverAvatar: "",
+  /** 账号弹窗开关（头像入口点击） */
+  accountOpen: false,
+  /** 服务端增量游标（毫秒时间戳） */
+  serverCursor: 0,
   /* 打开中的文档被远端更新时就地重载：reloading 用于渲染遮罩，token 触发编辑器重建 */
   /* 打开大文件时超过 150ms 才显示遮罩，避免闪烁 */
   fileLoading: null as { name: string } | null,
@@ -562,6 +593,242 @@ export async function trashPath(path: string, label: string) {
   }
 }
 
+/* ---------- 自建服务器同步 ---------- */
+
+type Baseline = Record<string, { fp: string; version: number }>;
+
+function readBaseline(): Baseline {
+  try {
+    return JSON.parse(localStorage.getItem(LS_SERVER_BASE) || "{}") as Baseline;
+  } catch {
+    return {};
+  }
+}
+
+function writeBaseline(next: Baseline) {
+  localStorage.setItem(LS_SERVER_BASE, JSON.stringify(next));
+}
+
+function collectMarkdown(nodes: FsNode[], out: string[] = []): string[] {
+  for (const node of nodes) {
+    if (node.isVirtual) continue;
+    if (node.isDir) collectMarkdown(node.children ?? [], out);
+    else if (/\.md$/i.test(node.path)) out.push(node.path);
+  }
+  return out;
+}
+
+/** 服务器同步：先拉后推，本地改过而远端也改的，服务端内容先另存为冲突副本 */
+async function syncViaServer(): Promise<{ ok: boolean; message: string; changed: number }> {
+  const url = state.serverUrl.trim();
+  const token = state.serverToken.trim();
+  if (!url || !token) throw new Error("未配置同步服务器地址或令牌");
+
+  const baseline = readBaseline();
+  const versions: Record<string, number> = {};
+  for (const [path, item] of Object.entries(baseline)) versions[path] = item.version;
+
+  const pulled = await serverPull(url, token, state.serverCursor);
+  let changed = 0;
+  let conflicts = 0;
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+  for (const note of pulled.notes) {
+    versions[note.path] = note.version;
+    let local = "";
+    try {
+      local = await readDoc(note.path);
+    } catch {
+      local = "";
+    }
+    if (local === note.content) continue;
+
+    const base = baseline[note.path];
+    const localUntouched = !local || (base && base.fp === fingerprint(local));
+    if (localUntouched) {
+      await writeDoc(note.path, note.content);
+      changed += 1;
+      continue;
+    }
+
+    // 本地也改过：保留本地，远端内容落成冲突副本
+    const copy = note.path.replace(/\.md$/i, `.server-${stamp}.md`);
+    await writeDoc(copy, note.content);
+    conflicts += 1;
+    changed += 1;
+  }
+
+  for (const path of collectMarkdown(state.tree)) {
+    let content = "";
+    try {
+      content = await readDoc(path);
+    } catch {
+      continue;
+    }
+    if (!content.trim()) continue;
+
+    const next = await serverPut(url, token, {
+      path,
+      content,
+      baseVersion: versions[path] ?? 0,
+    });
+
+    if (!next.ok) {
+      const copy = path.replace(/\.md$/i, `.server-${stamp}.md`);
+      await writeDoc(copy, next.content ?? "");
+      conflicts += 1;
+      const retry = await serverPut(url, token, { path, content, baseVersion: next.version });
+      versions[path] = retry.version;
+    } else {
+      versions[path] = next.version;
+    }
+    changed += 1;
+  }
+
+  const nextBaseline: Baseline = {};
+  for (const path of collectMarkdown(state.tree)) {
+    try {
+      const content = await readDoc(path);
+      nextBaseline[path] = { fp: fingerprint(content), version: versions[path] ?? 0 };
+    } catch {
+      /* 读不到就跳过 */
+    }
+  }
+  writeBaseline(nextBaseline);
+  state.serverCursor = pulled.cursor;
+  localStorage.setItem(LS_SERVER_CURSOR, String(pulled.cursor));
+
+  const parts = [`服务器已同步 ${changed} 篇`];
+  if (conflicts) parts.push(`${conflicts} 处冲突已另存`);
+  return { ok: true, message: parts.join("，"), changed };
+}
+
+/** 切换同步通道，持久化并刷新状态 */
+export function setSyncMode(mode: "git" | "server" | "both") {
+  state.syncMode = mode;
+  localStorage.setItem(LS_SYNC_MODE, mode);
+  showToast(`同步方式已切换为${mode === "git" ? " Git" : mode === "server" ? "服务器" : " Git + 服务器"}`);
+}
+
+export function saveServerUrl(url: string) {
+  state.serverUrl = url.trim();
+  localStorage.setItem(LS_SERVER_URL, state.serverUrl);
+}
+
+function applySession(profile: { email: string; token: string; username: string; avatar: string }) {
+  state.serverEmail = profile.email;
+  state.serverToken = profile.token;
+  state.serverUsername = profile.username || profile.email.split("@")[0];
+  state.serverAvatar = profile.avatar || "#7F77DD";
+  localStorage.setItem(LS_SERVER_EMAIL, state.serverEmail);
+  localStorage.setItem(LS_SERVER_TOKEN, state.serverToken);
+  localStorage.setItem(LS_SERVER_NAME, state.serverUsername);
+  localStorage.setItem(LS_SERVER_AVATAR, state.serverAvatar);
+}
+
+export function openAccountDialog() {
+  state.accountOpen = true;
+}
+
+export async function registerServer(email: string, password: string, username: string, avatar: string) {
+  const url = state.serverUrl.trim();
+  if (!url) throw new Error("请先填写服务器地址");
+  const res = await serverRegister(url, { email, password, username, avatar });
+  applySession(res);
+  showToast("注册成功，已登录");
+}
+
+export async function loginServer(email: string, password: string) {
+  const url = state.serverUrl.trim();
+  if (!url) throw new Error("请先填写服务器地址");
+  const res = await serverLogin(url, email, password);
+  applySession(res);
+  showToast("已登录同步服务器");
+}
+
+/** 会话失效：清掉令牌并打开账号弹窗，让用户重新登录 */
+export function handleExpiredSession(message = "登录已过期，请重新登录") {
+  state.serverToken = "";
+  state.serverUsername = "";
+  state.serverAvatar = "";
+  localStorage.removeItem(LS_SERVER_TOKEN);
+  localStorage.removeItem(LS_SERVER_NAME);
+  localStorage.removeItem(LS_SERVER_AVATAR);
+  state.accountOpen = true;
+  showToast(message, "error", 4000);
+}
+
+export async function updateServerProfile(username: string, avatar: string) {
+  const url = state.serverUrl.trim();
+  const token = state.serverToken;
+  if (!url || !token) throw new Error("请先登录");
+  const profile = await serverUpdateProfile(url, token, { username, avatar });
+  state.serverUsername = profile.username;
+  state.serverAvatar = profile.avatar;
+  localStorage.setItem(LS_SERVER_NAME, profile.username);
+  localStorage.setItem(LS_SERVER_AVATAR, profile.avatar);
+  showToast("资料已更新");
+}
+
+export async function logoutServer() {
+  const { serverUrl, serverToken } = state;
+  await serverLogout(serverUrl, serverToken);
+  state.serverEmail = "";
+  state.serverToken = "";
+  state.serverUsername = "";
+  state.serverAvatar = "";
+  localStorage.removeItem(LS_SERVER_EMAIL);
+  localStorage.removeItem(LS_SERVER_TOKEN);
+  localStorage.removeItem(LS_SERVER_NAME);
+  localStorage.removeItem(LS_SERVER_AVATAR);
+  showToast("已退出登录");
+}
+
+export function serverConfigured(): boolean {
+  return !!state.serverUrl.trim() && !!state.serverToken.trim();
+}
+
+/** 真·同步入口：按当前通道执行，两个都开时先 git 再服务器 */
+export async function syncAll() {
+  if (!isTauri || !state.root || state.syncBusy) return;
+  const useGit = state.syncMode === "git" || state.syncMode === "both";
+  const useServer = state.syncMode === "server" || state.syncMode === "both";
+  if (useServer && !serverConfigured()) {
+    showToast("请先填写同步服务器地址与令牌", "error", 3500);
+    return;
+  }
+
+  state.syncBusy = true;
+  state.syncError = false;
+  const messages: string[] = [];
+  let failed = false;
+
+  try {
+    if (useGit) {
+      const res = await gitSyncNow(state.root);
+      messages.push(res.message);
+      failed = failed || !res.ok;
+    }
+    if (useServer) {
+      const res = await syncViaServer();
+      messages.push(res.message);
+    }
+    state.syncMessage = messages.join(" · ");
+    state.syncError = failed;
+    if (!failed) state.syncAt = Date.now();
+    await refreshSyncStatus();
+    await refresh();
+    await syncOpenTabsFromDisk();
+  } catch (err) {
+    state.syncError = true;
+    state.syncMessage = errorText(err);
+    if (err instanceof ServerAuthError) handleExpiredSession(err.message);
+    else showToast(`同步失败：${errorText(err)}`, "error", 4000);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
 /* ---------- git 同步 ---------- */
 
 let syncTimer: number | undefined;
@@ -798,11 +1065,21 @@ function scheduleSync() {
   const st = state.syncStatus;
   if (!st?.hasRemote || st.conflicted) return;
   window.clearTimeout(syncTimer);
-  syncTimer = window.setTimeout(() => void syncNow(), 5000);
+  syncTimer = window.setTimeout(() => void syncAll(), 5000);
 }
 
 export function initSyncAuto() {
   state.syncAuto = localStorage.getItem(LS_SYNC_AUTO) === "1";
+  const savedMode = localStorage.getItem(LS_SYNC_MODE);
+  state.syncMode = savedMode === "server" || savedMode === "both" ? savedMode : "git";
+  // 地址由内置常量决定，不读本地缓存，避免旧值/空值把用户挡在门外
+  state.serverUrl = DEFAULT_SERVER_URL;
+  localStorage.setItem(LS_SERVER_URL, DEFAULT_SERVER_URL);
+  state.serverToken = localStorage.getItem(LS_SERVER_TOKEN) || "";
+  state.serverEmail = localStorage.getItem(LS_SERVER_EMAIL) || "";
+  state.serverUsername = localStorage.getItem(LS_SERVER_NAME) || "";
+  state.serverAvatar = localStorage.getItem(LS_SERVER_AVATAR) || "";
+  state.serverCursor = Number(localStorage.getItem(LS_SERVER_CURSOR) || 0);
 }
 
 /** 面板输入框的初始远程地址：优先仓库里配置的，其次上次输入过的。 */
@@ -1085,6 +1362,6 @@ export async function init() {
   initSyncAuto();
   await refreshSyncStatus();
   if (state.syncAuto && state.syncStatus?.hasRemote && !state.syncStatus.conflicted) {
-    void syncNow();
+    void syncAll();
   }
 }

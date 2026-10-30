@@ -1693,3 +1693,99 @@ if (q.get("wincheck") === "1") {
     document.title = `WINCHECK innerW=${window.innerWidth} barRight=${Math.round(bar?.getBoundingClientRect().right ?? -1)} btnsRight=${Math.round(btns?.getBoundingClientRect().right ?? -1)} closeRight=${Math.round(close?.getBoundingClientRect().right ?? -1)} gap=${Math.round(window.innerWidth - (close?.getBoundingClientRect().right ?? window.innerWidth))}`;
   }, 2600);
 }
+
+// ?syncmenu=1 —— 同步面板：切到「服务器」并展示配置项
+if (q.get("syncmenu") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    document.querySelector<HTMLElement>(".sync-pill")?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const serverBtn = [...document.querySelectorAll<HTMLElement>(".sync-mode-btn")].find((b) => b.textContent?.trim() === "服务器");
+    serverBtn?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const inputs = document.querySelectorAll(".sync-menu .sync-input").length;
+    document.title = `SYNCMENU mode=${st.syncMode} inputs=${inputs} btns=${document.querySelectorAll(".sync-mode-btn").length}`;
+  }, 3200);
+}
+
+// ?synclogin=1 —— 模拟已登录状态，展示「已登录 / 退出登录」
+if (q.get("synclogin") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.serverEmail = "jay@example.com";
+    st.serverToken = "demo-token";
+    st.syncMode = "server";
+    document.querySelector<HTMLElement>(".sync-pill")?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    document.title = `SYNCLOGIN email=${st.serverEmail} loggedIn=${!!st.serverToken}`;
+  }, 3200);
+}
+
+// ?account=1 / ?accountme=1 —— 账号弹窗（未登录 / 已登录）
+if (q.get("account") === "1" || q.get("accountme") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    if (q.get("accountme") === "1") {
+      st.serverEmail = "jay@example.com";
+      st.serverUsername = "Jay";
+      st.serverAvatar = "#1D9E75";
+      st.serverToken = "demo";
+    }
+    st.accountOpen = true;
+    await new Promise((r) => setTimeout(r, 250));
+    if (q.get("account") === "1") {
+      const reg = [...document.querySelectorAll<HTMLElement>(".account-tab")].find((b) => b.textContent?.trim() === "注册");
+      reg?.click();
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    document.title = `ACCOUNT open=${st.accountOpen} tabs=${document.querySelectorAll(".account-tab").length} avatars=${document.querySelectorAll(".account-avatar.pick").length} upload=${!!document.querySelector(".account-avatar-row")}`;
+  }, 3200);
+}
+
+// ?avatarcheck=1 —— 头像按钮在标题栏中的垂直居中
+if (q.get("avatarcheck") === "1") {
+  setTimeout(() => {
+    const bar = document.querySelector<HTMLElement>(".titlebar");
+    const btn = document.querySelector<HTMLElement>(".account-btn");
+    const av = document.querySelector<HTMLElement>(".acct-avatar");
+    const box = (el: HTMLElement | null) => {
+      if (!el) return "-";
+      const r = el.getBoundingClientRect();
+      return `${Math.round(r.top)}..${Math.round(r.bottom)}`;
+    };
+    const center = (el: HTMLElement | null) => {
+      if (!el) return -1;
+      const r = el.getBoundingClientRect();
+      return Math.round(r.top + r.height / 2);
+    };
+    document.title = `AVATARCHECK bar=${box(bar)} btn=${box(btn)} av=${box(av)} centers=${center(bar)}/${center(btn)}/${center(av)}`;
+  }, 2800);
+}
+
+// ?acctlogin=1 —— 只看登录态表单
+if (q.get("acctlogin") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.accountOpen = true;
+  }, 3200);
+}
+
+// ?syncgit=1 —— Git 模式面板（带远程地址，便于看紧凑布局）
+if (q.get("syncgit") === "1") {
+  setTimeout(async () => {
+    const { state: st } = await import("./store");
+    st.syncMode = "git";
+    st.syncStatus = {
+      installed: true,
+      initialized: true,
+      hasRemote: true,
+      remote: "https://gitee.com/hao-zhangjian/md.git",
+      branch: "main",
+      dirty: false,
+      ahead: 0,
+      behind: 2,
+      conflicted: false,
+    } as any;
+    document.querySelector<HTMLElement>(".sync-pill")?.click();
+  }, 3200);
+}

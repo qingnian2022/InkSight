@@ -1,0 +1,11 @@
+services:
+  sync:
+    build: ./server
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      SYNC_ADDR: 0.0.0.0:8787
+      SYNC_DB: /data/sync.db
+    volumes:
+      - ./server/data:/data
