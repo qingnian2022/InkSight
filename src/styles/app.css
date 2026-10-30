@@ -4025,3 +4025,521 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 .md-overlay-scrollbar:hover {
   opacity: 0.85;
 }
+
+
+/* 同步方式切换（Git / 服务器 / 同时） */
+.sync-mode {
+  display: flex;
+  gap: 2px;
+  margin: 8px 0;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--surface-hover);
+}
+
+.sync-mode-btn {
+  flex: 1;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.sync-mode-btn.active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* ---------- 标题栏账号入口 ---------- */
+
+.account-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  align-self: center;
+  margin: 0 6px 0 4px;
+  border-radius: 50%;
+}
+
+.acct-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.acct-avatar svg {
+  display: block;
+}
+
+.acct-avatar.guest {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.account-btn:hover .acct-avatar.guest {
+  background: var(--surface-active);
+}
+
+/* ---------- 账号弹窗 ---------- */
+
+.account-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 4400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 20, 18, 0.32);
+}
+
+.account-card {
+  width: min(380px, 100%);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 24px 56px -18px rgba(16, 20, 18, 0.28), 0 2px 8px rgba(16, 20, 18, 0.06);
+}
+
+.account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 0 20px;
+}
+
+.account-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.account-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: block;
+}
+
+.account-brand-name {
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+.account-brand-divider {
+  color: var(--text-tertiary);
+}
+
+.account-brand-scope {
+  color: var(--text-tertiary);
+}
+
+.account-close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.account-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.account-intro {
+  padding: 14px 22px 0;
+}
+
+.account-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+.account-subtitle {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.account-tabs {
+  display: flex;
+  gap: 20px;
+  margin: 16px 22px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-tab {
+  position: relative;
+  padding: 0 1px 9px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: color 140ms ease;
+}
+
+.account-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.account-tab:hover {
+  color: var(--text-primary);
+}
+
+.account-tab.active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.account-tab.active::after {
+  background: var(--accent);
+}
+
+.account-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 22px 0;
+}
+
+.account-avatar {
+  border-radius: 50%;
+  color: #fff;
+  flex: none;
+  /* 不能用 overflow:hidden，否则右下角的上传徽标会被裁掉；
+     背景图本身会被 border-radius 裁切，无需额外裁剪 */
+  overflow: visible;
+}
+
+.account-avatar.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.account-avatar-initial {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.account-avatar-person {
+  width: 30px;
+  height: 30px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.account-avatar-hint {
+  margin-top: 9px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.account-avatars {
+  display: flex;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.account-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 0;
+  box-shadow: inset 0 0 0 1px rgba(16, 20, 18, 0.08);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.account-swatch:hover {
+  transform: scale(1.12);
+}
+
+.account-swatch.selected {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--border-strong);
+}
+
+.account-form {
+  padding: 4px 22px 0;
+}
+
+.account-field {
+  display: block;
+  margin-top: 14px;
+}
+
+.account-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.account-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.account-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.account-input:hover {
+  border-color: var(--border-strong);
+}
+
+.account-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.account-error {
+  margin: 10px 22px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger, #b3261e);
+}
+
+.account-primary {
+  display: block;
+  width: calc(100% - 44px);
+  height: 38px;
+  margin: 16px 22px 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: filter 140ms ease, opacity 140ms ease;
+}
+
+.account-primary:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.account-primary:active:not(:disabled) {
+  filter: brightness(0.88);
+}
+
+.account-primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.account-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.account-footer {
+  margin: 12px 22px 18px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.account-link {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.account-link:hover {
+  text-decoration: underline;
+}
+
+.account-link.danger {
+  color: var(--danger, #b3261e);
+  font-weight: 400;
+}
+
+.account-dot {
+  margin: 0 6px;
+  color: var(--text-tertiary);
+}
+
+.account-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 22px 0;
+}
+
+.account-hero-name {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.account-hero-mail {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.account-note {
+  margin: 14px 22px 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.account-tab:focus-visible,
+.account-close:focus-visible,
+.account-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.account-swatch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* 同步面板：紧凑布局 */
+.sync-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sync-primary {
+  flex: 1;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: filter 140ms ease, opacity 140ms ease;
+}
+
+.sync-primary:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.sync-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sync-remote-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.sync-remote-host {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-link {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.sync-link:hover {
+  text-decoration: underline;
+}
+
+.sync-link.danger {
+  color: var(--danger, #b3261e);
+}
+
+.sync-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sync-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sync-line-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex: none;
+}
+
+.sync-line-dot.ok {
+  background: #1d9e75;
+}
+
+.sync-warn {
+  margin-right: auto;
+  font-size: 11.5px;
+  color: var(--danger, #b3261e);
+}
+
+.sync-conflict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
