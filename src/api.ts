@@ -36,6 +36,10 @@ export const copyNode = (path: string) => invoke<string>("node_copy", { path });
 export const renameNode = (path: string, newName: string) =>
   invoke<string>("node_rename", { path, newName });
 
+/** 移动到目标文件夹（同一知识库内），返回新路径 */
+export const moveNode = (root: string, path: string, targetDir: string) =>
+  invoke<string>("node_move", { root, path, targetDir });
+
 export const trashNode = (root: string, path: string) =>
   invoke<void>("node_trash", { root, path });
 

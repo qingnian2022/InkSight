@@ -2034,3 +2034,34 @@ if (q.has("focuscheck")) {
     document.title = `FOCUS mouse=${mouseOutline}/${cs.outlineStyle}/${cs.outlineColor} kb=${kbOutline} active=${document.activeElement?.className || document.activeElement?.tagName} treeFV=${tree.matches(":focus-visible")}`;
   }, 2600);
 }
+
+// ?dragdemo=1 —— 模拟拖拽悬停在文件夹上，检查高亮
+if (q.has("dragdemo")) {
+  setTimeout(async () => {
+    const rows = [...document.querySelectorAll<HTMLElement>(".tree-row")].filter(
+      (r) => !r.classList.contains("pin-head") && r.dataset.path,
+    );
+    const folder = rows.find((r) => r.classList.contains("dir"));
+    const file = rows.find((r) => !r.classList.contains("dir")) ?? rows.find((r) => r !== folder);
+    if (!folder || !file) {
+      document.title = `DRAGDEMO rows=${rows.length}`;
+      return;
+    }
+    if (!file || !folder) {
+      document.title = "DRAGDEMO no-rows";
+      return;
+    }
+    const f = file.getBoundingClientRect();
+    file.dispatchEvent(new PointerEvent("pointerdown", {
+      bubbles: true, button: 0, clientX: f.left + 40, clientY: f.top + 10,
+    }));
+    const g = folder.getBoundingClientRect();
+    window.dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true, clientX: g.left + 60, clientY: g.top + 12,
+    }));
+    await new Promise((r) => setTimeout(r, 250));
+    const gh = document.querySelector<HTMLElement>(".tree-drag-ghost");
+    const gr = gh?.getBoundingClientRect();
+    document.title = `DRAGDEMO file=${file.querySelector(".label")?.textContent} folder=${folder.querySelector(".label")?.textContent} ok=${folder.classList.contains("drop-ok")} ghost=${gh ? "yes" : "no"}@${Math.round(gr?.left ?? -1)},${Math.round(gr?.top ?? -1)} ${Math.round(gr?.width ?? 0)}x${Math.round(gr?.height ?? 0)}`;
+  }, 3400);
+}

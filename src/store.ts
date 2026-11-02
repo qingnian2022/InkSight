@@ -14,6 +14,7 @@ import {
   pinSet,
   readDoc,
   renameNode,
+  moveNode,
   scanVault,
   stripExt,
   templateSave,
@@ -517,6 +518,50 @@ export async function createDirIn(dir: string) {
 }
 
 /** 重命名文件或文件夹；已打开的标签和展开状态同步跟着改。 */
+/** 把 path（文件或文件夹）移动到 targetDir，并同步更新标签 / 展开状态 / 置顶展示 */
+export async function movePath(path: string, targetDir: string) {
+  if (!state.root) return;
+  try {
+    const newPath = await moveNode(state.root, path, targetDir);
+    if (!newPath || newPath === path) return;
+
+    const isUnder = (p: string) =>
+      p === path || p.startsWith(`${path}\\`) || p.startsWith(`${path}/`);
+    const rewrite = (p: string) => newPath + p.slice(path.length);
+
+    for (const tab of state.tabs) {
+      if (tab.path === path) {
+        tab.path = newPath;
+        tab.name = stripExt(fileName(newPath));
+      } else if (isUnder(tab.path)) {
+        tab.path = rewrite(tab.path);
+      }
+    }
+    if (state.activePath === path) state.activePath = newPath;
+    else if (isUnder(state.activePath)) state.activePath = rewrite(state.activePath);
+
+    if (state.expanded.has(path)) {
+      state.expanded.delete(path);
+      state.expanded.add(newPath);
+    }
+    for (const p of Array.from(state.expanded)) {
+      if (isUnder(p) && p !== path) {
+        state.expanded.delete(p);
+        state.expanded.add(rewrite(p));
+      }
+    }
+
+    await refresh();
+    scheduleSync();
+
+    const folder = targetDir === state.root ? "根目录" : stripExt(fileName(targetDir));
+    notify(`已移动到 ${folder}`);
+  } catch (err) {
+    state.error = errorText(err);
+    showToast(`移动失败：${errorText(err)}`, "error", 4000);
+  }
+}
+
 export async function renamePath(path: string, currentName: string) {
   const name = await openNamePrompt({
     title: "重命名",

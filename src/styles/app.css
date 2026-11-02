@@ -4778,3 +4778,47 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   bottom: -20px;
   pointer-events: none;
 }
+
+/* ---------- 侧栏拖拽移动 ---------- */
+
+.tree.dragging-active,
+.tree.dragging-active * {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.tree-row.dragging {
+  opacity: 0.35;
+}
+
+.tree-row.drop-ok {
+  background: var(--success-soft, #eaf3de);
+  outline: 1.5px solid var(--success, #639922);
+  outline-offset: -1.5px;
+}
+
+.tree-row.drop-bad {
+  background: var(--danger-soft, #fcebeb);
+  outline: 1.5px solid var(--danger, #e24b4a);
+  outline-offset: -1.5px;
+}
+
+.tree-drag-ghost {
+  position: fixed;
+  z-index: 7000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  max-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

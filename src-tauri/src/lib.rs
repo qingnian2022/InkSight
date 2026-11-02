@@ -56,6 +56,7 @@ pub fn run() {
             node::dir_create,
             node::node_copy,
             node::node_rename,
+            node::node_move,
             node::node_trash,
             asset::asset_import,
             app_paths::app_info,

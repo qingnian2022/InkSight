@@ -125,6 +125,89 @@ pub fn node_rename(path: String, new_name: String) -> Result<String, String> {
     Ok(target.to_string_lossy().into_owned())
 }
 
+/// 移动到另一个文件夹（仅同一知识库内）。
+/// - 目标不存在/不是目录 → 报错
+/// - 目标是自己或自己的子目录 → 拒绝（防止把目录拖进自身造成环）
+/// - 同名冲突时自动改名（文件加 (2)，文件夹同名同样加序号）
+/// - 置顶列表里的路径前缀同步改写，移动后仍保持置顶
+#[tauri::command(rename_all = "camelCase")]
+pub fn node_move(root: String, path: String, target_dir: String) -> Result<String, String> {
+    let root_path = PathBuf::from(&root);
+    let src = PathBuf::from(&path);
+    let parent = PathBuf::from(&target_dir);
+
+    if !src.exists() {
+        return Err("E_NOT_FOUND: 源不存在".into());
+    }
+    if !parent.is_dir() {
+        return Err("E_INVALID_ARG: 目标不是文件夹".into());
+    }
+
+    // 自身 / 子目录检测（canonicalize 处理大小写与 .. 等情况）
+    let src_canon = src.canonicalize().unwrap_or_else(|_| src.clone());
+    let parent_canon = parent.canonicalize().unwrap_or_else(|_| parent.clone());
+    if parent_canon == src_canon || parent_canon.starts_with(&src_canon) {
+        return Err("E_INVALID_ARG: 不能移动到自身或其子目录".into());
+    }
+
+    // 已经在这个目录里 → 直接返回原路径
+    if let (Some(src_parent), Ok(parent_canon2)) = (src.parent(), parent.canonicalize()) {
+        if let Ok(src_parent_canon) = src_parent.canonicalize() {
+            if src_parent_canon == parent_canon2 {
+                return Ok(src.to_string_lossy().into_owned());
+            }
+        }
+    }
+
+    let name = src
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("untitled.md");
+    let target = if src.is_dir() {
+        unique_dir_path(&parent, name)
+    } else {
+        unique_path(&parent, name)
+    };
+
+    std::fs::rename(&src, &target).map_err(|e| format!("E_IO: {e}"))?;
+
+    // 置顶路径改写（目录移动时连所有子路径一起改）
+    let src_str = src.to_string_lossy().replace('\\', "/");
+    let target_str = target.to_string_lossy().replace('\\', "/");
+    let mut pins = load_pins(&root_path);
+    let mut changed = false;
+    for pin in pins.iter_mut() {
+        let norm = pin.replace('\\', "/");
+        if norm == src_str {
+            *pin = target_str.clone();
+            changed = true;
+        } else if let Some(rest) = norm.strip_prefix(&format!("{src_str}/")) {
+            *pin = format!("{target_str}/{rest}");
+            changed = true;
+        }
+    }
+    if changed {
+        let _ = save_pins(&root_path, &pins);
+    }
+
+    Ok(target.to_string_lossy().into_owned())
+}
+
+/// 文件夹重名的兜底命名：`名称 (2)`、`名称 (3)`…
+fn unique_dir_path(dir: &Path, name: &str) -> PathBuf {
+    let candidate = dir.join(name);
+    if !candidate.exists() {
+        return candidate;
+    }
+    for i in 2..10_000 {
+        let next = dir.join(format!("{name} ({i})"));
+        if !next.exists() {
+            return next;
+        }
+    }
+    candidate
+}
+
 /// 移到 <root>/.trash/，不做硬删除。
 #[tauri::command(rename_all = "camelCase")]
 pub fn node_trash(root: String, path: String) -> Result<(), String> {
