@@ -72,20 +72,5 @@ jobs:
         if: ${{ env.GITEE_TOKEN != '' }}
         run: node scripts/publish-gitee.mjs --notes "${{ steps.ver.outputs.tag }}"
 
-      # 把 CI 改好的版本号提交回主分支，本地仓库不会落后于 release
-      - name: 回写版本号到默认分支
-        if: github.ref_type == 'tag'
-        continue-on-error: true
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          FILES="package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock"
-          if git diff --quiet -- $FILES; then
-            echo "版本号与 tag 一致，无需回写"
-            exit 0
-          fi
-          git add $FILES
-          git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]"
-          # 目标分支必须写全 refs/heads/…，否则 git 无法猜出远端分支名（HEAD 是游离提交）
-          git push origin "HEAD:refs/heads/${{ github.event.repository.default_branch }}"
+      # 版本号由 tag 决定（构建时 bump 即可），不再回写默认分支。
+      # 回写会每次发布在 master 上多一个 chore(release) 提交，导致本地后续 push 被拒（non-fast-forward）。
