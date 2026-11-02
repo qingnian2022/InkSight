@@ -1844,13 +1844,6 @@ if (q.get("avatarcase")) {
 if (q.has("bootdemo")) {
   const { state: st } = await import("./store");
   st.boot.active = true;
-  st.boot.done = false;
-  st.boot.label = "正在从云端同步笔记";
-  if (q.has("end")) {
-    setTimeout(() => {
-      st.boot.done = true;
-    }, 2600);
-  }
 }
 
 // ?bootdemo2=1 —— 重播启动页（init 后重挂载，便于截图各阶段）
@@ -1860,8 +1853,6 @@ if (q.has("bootdemo2")) {
     st.boot.active = false;
     await new Promise((r) => setTimeout(r, 150));
     st.boot.active = true;
-    st.boot.done = false;
-    st.boot.label = "正在从云端同步笔记";
   }, 3100);
 }
 

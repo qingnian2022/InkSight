@@ -142,8 +142,8 @@ export const state = reactive({
   serverAvatar: "",
   /** 账号弹窗开关（头像入口点击） */
   accountOpen: false,
-  /** 启动页：打开时无条件与远端同步一次 */
-  boot: { active: true, done: false, label: "正在打开知识库" },
+  /** 启动页开关：只由动画自身控制，不等待同步 */
+  boot: { active: true },
   /** 服务端增量游标（毫秒时间戳） */
   serverCursor: 0,
   /* 打开中的文档被远端更新时就地重载：reloading 用于渲染遮罩，token 触发编辑器重建 */
@@ -909,46 +909,26 @@ export function finishBoot() {
   state.boot.active = false;
 }
 
-/** 打开软件时无条件同步一次（不受「自动同步」开关限制），8 秒超时兜底 */
+/**
+ * 打开软件时无条件在后台同步一次（不受「自动同步」开关限制）。
+ * 不阻塞启动页：动画结束即进入，同步结果只更新同步状态，不弹启动页进度。
+ */
 export async function runStartupSync() {
-  const force = new URLSearchParams(window.location.search).has("forcesplash");
-  if ((!isTauri || !state.root) && !force) {
-    finishBoot();
-    return;
-  }
-  const started = Date.now();
+  if (!isTauri || !state.root) return;
 
   const useGit = state.syncMode === "git" || state.syncMode === "both";
   const useServer = state.syncMode === "server" || state.syncMode === "both";
   const st = state.syncStatus;
-
-  if (useGit && useServer) state.boot.label = "正在同步（Git + 云端）";
-  else if (useGit) state.boot.label = "正在与 Git 仓库同步";
-  else if (useServer) state.boot.label = "正在从云端同步笔记";
-
   const ready =
     (useGit && st?.hasRemote && !st.conflicted) ||
     (useServer && !!state.serverUrl.trim() && !!state.serverToken.trim());
+  if (!ready) return;
 
-  if (!ready) {
-    state.boot.label = "离线模式，继续进入";
-  } else {
-    try {
-      await Promise.race([
-        syncAll(),
-        new Promise((r) => setTimeout(r, 8000)),
-      ]);
-      state.boot.label = state.syncError ? "离线，继续进入" : "同步完成";
-    } catch {
-      state.boot.label = "离线，继续进入";
-    }
+  try {
+    await syncAll();
+  } catch {
+    /* 启动同步失败不打扰用户，状态栏会显示错误 */
   }
-
-  // 启动页至少停留 2.4s，保证「写完字 + 横线」的过程完整呈现
-  const wait = Math.max(0, 2600 - (Date.now() - started));
-  window.setTimeout(() => {
-    state.boot.done = true;
-  }, wait);
 }
 
 /* ---------- git 同步 ---------- */
