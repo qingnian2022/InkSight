@@ -1,11 +1,11 @@
 {
-  "version": "1.1.2",
-  "notes": "v1.1.2",
-  "pub_date": "2026-10-29T14:25:23.156Z",
+  "version": "1.1.3",
+  "notes": "v1.1.3",
+  "pub_date": "2026-11-02T06:44:05.464Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUR3pNcHU0WnVycFYwaTNFcjhPUXFZazZsalF1YlRVeWRMUUlOS0p0eEZWaTExZlhGTC9wbUVEUWNzd0lLYm1pQm1veGFFUWhHUkYrV3JWV0VpUnYzRDNhZ09iRkNXZGdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjgzOTE4CWZpbGU6SW5rc2lnaHRfMS4xLjJfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjEuMS4yCjRqdW0xVDlBTldObS9mNE1wdEJKYXF2cVV4YTA0YU5sY0VNQ2gyV2x1Ti8yU1ZGb3k0S3NJZE91WThua1BmU3p2NXF1OHNlOC9TczZ2SkFxSVBZMUNBPT0K",
-      "url": "https://gitee.com/hao-zhangjian/Inksight/releases/download/v1.1.2/Inksight_1.1.2_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUR3pNcHU0WnVycGZwejdhNWltbTJvWmcvVUI0T2dZS0VvYk5zNDM2NlM2SWF4S3IyeTFETXl4aE9RUDBTekJoZkJBcEI2OS94WTM5NENUS290bjN2djYxZk9NTmlteWdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjAxODQxCWZpbGU6SW5rc2lnaHRfMS4xLjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjEuMS4zCm54QUw5QnBOaGNiVHNSZW5nVXBHV3RDMC9BblgrbWZ4eHdFSFRnQllKME1GRWpoRjVnc3oyOG84RURjT2tPZDY5dGw1STRud1h0cld2b2ZnclJFSEJRPT0K",
+      "url": "https://gitee.com/hao-zhangjian/Inksight/releases/download/v1.1.3/Inksight_1.1.3_x64-setup.exe"
     }
   }
 }
