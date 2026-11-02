@@ -18,6 +18,7 @@ import { attachToolbarTips } from "../editor/toolbar-tips";
 import { TextSelection } from "@milkdown/kit/prose/state";
 import { attachOverlayScrollbar } from "../editor/overlay-scrollbar";
 import { noNestedQuote } from "../editor/quote-normalize";
+import { listNormalizePlugin } from "../editor/list-normalize";
 import { buildColorTopBarItems, closeColorPalette } from "../editor/color-commands";
 import { coloredTextCleanup, coloredTextSchema, mergeInlineColorHtml } from "../editor/inline-html";
 import { normalizeEmphasis } from "../editor/normalize-emphasis";
@@ -411,7 +412,7 @@ async function mount() {
   instance.editor.use(tableSchemaOverride);
 
   // 语雀式提示块（> [!TIP]）与标题折叠
-  instance.editor.use(calloutPlugin).use(headingFoldPlugin).use(foldBlockPlugin).use(noNestedQuote);
+  instance.editor.use(calloutPlugin).use(headingFoldPlugin).use(foldBlockPlugin).use(noNestedQuote).use(listNormalizePlugin);
 
   let ready = false;
 

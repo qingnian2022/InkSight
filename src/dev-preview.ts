@@ -1864,3 +1864,40 @@ if (q.has("bootdemo2")) {
     st.boot.label = "正在从云端同步笔记";
   }, 3100);
 }
+
+// ?pasteprobe=normal|fullwidth|nbsp|indent4|allone —— 模拟粘贴有序列表，观察生成的 ol 结构
+if (q.get("pasteprobe")) {
+  const variants: Record<string, string> = {
+    normal: "1. 第一\n2. 第二\n3. 第三",
+    fullwidth: "1.　第一\n2.　第二\n3.　第三",
+    nbsp: "1.\u00a0第一\n2.\u00a0第二\n3.\u00a0第三",
+    indent4: "    1. 第一\n\n    2. 第二\n\n    3. 第三",
+    allone: "1. 第一\n1. 第二\n1. 第三",
+    twospace: "1.  第一\n2.  第二\n3.  第三",
+  };
+  const htmlVariants: Record<string, string> = {
+    htmlol: "<ol><li>第一</li><li>第二</li><li>第三</li></ol>",
+    htmlperitem: "<ol><li>第一</li></ol><ol><li>第二</li></ol><ol><li>第三</li></ol>",
+    htmlstart: '<ol start="1"><li>第一</li><li>第二</li><li>第三</li></ol>',
+    htmlfont: '<ol><li><font style="color:rgb(1,2,3)">第一</font></li><li><font style="color:rgb(1,2,3)">第二</font></li></ol>',
+    htmlp: "<p>1. 第一</p><p>2. 第二</p><p>3. 第三</p>",
+  };
+  const kind = q.get("pasteprobe") as string;
+  setTimeout(async () => {
+    const pm = document.querySelector<HTMLElement>(".ProseMirror");
+    if (!pm) {
+      document.title = "PASTEPROBE no-editor";
+      return;
+    }
+    pm.focus();
+    const dt = new DataTransfer();
+    if (htmlVariants[kind]) dt.setData("text/html", htmlVariants[kind]);
+    dt.setData("text/plain", variants[kind] ?? variants.normal);
+    pm.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 300));
+    const ols = [...pm.querySelectorAll("ol")];
+    const detail = ols.map((ol) => `start=${ol.getAttribute("start") ?? "-"}:li=${ol.children.length}`).join("|");
+    const lis = [...pm.querySelectorAll("li")].map((li) => li.textContent?.slice(0, 6)).join(",");
+    document.title = `PASTEPROBE ${kind} ols=${ols.length} ${detail} text=${lis}`;
+  }, 2600);
+}
