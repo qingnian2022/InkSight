@@ -14,6 +14,10 @@ const TEXT = "InkSight";
 const FONT = "cursive";
 /** 字母间留白（连接笔画的间隙，0=紧连） */
 const GAP = 4.2;
+/** 描边半宽（视觉宽度 = 该值 × 2） */
+const strokeHalf = 1.5;
+/** 左侧留白：描边半径 + 余量，避免首字母外沿被 viewBox 裁掉 */
+const LEFT_PAD = strokeHalf + 0.6;
 const COLORS = ["#1b1d1c", "#f09048", "#17b5ce", "#003060", "#f09048", "#1b1d1c", "#17b5ce", "#003060"];
 
 const font = hershey.getFontData(FONT);
@@ -74,7 +78,7 @@ for (let i = 0; i < TEXT.length; i++) {
   const subs = parseSubpaths(glyph.d);
   const bounds = inkBounds(subs);
   const d = subs.map((sub) => smoothPath(sub, -bounds.minX)).join(" ");
-  glyphs.push({ ch, d, inkW: bounds.w, x: cursor, color: COLORS[i] });
+  glyphs.push({ ch, d, inkW: bounds.w, x: cursor + LEFT_PAD, color: COLORS[i] });
   cursor += bounds.w + GAP;
   minY = Math.min(minY, bounds.minY ?? Infinity);
 }
@@ -89,11 +93,10 @@ for (const g of glyphs) {
   }
 }
 
-const strokeHalf = 1.5;
-minY = Math.floor(minY - strokeHalf);
-maxY = Math.ceil(maxY + strokeHalf);
+minY = Math.floor(minY - strokeHalf - 0.6);
+maxY = Math.ceil(maxY + strokeHalf + 0.6);
 const height = maxY - minY;
-const width = Math.ceil(cursor - GAP + strokeHalf);
+const width = Math.ceil(cursor - GAP + LEFT_PAD + strokeHalf);
 
 const body = glyphs
   .map((g) => `  { ch: ${JSON.stringify(g.ch)}, d: ${JSON.stringify(g.d)}, x: ${Number(g.x.toFixed(2))}, color: ${JSON.stringify(g.color)} },`)
