@@ -4718,3 +4718,11 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   color: #fff;
   overflow: hidden;
 }
+
+.boot-swash {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -20px;
+  pointer-events: none;
+}

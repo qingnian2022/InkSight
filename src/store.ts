@@ -911,7 +911,8 @@ export function finishBoot() {
 
 /** 打开软件时无条件同步一次（不受「自动同步」开关限制），8 秒超时兜底 */
 export async function runStartupSync() {
-  if (!isTauri || !state.root) {
+  const force = new URLSearchParams(window.location.search).has("forcesplash");
+  if ((!isTauri || !state.root) && !force) {
     finishBoot();
     return;
   }

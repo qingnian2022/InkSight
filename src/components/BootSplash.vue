@@ -27,6 +27,7 @@ let safety = 0;
 
 function showFull() {
   pathEls.value.forEach((p) => {
+    p.style.opacity = "1";
     p.style.strokeDasharray = "none";
     p.style.strokeDashoffset = "0";
   });
@@ -47,7 +48,7 @@ function finish() {
 /** 收尾动画：字定格 → 遮罩淡出 → 交还编辑器 */
 function playOutro() {
   finish();
-  if (!window.gsap || reduce) {
+  if (reduce) {
     finishBoot();
     return;
   }
@@ -57,14 +58,16 @@ function playOutro() {
 
 function playIntro() {
   const paths = pathEls.value;
-  if (!window.gsap || reduce) {
+  // 注意：gsap 是模块导入（import gsap from "gsap"），不会挂到 window 上，
+  // 不能用 window.gsap 判断，否则永远走 fallback → 启动页没有动画。
+  if (reduce) {
     showFull();
     if (barEl.value) barEl.value.style.transform = "scaleX(0.9)";
     return;
   }
 
-  // 书写起点：所有笔画从 0 开始
-  gsap.set(paths, { drawSVG: "0% 0%" });
+  // 书写起点：所有笔画从 0 开始；同时先隐藏，避免 0 长度的圆头 dash 留下小圆点
+  gsap.set(paths, { drawSVG: "0% 0%", opacity: 0 });
 
   const timeline = gsap.timeline({ onComplete: finish });
   tl = timeline;
@@ -83,10 +86,14 @@ function playIntro() {
       },
       onUpdate: function () {
         const p = this.progress();
+        // 笔画刚起步时 dash 长度为 0，圆头会留下一个小点；有进度后再显形
+        if (p > 0.004) path.style.opacity = "1";
         const len = path.getTotalLength();
         const pt = path.getPointAtLength(len * p);
         if (penEl.value) {
-          penEl.value.setAttribute("cx", pt.x.toFixed(2));
+          // getPointAtLength 返回的是字形局部坐标，需叠加该字形的 translate(x) 偏移，
+          // 否则笔尖永远停留在第一个字形（"i"）附近的 x≈0..15 区域。
+          penEl.value.setAttribute("cx", (pt.x + INK_GLYPHS[i].x).toFixed(2));
           penEl.value.setAttribute("cy", pt.y.toFixed(2));
         }
       },
@@ -157,6 +164,19 @@ watch(
             stroke-linejoin="round"
           />
           <circle ref="penEl" class="boot-pen" r="0.85" cx="0" cy="0" />
+        </svg>
+
+        <svg class="boot-swash" width="340" height="24" viewBox="0 0 360 26" fill="none" aria-hidden="true">
+          <path
+            ref="swashEl"
+            d="M6 18 C 96 6, 262 4, 354 14"
+            stroke="#2fd8f0"
+            stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="360"
+            stroke-dashoffset="360"
+          />
+          <circle ref="swashDotEl" cx="354" cy="14" r="4.5" fill="#f09048" opacity="0" />
         </svg>
       </div>
 
