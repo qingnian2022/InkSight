@@ -13,37 +13,52 @@ const hershey = require("hersheytext");
 const TEXT = "InkSight";
 const FONT = "cursive";
 /** 字母间留白（连接笔画的间隙，0=紧连） */
-const GAP = 1.1;
+const GAP = 4.2;
 const COLORS = ["#1b1d1c", "#f09048", "#17b5ce", "#003060", "#f09048", "#1b1d1c", "#17b5ce", "#003060"];
 
 const font = hershey.getFontData(FONT);
 
-function parsePts(d) {
-  const pts = [];
+function parseSubpaths(d) {
+  const subs = [];
+  let cur = null;
   for (const tk of d.split(" ")) {
     const withCmd = tk.match(/^([ML])(-?[\d.]+),(-?[\d.]+)$/);
     if (withCmd) {
-      pts.push({ x: Number(withCmd[2]), y: Number(withCmd[3]) });
+      const pt = { x: Number(withCmd[2]), y: Number(withCmd[3]) };
+      if (withCmd[1] === "M") {
+        cur = [pt];
+        subs.push(cur);
+      } else if (cur) {
+        cur.push(pt);
+      }
       continue;
     }
     const pair = tk.match(/^(-?[\d.]+),(-?[\d.]+)$/);
-    if (pair) pts.push({ x: Number(pair[1]), y: Number(pair[2]) });
+    if (pair && cur) cur.push({ x: Number(pair[1]), y: Number(pair[2]) });
   }
-  return pts;
+  return subs.filter((sub) => sub.length > 1);
 }
 
-function shiftD(d, dx) {
-  return parsePts(d)
-    .map((pt, i) => {
-      const cmd = i === 0 || /M/.test(d.split(" ")[i]) ? "M" : "L";
-      return cmd + (pt.x + dx).toFixed(2) + "," + pt.y;
-    })
-    .join(" ");
+/** 折线 → 二次贝塞尔（中点法）：圆角但不产生 Catmull-Rom 那种回头套圈 */
+function smoothPath(points, dx = 0) {
+  const p = points.map((pt) => ({ x: pt.x + dx, y: pt.y }));
+  const f = (v) => v.toFixed(2);
+  if (p.length < 3) {
+    return p.map((pt, i) => `${i === 0 ? "M" : "L"}${f(pt.x)},${f(pt.y)}`).join(" ");
+  }
+  let out = `M${f(p[0].x)},${f(p[0].y)}`;
+  for (let i = 1; i < p.length - 1; i++) {
+    const mx = (p[i].x + p[i + 1].x) / 2;
+    const my = (p[i].y + p[i + 1].y) / 2;
+    out += ` Q${f(p[i].x)},${f(p[i].y)} ${f(mx)},${f(my)}`;
+  }
+  const last = p[p.length - 1];
+  out += ` Q${f(last.x)},${f(last.y)} ${f(last.x)},${f(last.y)}`;
+  return out;
 }
 
-function inkBounds(d) {
-  const pts = parsePts(d);
-  const xs = pts.map((p) => p.x);
+function inkBounds(subs) {
+  const xs = subs.flat().map((p) => p.x);
   return { minX: Math.min(...xs), maxX: Math.max(...xs), w: Math.max(...xs) - Math.min(...xs) };
 }
 
@@ -56,8 +71,9 @@ for (let i = 0; i < TEXT.length; i++) {
   const ch = TEXT[i];
   const glyph = font.getChar(ch);
   if (!glyph || !glyph.d) throw new Error(`字符缺字形: ${ch}`);
-  const bounds = inkBounds(glyph.d);
-  const d = shiftD(glyph.d, -bounds.minX);
+  const subs = parseSubpaths(glyph.d);
+  const bounds = inkBounds(subs);
+  const d = subs.map((sub) => smoothPath(sub, -bounds.minX)).join(" ");
   glyphs.push({ ch, d, inkW: bounds.w, x: cursor, color: COLORS[i] });
   cursor += bounds.w + GAP;
   minY = Math.min(minY, bounds.minY ?? Infinity);
@@ -73,7 +89,7 @@ for (const g of glyphs) {
   }
 }
 
-const strokeHalf = 0.68;
+const strokeHalf = 1.5;
 minY = Math.floor(minY - strokeHalf);
 maxY = Math.ceil(maxY + strokeHalf);
 const height = maxY - minY;

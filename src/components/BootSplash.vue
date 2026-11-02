@@ -82,7 +82,7 @@ function playIntro() {
         onUpdate: function () {
           const p = this.progress();
           // 笔画刚起步时 dash 长度为 0，圆头会留下一个小点；有进度后再显形
-          if (p > 0.03) path.style.opacity = "1";
+          if (p > 0.06) path.style.opacity = "1";
           const len = path.getTotalLength();
           const pt = path.getPointAtLength(len * p);
           if (penEl.value) {
