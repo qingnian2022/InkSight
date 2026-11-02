@@ -1892,3 +1892,63 @@ if (q.get("pasteprobe")) {
     document.title = `PASTEPROBE ${kind} ols=${ols.length} ${detail} text=${lis}`;
   }, 2600);
 }
+
+// ?manytabs=1 —— 灌满标签栏，验证细滚动条不改变高度
+if (q.has("manytabs")) {
+  setTimeout(async () => {
+    const strip = document.querySelector<HTMLElement>(".tab-strip");
+    const src = strip?.querySelector<HTMLElement>(".tab");
+    if (strip && src) {
+      for (let i = 0; i < 9; i++) {
+        const clone = src.cloneNode(true) as HTMLElement;
+        clone.dataset.fake = "1";
+        strip.appendChild(clone);
+      }
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    const bar = document.querySelector<HTMLElement>(".tabbar");
+    const thumb = document.querySelector<HTMLElement>(".tabbar-thumb");
+    const before = bar?.getBoundingClientRect().height ?? 0;
+    bar?.dispatchEvent(new PointerEvent("pointerenter"));
+    await new Promise((r) => setTimeout(r, 300));
+    const after = bar?.getBoundingClientRect().height ?? 0;
+    if (thumb) thumb.style.transition = "none";
+    await new Promise((r) => setTimeout(r, 120));
+    const thumbRect = thumb?.getBoundingClientRect();
+    const opacity = thumb ? getComputedStyle(thumb).opacity : "-";
+    document.title = `MANYTABS h=${after} same=${before === after} scroll=${bar?.scrollWidth}/${bar?.clientWidth} thumbW=${Math.round(thumbRect?.width ?? 0)} op=${opacity} top=${Math.round(thumbRect?.top ?? 0)}`;
+  }, 3000);
+}
+
+// ?fitsprobe=1 —— 内容放得下时不应有细滚动条
+if (q.has("fitsprobe")) {
+  setTimeout(async () => {
+    const track = document.querySelector<HTMLElement>(".tabbar-track");
+    const thumb = document.querySelector<HTMLElement>(".tabbar-thumb");
+    const bar = document.querySelector<HTMLElement>(".tabbar");
+    const add = document.querySelector<HTMLElement>(".tab-new");
+    bar?.dispatchEvent(new PointerEvent("pointerenter"));
+    await new Promise((r) => setTimeout(r, 200));
+    document.title = `FITS scroll=${track?.scrollWidth}/${track?.clientWidth} thumbW=${Math.round(thumb?.getBoundingClientRect().width ?? 0)} visible=${thumb?.classList.contains("visible")} addLeft=${Math.round(add?.getBoundingClientRect().left ?? 0)} trackRight=${Math.round((track?.getBoundingClientRect().right ?? 0))}`;
+  }, 2600);
+}
+
+// ?wheelprobe=1 —— 在标签栏滚轮应横向滚动
+if (q.has("wheelprobe")) {
+  setTimeout(async () => {
+    const strip = document.querySelector<HTMLElement>(".tab-strip");
+    const src = strip?.querySelector<HTMLElement>(".tab");
+    if (strip && src) {
+      for (let i = 0; i < 9; i++) strip.appendChild(src.cloneNode(true));
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    const track = document.querySelector<HTMLElement>(".tabbar-track");
+    if (!track) return;
+    const before = track.scrollLeft;
+    track.dispatchEvent(new WheelEvent("wheel", { deltaY: 240, bubbles: true, cancelable: true }));
+    track.dispatchEvent(new WheelEvent("wheel", { deltaY: 240, bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    const thumb = document.querySelector<HTMLElement>(".tabbar-thumb");
+    document.title = `WHEEL before=${before} after=${Math.round(track.scrollLeft)} max=${track.scrollWidth - track.clientWidth} thumb=${thumb?.classList.contains("visible")}`;
+  }, 2800);
+}
