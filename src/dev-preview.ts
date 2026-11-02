@@ -1952,3 +1952,85 @@ if (q.has("wheelprobe")) {
     document.title = `WHEEL before=${before} after=${Math.round(track.scrollLeft)} max=${track.scrollWidth - track.clientWidth} thumb=${thumb?.classList.contains("visible")}`;
   }, 2800);
 }
+
+// ?pinprobe=1 —— 置顶两个目录后截侧栏
+if (q.has("pinprobe")) {
+  setTimeout(async () => {
+    const m = await import("./store");
+    const dirs = m.state.tree.filter((n) => n.isDir && !n.isVirtual).slice(0, 2);
+    for (const d of dirs) await m.togglePin(d.path);
+    await new Promise((r) => setTimeout(r, 500));
+    document.title = `PINPROBE dirs=${dirs.map((d) => d.name).join(",")} pinned=${m.state.pinned.length}`;
+  }, 2600);
+}
+
+// ?pinstyle=1 —— 注入置顶分组 DOM，纯样式预览（web 无 Rust 侧虚拟节点）
+if (q.has("pinstyle")) {
+  setTimeout(() => {
+    const tree = document.querySelector<HTMLElement>(".tree");
+    const first = tree?.querySelector<HTMLElement>(".tree-row");
+    if (!tree || !first) return;
+    const make = (html: string) => {
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      return div.firstElementChild as HTMLElement;
+    };
+    const head = make('<div class="tree-row pin-head"><span class="twisty open">▾</span><span class="label">置顶</span></div>');
+    const card = (name: string) =>
+      make(
+        `<div class="tree-row pinned-card"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="label">${name}</span><svg class="pin-mark" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 2.4l4 4-1.6 1.6-1-.3-2.4 2.4.3 1.9-1 1-3.9-3.9 1-1 1.9.3L10 6.2l-.3-1z"/><path d="M7.6 8.4l-3 3"/></svg></div>`,
+      );
+    tree.insertBefore(card("工作笔记"), first);
+    tree.insertBefore(card("项目资料"), tree.querySelector(".pinned-card"));
+    tree.insertBefore(head, tree.querySelector(".pinned-card"));
+    first.classList.add("has-sep");
+    document.title = "PINSTYLE injected";
+  }, 2600);
+}
+
+// ?pinreal=1 —— 注入虚拟「置顶」节点，走真实模板
+if (q.has("pinreal")) {
+  setTimeout(async () => {
+    const m = await import("./store");
+    const dirs = m.state.tree.filter((n) => n.isDir && !n.isVirtual).slice(0, 2);
+    const virtual = {
+      name: "置顶",
+      path: "__pinned__",
+      isDir: true,
+      isVirtual: true,
+      children: dirs.map((d) => ({ ...d })),
+    } as any;
+    const noAnim = document.createElement("style");
+    noAnim.textContent = ".tree-row{transition:none!important} .tree-move,.tree-enter-active,.tree-leave-active{transition:none!important}";
+    document.head.appendChild(noAnim);
+    m.state.tree = [virtual, ...m.state.tree];
+    m.state.expanded.clear();
+    m.state.expanded.add("__pinned__");
+    await new Promise((r) => setTimeout(r, 600));
+    const rects = [...document.querySelectorAll<HTMLElement>(".tree-row")].slice(0, 5).map((el) => {
+      const r = el.getBoundingClientRect();
+      return `${el.className.split(" ").filter((c) => c.startsWith("pin") || c === "tree-row").join(".")}@${Math.round(r.top)}+${Math.round(r.height)}`;
+    });
+    document.title = `PINREAL n=${dirs.length} ${rects.join(" ")}`;
+  }, 2600);
+}
+
+// ?focuscheck=1 —— 点击行不应出现焦点环；键盘导航应出现
+if (q.has("focuscheck")) {
+  setTimeout(async () => {
+    const tree = document.querySelector<HTMLElement>(".tree");
+    const row = tree?.querySelector<HTMLElement>(".tree-row");
+    if (!tree || !row) return;
+    row.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    row.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const mouseOutline = getComputedStyle(row).outlineWidth;
+    tree.focus();
+    tree.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    const active = document.querySelector<HTMLElement>(".tree-row.focused");
+    const kbOutline = active ? getComputedStyle(active).outlineWidth : "-";
+    const cs = getComputedStyle(row);
+    document.title = `FOCUS mouse=${mouseOutline}/${cs.outlineStyle}/${cs.outlineColor} kb=${kbOutline} active=${document.activeElement?.className || document.activeElement?.tagName} treeFV=${tree.matches(":focus-visible")}`;
+  }, 2600);
+}

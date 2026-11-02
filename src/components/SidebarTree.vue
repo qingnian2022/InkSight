@@ -151,10 +151,15 @@ const rowsWithSep = computed(() => {
             selected: row.node.path === state.activePath,
             focused: idx === focusIndex,
             dir: row.node.isDir,
-            'pinned-folder': row.node.isVirtual,
+            'pin-head': row.node.isVirtual,
+            'pinned-card': row.pinnedCopy,
             'has-sep': row.sepAfter,
           }"
-          :style="{ paddingLeft: `${6 + row.depth * 16}px` }"
+          :style="
+            row.node.isVirtual || row.pinnedCopy
+              ? undefined
+              : { paddingLeft: `${6 + row.depth * 16}px` }
+          "
           @click="focusIndex = idx; onRow(row.node)"
         >
           <span
@@ -167,10 +172,15 @@ const rowsWithSep = computed(() => {
           >
             <Icon v-if="row.node.isDir" name="chevron-right" :size="13" />
           </span>
-          <span v-if="row.node.isVirtual" class="pin-folder-glyph" title="置顶">📌</span>
-          <Icon v-else :name="row.node.isDir ? 'folder' : 'file'" :size="15" />
+          <Icon v-if="!row.node.isVirtual" :name="row.node.isDir ? 'folder' : 'file'" :size="15" />
           <span class="label">{{ row.node.name }}</span>
-          <span v-if="isPinned(row.node.path)" class="pin-mark" title="已置顶">📌</span>
+          <Icon
+            v-if="!row.node.isVirtual && isPinned(row.node.path)"
+            class="pin-mark"
+            name="pin"
+            :size="11"
+            title="已置顶"
+          />
           <span
             v-if="row.node.path === state.activePath && state.saveState === 'dirty'"
             class="pen"

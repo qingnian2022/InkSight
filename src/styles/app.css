@@ -391,23 +391,75 @@ body.resizing .app-body {
   background: none;
 }
 
-/* 虚拟「置顶」文件夹：不设专属底色，展开/折叠都和普通行一致，
-   只保留 hover 反馈（用全局 .tree-row:hover 即可） */
-.tree-row.pinned-folder {
-  height: 40px;
-  margin-bottom: 8px;
+/* ---------- 置顶区：分组标题 + 卡片 ---------- */
+
+/* 分组标题行：虚拟「置顶」文件夹本身，只作标题与折叠开关 */
+.tree-row.pin-head {
+  height: 24px;
+  margin: 6px 8px 2px;
+  padding-left: 8px;
+  gap: 6px;
+  color: var(--text-tertiary);
 }
 
-.tree-row.pinned-folder .label {
-  color: var(--accent);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.tree-row.pin-head .label {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
 }
 
-.pin-folder-glyph {
+.tree-row.pin-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-left: 8px;
+  background: var(--border);
+}
+
+.tree-row.pin-head .twisty {
+  opacity: 0.55;
+}
+
+/* 置顶项：浅底卡片 + 左侧强调条 */
+.tree-row.pinned-card {
+  height: 32px;
+  margin: 0 6px 3px;
+  padding-left: 8px;
+  gap: 8px;
+  background: var(--surface-hover);
+  border-radius: 7px;
+}
+
+.tree-row.pinned-card::before {
+  content: "";
   flex: none;
-  font-size: 12px;
-  line-height: 1;
+  width: 3px;
+  height: 16px;
+  margin-right: 2px;
+  border-radius: 2px;
+  background: var(--text-primary);
+  opacity: 0.72;
+}
+
+.tree-row.pinned-card .label {
+  font-weight: 500;
+}
+
+.tree-row.pinned-card:hover {
+  background: var(--surface-active);
+}
+
+/* 置顶区与普通区之间留白（原分隔线不再画线） */
+.tree-row.has-sep {
+  margin-bottom: 14px;
+}
+
+.pin-mark {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-tertiary);
+  opacity: 0.75;
 }
 
 .tree-row .pen {
@@ -2975,10 +3027,6 @@ body.resizing .app-body {
 }
 
 /* 置顶子树与普通目录之间用留白分隔（原来是独立的占位元素） */
-.tree-row.has-sep {
-  margin-bottom: 18px;
-}
-
 .tree-enter-active,
 .tree-leave-active {
   transition: opacity 160ms ease, transform 160ms ease;
@@ -4013,7 +4061,12 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   outline: none;
 }
 
+/* 只有键盘操作（树本身 :focus-visible）时才画焦点环；鼠标点击不出蓝框 */
 .tree-row.focused {
+  outline: none;
+}
+
+.tree:focus-visible .tree-row.focused {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
