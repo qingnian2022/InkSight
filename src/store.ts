@@ -819,6 +819,103 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
   return { ok: true, message: `服务器：${parts.join(" ")}`, changed: pushed + pulled };
 }
 
+/**
+ * 仅从服务器拉取到本地（不回推）。
+ * 用于「服务器上有新内容，我想先下下来」的场景：不会覆盖本地改动，
+ * 同一篇两边都改过时，远端内容另存为 `原名.server-时间.md`。
+ */
+export async function pullFromServer(): Promise<void> {
+  const url = state.serverUrl.trim();
+  const token = state.serverToken.trim();
+  if (!url || !token) {
+    showToast("请先登录同步服务器", "error", 3000);
+    return;
+  }
+  if (state.syncBusy) return;
+
+  state.syncBusy = true;
+  state.syncError = false;
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const baseline = readBaseline();
+  const versions: Record<string, number> = {};
+  for (const [path, item] of Object.entries(baseline)) versions[path] = item.version;
+
+  let pulled = 0;
+  let conflicts = 0;
+  try {
+    // since=0：全量拉取远端清单（包括墓碑）
+    const result = await serverPull(url, token, 0);
+    for (const note of result.notes) {
+      if (note.deleted) {
+        // 全量拉取时只处理「曾经同步过」的墓碑，避免误删本地新建的同名文件
+        if (!baseline[note.path]) continue;
+        let exists = true;
+        try {
+          await readDoc(note.path);
+        } catch {
+          exists = false;
+        }
+        if (!exists) continue;
+        await trashNode(state.root, note.path);
+        dropTab(note.path);
+        delete versions[note.path];
+        pulled += 1;
+        continue;
+      }
+
+      versions[note.path] = note.version;
+      let local = "";
+      try {
+        local = await readDoc(note.path);
+      } catch {
+        local = "";
+      }
+      if (local === note.content) continue;
+
+      const base = baseline[note.path];
+      const untouched = !local || (base && base.fp === fingerprint(local));
+      if (untouched) {
+        await writeDoc(note.path, note.content);
+        pulled += 1;
+      } else {
+        await writeDoc(note.path.replace(/\.md$/i, `.server-${stamp}.md`), note.content);
+        conflicts += 1;
+      }
+    }
+
+    await refresh();
+    const nextBaseline: Baseline = {};
+    for (const path of collectMarkdown(state.tree)) {
+      try {
+        const content = await readDoc(path);
+        nextBaseline[path] = {
+          fp: fingerprint(content),
+          version: versions[path] ?? baseline[path]?.version ?? 0,
+        };
+      } catch {
+        /* 忽略读失败 */
+      }
+    }
+    writeBaseline(nextBaseline);
+    state.serverCursor = result.cursor;
+    localStorage.setItem(LS_SERVER_CURSOR, String(result.cursor));
+
+    showToast(
+      pulled || conflicts
+        ? `已从服务器拉取 ${pulled} 篇${conflicts ? `，${conflicts} 处冲突另存` : ""}`
+        : "本地已是最新",
+      "info",
+      3500,
+    );
+  } catch (err) {
+    state.syncError = true;
+    state.error = errorText(err);
+    showToast(`拉取失败：${errorText(err)}`, "error", 5000);
+  } finally {
+    state.syncBusy = false;
+  }
+}
+
 /** 切换同步通道，持久化并刷新状态 */
 export function setSyncMode(mode: "git" | "server" | "both") {
   state.syncMode = mode;

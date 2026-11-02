@@ -4822,3 +4822,31 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 同步面板：拉取按钮 */
+.sync-pull {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 30px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.sync-pull:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.sync-pull:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

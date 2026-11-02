@@ -12,6 +12,7 @@ import {
   syncFromRemote,
   serverConfigured,
   setSyncMode,
+  pullFromServer,
   syncAll,
   syncResetRemote,
   syncSetup,
@@ -228,6 +229,17 @@ onBeforeUnmount(() => {
           <span class="sync-auto-knob" />
         </button>
       </div>
+
+      <button
+        v-if="serverEnabled"
+        class="sync-pull"
+        :disabled="state.syncBusy || !state.serverToken"
+        title="把服务器上的笔记下载到本地，不上传本地改动；两边都改过的会另存为副本"
+        @click="pullFromServer()"
+      >
+        <Icon name="download" :size="13" />
+        <span>从服务器拉取</span>
+      </button>
 
       <template v-if="gitEnabled">
         <div v-if="st?.hasRemote && !editingRemote" class="sync-remote-line">
