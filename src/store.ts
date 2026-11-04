@@ -364,6 +364,7 @@ export async function openDoc(node: FsNode) {
       name: stripExt(node.name),
       content,
       dirty: false,
+      base: content,
     });
     state.activePath = node.path;
     state.readonly = state.editorMode === "source";
@@ -1135,7 +1136,14 @@ export async function syncOpenTabsFromDisk() {
     } catch {
       continue; // 文件已被远端删除等情况，忽略
     }
-    if (disk === tab.content) continue;
+    if (disk === tab.content) {
+      tab.base = disk;
+      continue;
+    }
+    // 磁盘仍是上次同步/保存的内容 → 只是本地有未保存编辑，不算冲突
+    if (disk === (tab.base ?? "")) continue;
+    // 用户之前选过「保留本地」，这次磁盘内容没再变 → 不再提示
+    if (tab.ignoreDisk === disk) continue;
     if (tab.dirty) {
       if (!state.syncConflict) {
         state.syncConflict = { path: tab.path, name: tab.name, remote: disk };
@@ -1164,6 +1172,8 @@ export async function reloadTab(path: string, next?: string) {
 
   tab.content = content;
   tab.dirty = false;
+  tab.base = content;
+  tab.ignoreDisk = undefined;
   // 只有「当前打开的那篇」才需要遮罩与重建；后台标签等到切换时自然读到新内容
   if (state.activePath !== path) return;
   state.saveState = "saved";
@@ -1194,8 +1204,11 @@ export async function useRemoteForConflict() {
 
 /** 冲突处理：先保留本地，本次跳过该文档 */
 export function keepLocalForConflict() {
+  const conflict = state.syncConflict;
   state.syncConflict = null;
-  showToast("已保留本地内容，下次同步再提示");
+  const tab = conflict ? state.tabs.find((t) => t.path === conflict.path) : null;
+  if (tab && conflict) tab.ignoreDisk = conflict.remote;
+  showToast("已保留本地内容；远端再次变化时会重新提示");
 }
 
 /** 从远程同步：拉取远程内容，冲突以远程为准。 */
@@ -1513,6 +1526,8 @@ export async function saveTab(tab: Tab) {
   try {
     await writeDoc(tab.path, tab.content);
     tab.dirty = false;
+    tab.base = tab.content;
+    tab.ignoreDisk = undefined;
     state.saveState = "saved";
     state.error = "";
     scheduleSync();
