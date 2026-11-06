@@ -135,10 +135,10 @@ watch(
 .color-palette {
   position: fixed;
   z-index: 90;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border, #e3e5e8);
-  border-radius: 12px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -152,15 +152,15 @@ watch(
   gap: 8px;
   border: none;
   background: transparent;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   padding: 4px 6px;
-  font-size: 12.5px;
-  color: var(--text, #2b2f36);
+  font-size: 12px;
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .color-default-row:hover {
-  background: var(--surface-hover, #f0f2f4);
+  background: var(--surface-hover);
 }
 
 .color-swatch-row {
@@ -172,7 +172,7 @@ watch(
 .color-swatch {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   border: 1px solid rgba(0, 0, 0, 0.1);
   cursor: pointer;
   padding: 0;
@@ -181,7 +181,7 @@ watch(
   justify-content: center;
   font-size: 11px;
   color: #fff;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: box-shadow 120ms ease;
 }
 
 /* 浅色系色块加深边框，避免在白色面板上隐形 */
@@ -189,9 +189,10 @@ watch(
   border-color: rgba(0, 0, 0, 0.18);
 }
 
-.color-swatch:hover {
-  transform: scale(1.16);
-  box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 3.5px var(--border, #c9ced6);
+.color-swatch:hover,
+.color-swatch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--border-strong);
 }
 
 .color-swatch.checked {

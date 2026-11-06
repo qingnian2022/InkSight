@@ -1,36 +1,53 @@
 /* 设计 token
    浅色的所有中性色都从主色 --accent 调出（color-mix），
-   换主色时整套 chrome 会自动跟着变，这就是「有设计感」的来源。 */
+   换主色时整套 chrome 会自动跟着变，这就是「有设计感」的来源。
+
+   两条规则：
+   1. 只有主色是变量，其余中性层一律由它派生 —— 换主题色时不需要逐项写覆盖，
+      深色下的选中行、hover 面、代码关键字也不会漏掉（旧版正是漏了 --row-active）。
+   2. 发丝线从文字色取，不从主色调 —— 紫 / 蓝 / 粉主题下边框不该跟着染色，
+      chrome 保持安静，颜色留给主按钮和选中态。 */
 :root {
   --font-ui: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC",
     "Noto Sans CJK SC", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-read: var(--font-ui);
   --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", "Courier New", monospace;
 
+  /* ---------- 主色（默认石墨） ---------- */
   --accent: #4a5050;
   --accent-hover: #3b4040;
-  --accent-soft: color-mix(in srgb, var(--accent) 17%, #ffffff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, #ffffff);
+  /* 主色当文字/图标色时用这一档：比填充色深一点，压在 6% 主色底上仍有 4.5:1 */
+  --accent-ink: color-mix(in srgb, var(--accent) 86%, #000000);
+  /* 实心主色 / 实心语义色上的文字：浅色主题白字，深色主题翻转成墨色 */
+  --on-solid: #ffffff;
 
-  /* 层次：画布（最浅的品牌 tint）→ chrome（侧栏/标签栏）→ 正文（纯白） */
-  --canvas: color-mix(in srgb, var(--accent) 6%, #ffffff);
+  /* ---------- 层次：画布（最浅的品牌 tint）→ chrome → 正文 ---------- */
+  --canvas: color-mix(in srgb, var(--accent) 5%, #ffffff);
   --surface: #ffffff;
-  --surface-sunken: color-mix(in srgb, var(--accent) 12%, #ffffff);
-  --surface-hover: color-mix(in srgb, var(--accent) 8%, transparent);
-  --surface-active: color-mix(in srgb, var(--accent) 15%, #ffffff);
-  --row-active: color-mix(in srgb, var(--accent) 5%, #ffffff);
+  --surface-sunken: color-mix(in srgb, var(--accent) 10%, #ffffff);
+  --surface-hover: color-mix(in srgb, var(--accent) 7%, transparent);
+  --surface-active: color-mix(in srgb, var(--accent) 13%, #ffffff);
+  --row-active: color-mix(in srgb, var(--accent) 6%, #ffffff);
 
-  --border: color-mix(in srgb, var(--accent) 16%, #ffffff);
-  --border-strong: color-mix(in srgb, var(--accent) 27%, #ffffff);
-
+  /* ---------- 文字三档 ---------- */
   --text-primary: #1d2120;
   --text-secondary: #4b5250;
   --text-tertiary: #5f6664;
 
-  --focus: color-mix(in srgb, var(--accent) 42%, transparent);
+  /* ---------- 发丝线（从文字色取，6~12% 之间） ---------- */
+  --border: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--text-primary) 24%, transparent);
 
+  --focus: color-mix(in srgb, var(--accent) 40%, transparent);
+
+  /* ---------- 语义色 ---------- */
   --success: #2f6b42;
   --warning: #8a5a0f;
   --danger: #a83a2e;
+  --danger-hover: #933026;
+  --success-soft: color-mix(in srgb, var(--success) 12%, #ffffff);
+  --danger-soft: color-mix(in srgb, var(--danger) 10%, #ffffff);
 
   --code-bg: color-mix(in srgb, var(--accent) 7%, #ffffff);
   --code-border: color-mix(in srgb, var(--accent) 13%, #ffffff);
@@ -71,56 +88,11 @@
   --ed-max: 720px;
 }
 
-:root[data-theme="dark"] {
-  --canvas: #0f1614;
-  --surface: #151d1a;
-  --surface-sunken: #121917;
-  --surface-hover: rgba(132, 205, 189, 0.08);
-  --surface-active: #1b332d;
-  --row-active: #18211e;
-
-  --border: #233029;
-  --border-strong: #33423b;
-
-  --text-primary: #e7ece9;
-  --text-secondary: #a6b3ac;
-  --text-tertiary: #8b988f;
-
-  --accent: #84cdbd;
-  --accent-hover: #a0dbcd;
-  --accent-soft: #1b332d;
-  --focus: rgba(132, 205, 189, 0.45);
-
-  --success: #7dbd92;
-  --warning: #d3a355;
-  --danger: #e08a7c;
-
-  --code-bg: #17211e;
-  --code-border: #26332e;
-
-  --syn-keyword: #84cdbd;
-  --syn-string: #d3a355;
-  --syn-number: #e08a7c;
-  --syn-comment: #8b968f;
-  --syn-function: #93b8dc;
-  --syn-type: #adb8da;
-  --syn-punct: #9aa79f;
-
-  /* 深色下标题栏用墨绿黑，比正文更深一档 */
-  --titlebar-bg: #0b1210;
-  --titlebar-fg: #cfe0da;
-  --titlebar-btn-hover: rgba(132, 205, 189, 0.14);
-  --titlebar-btn-active: rgba(132, 205, 189, 0.22);
-  --titlebar-close-hover: #e5484d;
-
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-overlay: 0 2px 4px rgba(0, 0, 0, 0.4), 0 20px 48px -12px rgba(0, 0, 0, 0.65);
-}
-
-/* ---------- 主题色（浅色） ----------
-   浅色全部中性色由 --accent color-mix 调出，所以只改这两个值，
-   画布、边框、置顶高亮、标题栏色带会整套跟着换。 */
+/* ============================================================
+   主题色（浅色）
+   只换主色两个值，画布 / 悬停面 / 选中行 / 焦点环 / 代码关键字
+   全部由 color-mix 自动派生。
+   ============================================================ */
 :root[data-accent="purple"] {
   --accent: #7466cc;
   --accent-hover: #6355b5;
@@ -136,41 +108,91 @@
   --accent-hover: #944d6f;
 }
 
-/* ---------- 主题色（深色） ----------
-   深色底是固定中性黑，强调色需要更亮；其余派生值（弹层背景、focus、
-   标题栏按钮 hover）深色下是硬编码的，必须逐项覆盖。 */
+/* ============================================================
+   深色主题
+   底部是固定中性黑，主色需要更亮；实心块上的文字翻转成墨色。
+   ============================================================ */
+:root[data-theme="dark"] {
+  --accent: #84cdbd;
+  --accent-hover: #a0dbcd;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* 深色下主色本身已经够亮，做文字色直接用 */
+  --accent-ink: var(--accent);
+  --on-solid: #0c1512;
+
+  --canvas: #0f1614;
+  --surface: #151d1a;
+  --surface-sunken: #121917;
+  --surface-hover: color-mix(in srgb, var(--accent) 8%, transparent);
+  --surface-active: color-mix(in srgb, var(--accent) 12%, #151d1a);
+  --row-active: color-mix(in srgb, var(--accent) 9%, #151d1a);
+
+  --text-primary: #e7ece9;
+  --text-secondary: #a6b3ac;
+  --text-tertiary: #8b988f;
+
+  --border: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --border-strong: color-mix(in srgb, var(--text-primary) 20%, transparent);
+
+  --focus: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --success: #7dbd92;
+  --warning: #d3a355;
+  --danger: #e08a7c;
+  --danger-hover: #eaa093;
+  --success-soft: color-mix(in srgb, var(--success) 16%, #151d1a);
+  --danger-soft: color-mix(in srgb, var(--danger) 16%, #151d1a);
+
+  --code-bg: color-mix(in srgb, var(--text-primary) 6%, #151d1a);
+  --code-border: color-mix(in srgb, var(--text-primary) 12%, transparent);
+
+  --syn-keyword: var(--accent);
+  --syn-string: #d3a355;
+  --syn-number: #e08a7c;
+  --syn-comment: #8b968f;
+  --syn-function: #93b8dc;
+  --syn-type: #adb8da;
+  --syn-punct: #9aa79f;
+
+  /* 深色下标题栏用墨绿黑，比正文更深一档 */
+  --titlebar-bg: #0b1210;
+  --titlebar-fg: #ecefed;
+  --titlebar-btn-hover: color-mix(in srgb, var(--accent) 14%, transparent);
+  --titlebar-btn-active: color-mix(in srgb, var(--accent) 22%, transparent);
+  --titlebar-close-hover: #e5484d;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-overlay: 0 2px 4px rgba(0, 0, 0, 0.4), 0 20px 48px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* ============================================================
+   主题色（深色）
+   深色底是固定中性黑，强调色需要更亮；其余派生值全部自动跟随，
+   不再逐项硬编码（旧版因此漏掉了选中行、代码关键字等）。
+   ============================================================ */
 :root[data-theme="dark"][data-accent="purple"] {
   --accent: #b3a2f2;
   --accent-hover: #c7b9f6;
-  --accent-soft: #241f38;
-  --surface-hover: rgba(179, 162, 242, 0.08);
-  --surface-active: #241f38;
-  --focus: rgba(179, 162, 242, 0.45);
-  --syn-keyword: #b3a2f2;
-  --titlebar-btn-hover: rgba(179, 162, 242, 0.14);
-  --titlebar-btn-active: rgba(179, 162, 242, 0.22);
 }
 
 :root[data-theme="dark"][data-accent="blue"] {
   --accent: #8fb4ea;
   --accent-hover: #a9c6f2;
-  --accent-soft: #1c2638;
-  --surface-hover: rgba(143, 180, 234, 0.08);
-  --surface-active: #1c2638;
-  --focus: rgba(143, 180, 234, 0.45);
-  --syn-keyword: #8fb4ea;
-  --titlebar-btn-hover: rgba(143, 180, 234, 0.14);
-  --titlebar-btn-active: rgba(143, 180, 234, 0.22);
 }
 
 :root[data-theme="dark"][data-accent="pink"] {
   --accent: #e8a2c2;
   --accent-hover: #f0b6d1;
-  --accent-soft: #34202c;
-  --surface-hover: rgba(232, 162, 194, 0.08);
-  --surface-active: #34202c;
-  --focus: rgba(232, 162, 194, 0.45);
-  --syn-keyword: #e8a2c2;
-  --titlebar-btn-hover: rgba(232, 162, 194, 0.14);
-  --titlebar-btn-active: rgba(232, 162, 194, 0.22);
+}
+
+/* ============================================================
+   macOS 皮肤不在本次优化范围内
+   本次新引入的三个 token 在这里冻结回旧行为，
+   skin-macos.css 一行未改，视觉与改动前完全一致。
+   ============================================================ */
+:root[data-skin="macos"] {
+  --accent-ink: var(--accent);
+  --on-solid: #ffffff;
+  --danger-hover: #c33f3a;
 }

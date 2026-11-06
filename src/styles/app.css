@@ -64,7 +64,7 @@ svg {
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
-  transition: grid-template-columns 160ms ease;
+  transition: grid-template-columns 200ms ease;
   position: relative;
 }
 
@@ -163,7 +163,7 @@ body.resizing .app-body {
   gap: 8px;
   height: 100%;
   padding: 0 12px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -174,7 +174,7 @@ body.resizing .app-body {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.14);
   flex: none;
-  transition: background 140ms ease;
+  transition: background 120ms ease;
 }
 
 .as-slider::before {
@@ -186,7 +186,7 @@ body.resizing .app-body {
   height: 17px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.45);
-  transition: transform 140ms ease, background 140ms ease;
+  transition: transform 120ms ease, background 120ms ease;
 }
 
 .as-slider.on::before {
@@ -234,7 +234,7 @@ body.resizing .app-body {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-card);
   overflow: hidden;
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .rail-head {
@@ -261,7 +261,7 @@ body.resizing .app-body {
   color: var(--text-primary);
   max-width: 148px;
   flex: none;
-  transition: background 140ms ease;
+  transition: background 120ms ease;
 }
 
 .vault-switch:hover {
@@ -310,8 +310,8 @@ body.resizing .app-body {
 
 .tree-row.selected {
   background: var(--surface-active);
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--accent-ink);
+  font-weight: 500;
 }
 
 /* 选中行的品牌色小竖条 */
@@ -334,11 +334,11 @@ body.resizing .app-body {
 }
 
 .tree-row.dir.selected .label {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .tree-row.selected svg {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .tree-row .twisty {
@@ -355,7 +355,7 @@ body.resizing .app-body {
 }
 
 .tree-row .twisty svg {
-  transition: transform 140ms ease;
+  transition: transform 120ms ease;
 }
 
 .tree-row .twisty.open svg {
@@ -376,7 +376,7 @@ body.resizing .app-body {
 .tree-row .pin-mark {
   flex: none;
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.75;
 }
 
@@ -425,7 +425,7 @@ body.resizing .app-body {
   padding-left: 8px;
   gap: 8px;
   background: var(--surface-hover);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
 }
 
 .tree-row.pinned-card::before {
@@ -503,7 +503,7 @@ body.resizing .app-body {
   background: var(--surface);
   color: var(--text-secondary);
   font-size: 12px;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .tree-empty .tree-empty-btn:hover {
@@ -608,7 +608,7 @@ body.resizing .app-body {
   border-radius: 2px;
   background: var(--text-tertiary);
   opacity: 0;
-  transition: opacity 140ms ease;
+  transition: opacity 120ms ease;
   pointer-events: none;
   z-index: 2;
 }
@@ -631,13 +631,13 @@ body.resizing .app-body {
   min-width: 138px;
   max-width: 220px;
   padding: 0 6px 0 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--r-md);
   flex: 0 0 auto;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .tab:hover {
@@ -699,7 +699,7 @@ body.resizing .app-body {
   place-items: center;
   border-radius: var(--r-md);
   color: var(--text-tertiary);
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .tab-new:hover {
@@ -780,7 +780,7 @@ body.resizing .app-body {
 
 .block-menu-item.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .block-menu-item.is-paragraph {
@@ -788,18 +788,18 @@ body.resizing .app-body {
 }
 
 .block-menu-item.is-h1 {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 500;
 }
 
 .block-menu-item.is-h2 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .block-menu-item.is-h3 {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .block-menu-item.is-quote,
@@ -819,7 +819,7 @@ body.resizing .app-body {
   color: var(--text-secondary);
   font-size: 13px;
   flex: none;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .tool-btn:hover {
@@ -833,7 +833,7 @@ body.resizing .app-body {
 
 .tool-btn[aria-pressed="true"] {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .tool-btn[disabled] {
@@ -842,13 +842,13 @@ body.resizing .app-body {
 }
 
 .tool-btn .glyph {
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .tool-btn .glyph.b {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tool-btn .glyph.i {
@@ -864,7 +864,7 @@ body.resizing .app-body {
 
 .tool-btn .glyph.m {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -942,21 +942,21 @@ body.resizing .app-body {
 
 .editor-host .cm-h1 {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
   padding: 22px 0 8px;
 }
 
 .editor-host .cm-h2 {
-  font-size: 21px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 500;
   line-height: 1.45;
   padding: 18px 0 6px;
 }
 
 .editor-host .cm-h3 {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1.5;
   padding: 14px 0 4px;
 }
@@ -965,7 +965,7 @@ body.resizing .app-body {
 .editor-host .cm-h5,
 .editor-host .cm-h6 {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.55;
   padding: 10px 0 2px;
 }
@@ -1008,7 +1008,7 @@ body.resizing .app-body {
 
 .editor-host.source-mode .cm-content {
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.95;
 }
 
@@ -1059,15 +1059,15 @@ body.resizing .app-body {
   place-items: center;
   border-radius: var(--r-xl);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .empty-state h2 {
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--text-primary);
 }
 
@@ -1086,10 +1086,10 @@ body.resizing .app-body {
   padding: 0 18px;
   border-radius: var(--r-md);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
   font-size: 13px;
   font-weight: 500;
-  transition: background 140ms ease, transform 140ms ease;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .empty-state .primary-btn:hover {
@@ -1100,13 +1100,9 @@ body.resizing .app-body {
   transform: translateY(1px);
 }
 
-:root[data-theme="dark"] .empty-state .primary-btn {
-  color: #10201c;
-}
-
 .empty-state .empty-hint {
   margin-top: 16px;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--text-tertiary);
   opacity: 0.75;
@@ -1121,7 +1117,7 @@ body.resizing .app-body {
   flex-direction: column;
   background: var(--canvas);
   border-left: 1px solid var(--border);
-  transition: width 160ms ease, opacity 140ms ease;
+  transition: width 200ms ease, opacity 120ms ease;
   overflow: hidden;
   z-index: 5;
 }
@@ -1143,7 +1139,7 @@ body.resizing .app-body {
   padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
@@ -1162,7 +1158,7 @@ body.resizing .app-body {
   height: 29px;
   padding: 0 9px;
   border-radius: var(--r-md);
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
   transition: background 120ms ease, color 120ms ease;
@@ -1200,7 +1196,7 @@ body.resizing .app-body {
 }
 
 .outline-item.lv1 .label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -1226,7 +1222,7 @@ body.resizing .app-body {
   background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-tertiary);
   user-select: none;
 }
@@ -1239,7 +1235,7 @@ body.resizing .app-body {
   padding: 0 6px;
   border-radius: var(--r-sm);
   color: inherit;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .status-btn:hover {
@@ -1448,12 +1444,12 @@ body.resizing .app-body {
 }
 
 .md-pane .md-editor-preview h2 {
-  font-size: 21px;
+  font-size: 20px;
   line-height: 1.45;
 }
 
 .md-pane .md-editor-preview h3 {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -1492,7 +1488,7 @@ body.resizing .app-body {
 
 .editor-host .cm-table-widget th {
   background: var(--surface-sunken);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .editor-host .cm-table-source {
@@ -1506,7 +1502,7 @@ body.resizing .app-body {
 .editor-host .cm-codeblock {
   background: var(--code-bg);
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.7;
   padding-left: 16px;
   padding-right: 16px;
@@ -1558,12 +1554,12 @@ body.resizing .app-body {
   border-bottom: none;
   border-radius: var(--r-md) var(--r-md) 0 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
 .editor-host .cm-code-lang {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .editor-host .cm-code-copy {
@@ -1574,10 +1570,10 @@ body.resizing .app-body {
   background: var(--surface);
   color: var(--text-secondary);
   font-family: var(--font-ui);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 20px;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .editor-host .cm-code-copy:hover {
@@ -1586,7 +1582,7 @@ body.resizing .app-body {
 }
 
 .editor-host .cm-code-copy[data-state="done"] {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-color: color-mix(in srgb, var(--accent) 42%, var(--code-border));
 }
 
@@ -1626,7 +1622,7 @@ body.resizing .app-body {
 }
 
 .editor-host .cm-link {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
@@ -1716,9 +1712,9 @@ body.resizing .app-body {
   margin: 1.55em 0 0.55em;
   padding: 0;
   font-family: var(--font-read);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.32;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: var(--text-primary);
 }
 
@@ -1756,7 +1752,7 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .ProseMirror strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .rich-editor .milkdown .ProseMirror blockquote {
@@ -1851,7 +1847,7 @@ body.resizing .app-body {
 
 .rich-editor .milkdown .ProseMirror table th {
   background: var(--surface-sunken);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .rich-editor .milkdown .ProseMirror table tr:nth-child(2n) {
@@ -1873,12 +1869,12 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .ProseMirror a {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  transition: text-decoration-color 140ms ease;
+  transition: text-decoration-color 120ms ease;
 }
 
 .rich-editor .milkdown .ProseMirror a:hover {
@@ -2117,8 +2113,7 @@ body.resizing .app-body {
   padding: 8px 8px 4px;
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--text-tertiary);
 }
 
@@ -2157,12 +2152,12 @@ body.resizing .app-body {
 
 .mode-btn .mode-label {
   font-size: 12px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.02em;
 }
 
 .mode-btn[aria-pressed="true"] {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ---- 工具栏：照 md-editor-v3 的分组与图标按钮重做 ---- */
@@ -2201,7 +2196,7 @@ body.resizing .app-body {
   border-radius: var(--r-sm);
   color: var(--text-secondary);
   background: transparent;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .md-tb-item:hover {
@@ -2211,7 +2206,7 @@ body.resizing .app-body {
 
 .md-tb-item.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .md-tb-item:active {
@@ -2284,11 +2279,11 @@ body.resizing .app-body {
   border-radius: var(--r-sm);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .language-button:hover {
@@ -2323,11 +2318,11 @@ body.resizing .app-body {
   background: var(--surface);
   color: var(--text-secondary);
   font-family: var(--font-ui);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .rich-editor .milkdown .milkdown-code-block .tools .tools-button-group button:hover {
@@ -2399,7 +2394,7 @@ body.resizing .app-body {
   font-size: 13px;
   color: var(--text-primary);
   text-align: left;
-  transition: background 100ms ease;
+  transition: background 120ms ease;
 }
 
 .ctx-item span {
@@ -2456,7 +2451,7 @@ body.resizing .app-body {
 .np-title {
   margin: 0 0 10px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -2490,7 +2485,7 @@ body.resizing .app-body {
   height: 30px;
   padding: 0 14px;
   border-radius: var(--r-md);
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
   transition: background 120ms ease, color 120ms ease;
 }
@@ -2547,7 +2542,7 @@ body.resizing .app-body {
   font-size: 13px;
   color: var(--text-secondary);
   text-align: left;
-  transition: background 100ms ease, color 100ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .wp-item:hover {
@@ -2556,7 +2551,7 @@ body.resizing .app-body {
 }
 
 .wp-item.active {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 500;
 }
 
@@ -2564,7 +2559,7 @@ body.resizing .app-body {
   width: 15px;
   flex: none;
   font-size: 11px;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .wp-item kbd {
@@ -2592,7 +2587,7 @@ body.resizing .app-body {
   margin-bottom: 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-md);
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -2610,8 +2605,8 @@ body.resizing .app-body {
 
 .np-folder-chg {
   flex: none;
-  font-size: 11.5px;
-  color: var(--accent);
+  font-size: 12px;
+  color: var(--accent-ink);
 }
 
 .np-folder-chg:hover {
@@ -2657,7 +2652,7 @@ body.resizing .app-body {
   border-radius: var(--r-sm);
   font-size: 12px;
   color: var(--text-secondary);
-  transition: background 100ms ease, color 100ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .tbl-btn:hover {
@@ -2693,7 +2688,7 @@ body.resizing .app-body {
   border: 1px solid var(--border-strong);
   color: var(--text-tertiary);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   box-shadow: var(--shadow-chip);
   pointer-events: auto;
@@ -2701,7 +2696,7 @@ body.resizing .app-body {
 }
 
 .tbl-plus:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 
@@ -2724,7 +2719,7 @@ body.resizing .app-body {
   background: rgba(255, 255, 255, 0.12);
   color: var(--titlebar-fg);
   font-size: 12px;
-  transition: background 140ms ease;
+  transition: background 120ms ease;
 }
 
 .sync-pill:hover {
@@ -2805,7 +2800,7 @@ body.resizing .app-body {
   border-radius: 10px;
   background: var(--surface-sunken);
   flex: none;
-  transition: background 140ms ease;
+  transition: background 120ms ease;
 }
 
 .sync-auto:disabled {
@@ -2821,7 +2816,7 @@ body.resizing .app-body {
   height: 16px;
   border-radius: 50%;
   background: var(--text-tertiary);
-  transition: transform 140ms ease, background 140ms ease;
+  transition: transform 120ms ease, background 120ms ease;
 }
 
 .sync-auto.on .sync-auto-knob {
@@ -2924,7 +2919,7 @@ body.resizing .app-body {
 
 .accent-check {
   margin-left: auto;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* 主题色面板里的「界面风格」分组 */
@@ -2965,7 +2960,7 @@ body.resizing .app-body {
 /* 置顶子树与普通目录之间用留白分隔（原来是独立的占位元素） */
 .tree-enter-active,
 .tree-leave-active {
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .tree-enter-from,
@@ -2982,7 +2977,7 @@ body.resizing .app-body {
 }
 
 .tree-move {
-  transition: transform 180ms ease;
+  transition: transform 200ms ease;
 }
 
 /* 标签条容器：TransitionGroup 包裹，承载新建 / 关闭的过渡 */
@@ -3008,7 +3003,7 @@ body.resizing .app-body {
 /* 关闭标签：淡出缩小；脱离文档流，其余标签平滑左移 */
 .tab-leave-active {
   position: absolute;
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .tab-leave-to {
@@ -3017,7 +3012,7 @@ body.resizing .app-body {
 }
 
 .tab-move {
-  transition: transform 220ms ease;
+  transition: transform 200ms ease;
 }
 
 /* ---------- 工具栏 ⋯ 溢出菜单 ---------- */
@@ -3032,7 +3027,7 @@ body.resizing .app-body {
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
@@ -3081,7 +3076,7 @@ body.resizing .app-body {
 .img-lightbox img {
   max-width: 88vw;
   max-height: 82vh;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
   cursor: default;
 }
@@ -3108,7 +3103,7 @@ body.resizing .app-body {
   width: 560px;
   max-width: calc(100vw - 40px);
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 18px 20px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
   display: flex;
@@ -3119,7 +3114,7 @@ body.resizing .app-body {
 .tpl-title {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -3154,7 +3149,7 @@ body.resizing .app-body {
 
 .tpl-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -3164,7 +3159,7 @@ body.resizing .app-body {
   border-radius: 4px;
   background: var(--surface-active);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
 }
 
@@ -3255,7 +3250,7 @@ body.resizing .app-body {
 .tpl-btn.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .tpl-btn.primary:hover {
@@ -3288,7 +3283,7 @@ body.resizing .app-body {
 
 /* 工具条对齐按钮激活态 */
 .tbl-btn.active {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-soft);
 }
 
@@ -3306,7 +3301,7 @@ body.resizing .app-body {
 
 /* 工具条对齐按钮激活态 */
 .tbl-btn.active {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-soft);
 }
 
@@ -3397,8 +3392,8 @@ body.resizing .app-body {
 
 .cp-title {
   margin: 0 0 8px;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -3431,7 +3426,7 @@ body.resizing .app-body {
   border: 1px solid var(--border);
   /* 取消按钮用浅底，和弹窗白底区分开 */
   background: var(--surface-sunken);
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -3445,25 +3440,25 @@ body.resizing .app-body {
 .cp-btn.primary {
   background: var(--accent);
   border-color: transparent;
-  color: #fff;
+  color: var(--on-solid);
   font-weight: 500;
 }
 
 .cp-btn.primary:hover {
   background: var(--accent-hover);
   border-color: transparent;
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .cp-btn.primary.danger {
-  background: #d94a45;
+  background: var(--danger);
   border-color: transparent;
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .cp-btn.primary.danger:hover {
-  background: #c33f3a;
-  color: #fff;
+  background: var(--danger-hover);
+  color: var(--on-solid);
 }
 
 @keyframes cp-fade {
@@ -3496,15 +3491,15 @@ body.resizing .app-body {
   height: 6px;
   flex: none;
   border-radius: 50%;
-  background: #2f9e63;
+  background: var(--success);
 }
 
 .toast.error .toast-dot {
-  background: #d94a45;
+  background: var(--danger);
 }
 
 .toast-text {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-primary);
   overflow: hidden;
@@ -3514,7 +3509,7 @@ body.resizing .app-body {
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .toast-enter-from,
@@ -3762,7 +3757,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   pointer-events: none;
   opacity: 0;
   transform: translateY(-2px);
-  transition: opacity 110ms ease, transform 110ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .tb-tip.show {
@@ -3824,7 +3819,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .reload-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
@@ -3877,13 +3872,13 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .conflict-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
 .conflict-body {
   margin: 6px 0 14px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -3906,14 +3901,14 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .conflict-option-title {
   display: block;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-primary);
 }
 
 .conflict-option-sub {
   display: block;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -3930,14 +3925,14 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-primary);
 }
 
 .conflict-btn.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 
@@ -3991,7 +3986,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border-radius: 3px;
   background: var(--border-strong);
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity 200ms ease;
   z-index: 25;
 }
 
@@ -4024,7 +4019,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border-radius: 6px;
   font-size: 12px;
   color: var(--text-secondary);
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .sync-mode-btn:hover:not(.active) {
@@ -4094,7 +4089,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   width: min(380px, 100%);
   max-height: calc(100vh - 64px);
   overflow-y: auto;
-  border-radius: 16px;
+  border-radius: var(--r-xl);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: 0 24px 56px -18px rgba(16, 20, 18, 0.28), 0 2px 8px rgba(16, 20, 18, 0.06);
@@ -4111,14 +4106,14 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-tertiary);
 }
 
 .account-logo {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   display: block;
 }
 
@@ -4143,7 +4138,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   height: 26px;
   border-radius: 50%;
   color: var(--text-tertiary);
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .account-close:hover {
@@ -4157,15 +4152,15 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .account-title {
   margin: 0;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   letter-spacing: 0;
   color: var(--text-primary);
 }
 
 .account-subtitle {
   margin: 5px 0 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -4182,7 +4177,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   padding: 0 1px 9px;
   font-size: 13px;
   color: var(--text-secondary);
-  transition: color 140ms ease;
+  transition: color 120ms ease;
 }
 
 .account-tab::after {
@@ -4251,7 +4246,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .account-avatar-hint {
   margin-top: 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-tertiary);
 }
 
@@ -4266,17 +4261,16 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   height: 20px;
   border-radius: 50%;
   border: 0;
-  box-shadow: inset 0 0 0 1px rgba(16, 20, 18, 0.08);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow 120ms ease;
 }
 
 .account-swatch:hover {
-  transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-strong);
 }
 
 .account-swatch.selected {
-  transform: scale(1.08);
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--border-strong);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent-ink);
 }
 
 .account-form {
@@ -4291,7 +4285,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 .account-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -4304,7 +4298,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   background: var(--surface);
   font-size: 13px;
   color: var(--text-primary);
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .account-input::placeholder {
@@ -4325,7 +4319,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   margin: 10px 22px 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--danger, #b3261e);
+  color: var(--danger);
 }
 
 .account-primary {
@@ -4335,14 +4329,14 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   margin: 16px 22px 0;
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
   font-size: 13px;
   font-weight: 500;
-  transition: filter 140ms ease, opacity 140ms ease;
+  transition: background 120ms ease, opacity 120ms ease;
 }
 
 .account-primary:hover:not(:disabled) {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
 }
 
 .account-primary:active:not(:disabled) {
@@ -4368,7 +4362,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 
 .account-link {
   font-size: 12px;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 500;
 }
 
@@ -4377,7 +4371,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 }
 
 .account-link.danger {
-  color: var(--danger, #b3261e);
+  color: var(--danger);
   font-weight: 400;
 }
 
@@ -4444,10 +4438,10 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   height: 32px;
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
   font-size: 12px;
   font-weight: 500;
-  transition: background 140ms ease, opacity 140ms ease;
+  transition: background 120ms ease, opacity 120ms ease;
 }
 
 .sync-primary:hover:not(:disabled) {
@@ -4469,7 +4463,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border-radius: 8px;
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .sync-icon-btn:hover:not(:disabled) {
@@ -4503,7 +4497,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   border: 1px solid var(--border);
   font-size: 11px;
   color: var(--text-secondary);
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .sync-ghost:hover:not(:disabled) {
@@ -4550,7 +4544,7 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   font-size: 11px;
   color: var(--text-tertiary);
   text-align: left;
-  transition: color 140ms ease;
+  transition: color 120ms ease;
 }
 
 button.sync-host:hover {
@@ -4653,14 +4647,14 @@ button.sync-host:hover {
 }
 
 .tree-row.drop-ok {
-  background: var(--success-soft, #eaf3de);
-  outline: 1.5px solid var(--success, #639922);
+  background: var(--success-soft);
+  outline: 1.5px solid var(--success);
   outline-offset: -1.5px;
 }
 
 .tree-row.drop-bad {
-  background: var(--danger-soft, #fcebeb);
-  outline: 1.5px solid var(--danger, #e24b4a);
+  background: var(--danger-soft);
+  outline: 1.5px solid var(--danger);
   outline-offset: -1.5px;
 }
 
@@ -4697,7 +4691,7 @@ button.sync-host:hover {
   border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: 13px;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 }
