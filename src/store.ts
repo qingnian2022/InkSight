@@ -1002,9 +1002,19 @@ export function serverConfigured(): boolean {
   return !!state.serverUrl.trim() && !!state.serverToken.trim();
 }
 
-/** 真·同步入口：按当前通道执行，两个都开时先 git 再服务器 */
-export async function syncAll() {
+/**
+ * 真·同步入口：按当前通道执行，两个都开时先 git 再服务器。
+ *
+ * `manual` 决定 git 是否允许拉取合并：
+ * - 自动同步（防抖 / 启动）：只 `commit + push`，**绝不 pull**；
+ * - 手动同步（用户点「立即同步」）：先 `pull --rebase` 合入云端，再推送。
+ *
+ * 自动路径如果也 rebase，云端内容会被拉进工作区，随后被服务器通道当成
+ * 「本地新增改动」再推一遍，两条通道互相回声覆盖——这正是要避免的。
+ */
+export async function syncAll(opts: { manual?: boolean } = {}) {
   if (!isTauri || !state.root || state.syncBusy) return;
+  const manual = opts.manual === true;
   const useGit = state.syncMode === "git" || state.syncMode === "both";
   const useServer = state.syncMode === "server" || state.syncMode === "both";
   if (useServer && !serverConfigured()) {
@@ -1019,7 +1029,7 @@ export async function syncAll() {
 
   try {
     if (useGit) {
-      const res = await gitSyncNow(state.root);
+      const res = await gitSyncNow(state.root, manual);
       messages.push(res.message);
       failed = failed || !res.ok;
     }
@@ -1068,7 +1078,7 @@ export async function runStartupSync() {
   if (!ready) return;
 
   try {
-    await syncAll();
+    await syncAll({ manual: false });
   } catch {
     /* 启动同步失败不打扰用户，状态栏会显示错误 */
   }
@@ -1096,13 +1106,13 @@ export async function refreshSyncStatus() {
   }
 }
 
-/** 立即同步：提交本地改动 → 拉取 rebase → 推送。 */
+/** 立即同步（手动语义）：提交本地改动 → 拉取 rebase → 推送。 */
 export async function syncNow() {
   if (!isTauri || !state.root || state.syncBusy) return;
   state.syncBusy = true;
   state.syncError = false;
   try {
-    const res = await gitSyncNow(state.root);
+    const res = await gitSyncNow(state.root, true);
     state.syncMessage = res.message;
     state.syncError = !res.ok;
     if (res.ok) state.syncAt = Date.now();
@@ -1318,7 +1328,6 @@ export async function syncResetRemote() {
   await refreshSyncStatus();
 }
 
-/** 自动同步：写盘成功后防抖 5 秒触发一次；冲突 / 忙碌时跳过。 */
 /** 当前模式下同步通道是否就绪（git 看远程与冲突，服务器看登录态） */
 function syncChannelReady(): boolean {
   const useGit = state.syncMode === "git" || state.syncMode === "both";
@@ -1334,6 +1343,12 @@ function syncChannelReady(): boolean {
   return true;
 }
 
+/**
+ * 自动同步：写盘成功后防抖 5 秒触发一次；冲突 / 忙碌时跳过。
+ *
+ * 一律以 `manual: false` 运行——只提交推送，不拉取合并。拉取会改写工作区，
+ * 被服务器通道当成新改动再推一遍；需要拉取请用户点「立即同步」。
+ */
 function scheduleSync() {
   if (!state.syncAuto || !isTauri) return;
   if (state.syncBusy) {
@@ -1342,7 +1357,7 @@ function scheduleSync() {
   }
   if (!syncChannelReady()) return;
   window.clearTimeout(syncTimer);
-  syncTimer = window.setTimeout(() => void syncAll(), 5000);
+  syncTimer = window.setTimeout(() => void syncAll({ manual: false }), 5000);
 }
 
 export function initSyncAuto() {

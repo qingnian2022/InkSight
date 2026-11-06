@@ -1,4 +1,9 @@
-//! 内置 git 同步：对应用数据目录（知识库）做 commit / pull --rebase / push。
+//! 内置 git 同步：对应用数据目录（知识库）做 commit / push。
+//!
+//! 自动同步与手动同步是两套语义：
+//! - **自动**（后台防抖 / 启动）只 `commit` + `push`，**永不 pull**；
+//! - **手动**（用户点「立即同步」）才 `pull --rebase --autostash` 再 push。
+//! 这样自动路径不会把云端内容拉进工作区、又被其它同步通道当成新增改动推走。
 //!
 //! 走系统 git CLI 而不是 git2：
 //! - 凭据交给成熟体系（Git Credential Manager 弹窗、SSH 密钥），无需自己实现认证
@@ -186,6 +191,22 @@ fn current_branch(vault: &Path) -> String {
 
 fn has_head(vault: &Path) -> bool {
     git(vault, &["rev-parse", "--verify", "HEAD"]).ok
+}
+
+/// 推送被拒（远端有新提交）的报错特征。
+///
+/// 只认 non-fast-forward 这一类特征串：认证失败、网络不可达等真实错误
+/// 不会命中，仍按 Err 上抛，不会被误报成「等用户手动拉取」。
+fn is_rejected_push(out: &GitOut) -> bool {
+    let text = format!("{}\n{}", out.stderr, out.stdout).to_lowercase();
+    [
+        "rejected",
+        "non-fast-forward",
+        "fetch first",
+        "updates were rejected",
+    ]
+    .iter()
+    .any(|needle| text.contains(needle))
 }
 
 /// 远程上目标分支是否已有内容（fetch 后可用 origin/<branch> 判断）。
@@ -410,8 +431,11 @@ pub fn setup_impl(vault: &str, remote: &str) -> Result<SyncResult, String> {
     })
 }
 
-/// 一次完整同步：提交本地改动 → 合入云端更新 → 推送。
-pub fn sync_now_impl(vault: &str) -> Result<SyncResult, String> {
+/// 一次同步：提交本地改动 →（手动时）合入云端更新 → 推送。
+///
+/// `pull = false` 用于自动同步：只提交并推送，绝不 `pull --rebase`
+/// —— 拉取合并会改写工作区，被其它同步通道（服务器）当成本地改动再推一遍。
+pub fn sync_now_impl(vault: &str, pull: bool) -> Result<SyncResult, String> {
     if !git_installed() {
         return Err("E_NO_GIT: 未检测到 git，请先安装 git 并重启应用".into());
     }
@@ -431,6 +455,14 @@ pub fn sync_now_impl(vault: &str) -> Result<SyncResult, String> {
     if !has_head(dir) {
         // 本地还没有提交：云端有内容就导入；两边都空则无事可做
         if has_remote {
+            if !pull {
+                // 自动同步不拉取：空仓库导入远端内容属于 pull 语义，交给手动同步
+                return Ok(SyncResult {
+                    ok: false,
+                    conflicted: false,
+                    message: "本地还没有内容——点「立即同步」从云端拉取".into(),
+                });
+            }
             let fetch = git(dir, &["fetch", "origin"]);
             if !fetch.ok {
                 return Err(format!("E_REMOTE: {}", fetch.err_text()));
@@ -477,9 +509,11 @@ pub fn sync_now_impl(vault: &str) -> Result<SyncResult, String> {
         });
     }
 
-    if has_head(dir) && remote_branch_exists(dir, &branch) {
-        let pull = git(dir, &["pull", "--rebase", "--autostash", "origin", &branch]);
-        if !pull.ok {
+    // 拉取合并只发生在手动同步：自动同步若也 rebase，云端内容会被拉进工作区，
+    // 紧接着被服务器通道当成「本地新增改动」再推一遍，两条通道互相回声覆盖。
+    if pull && remote_branch_exists(dir, &branch) {
+        let merge = git(dir, &["pull", "--rebase", "--autostash", "origin", &branch]);
+        if !merge.ok {
             let conflicted = !git(dir, &["diff", "--name-only", "--diff-filter=U"])
                 .stdout
                 .trim()
@@ -491,18 +525,29 @@ pub fn sync_now_impl(vault: &str) -> Result<SyncResult, String> {
                     message: "同步冲突：两台机器改动了同一篇文档".into(),
                 });
             }
-            return Err(format!("E_GIT: {}", pull.err_text()));
+            return Err(format!("E_GIT: {}", merge.err_text()));
         }
     }
 
     let push = git(dir, &["push", "-u", "origin", &branch]);
     if !push.ok {
+        // 自动同步下「云端领先」是正常状态，不是错误：本地已提交，等用户手动同步
+        if !pull && is_rejected_push(&push) {
+            return Ok(SyncResult {
+                ok: false,
+                conflicted: false,
+                message: format!(
+                    "已提交 {committed} 个文件，但云端有新提交，暂未推送——点「立即同步」拉取合并"
+                ),
+            });
+        }
         return Err(format!("E_REMOTE: 推送失败\n{}", push.err_text()));
     }
 
-    let message = match committed {
-        0 => "已是最新".to_string(),
-        n => format!("已同步：提交 {n} 个文件并推送"),
+    let message = match (committed, pull) {
+        (0, _) => "已是最新".to_string(),
+        (n, true) => format!("已同步：提交 {n} 个文件并推送"),
+        (n, false) => format!("已推送：提交 {n} 个文件"),
     };
     Ok(SyncResult {
         ok: true,
@@ -556,9 +601,11 @@ pub async fn git_sync_setup(vault: String, remote: String) -> Result<SyncResult,
         .map_err(|e| format!("E_TASK: {e}"))?
 }
 
+/// `pull` 省略时按手动同步处理（拉取合并），旧调用方行为不变。
 #[tauri::command(rename_all = "camelCase")]
-pub async fn git_sync_now(vault: String) -> Result<SyncResult, String> {
-    tauri::async_runtime::spawn_blocking(move || sync_now_impl(&vault))
+pub async fn git_sync_now(vault: String, pull: Option<bool>) -> Result<SyncResult, String> {
+    let pull = pull.unwrap_or(true);
+    tauri::async_runtime::spawn_blocking(move || sync_now_impl(&vault, pull))
         .await
         .map_err(|e| format!("E_TASK: {e}"))?
 }
@@ -769,7 +816,7 @@ mod tests {
 
         // —— A 再改一篇 → sync_now 推送 ——
         a.write("a.md", "# A\n\n机器 A 修改过\n");
-        let res = sync_now_impl(&a.path()).expect("A sync 失败");
+        let res = sync_now_impl(&a.path(), true).expect("A sync 失败");
         assert!(res.ok, "A sync: {}", res.message);
         let st = status_impl(&a.path()).unwrap();
         assert_eq!(st.ahead, 0, "推送后 ahead 应为 0");
@@ -785,11 +832,11 @@ mod tests {
 
         // —— 冲突：A、B 各自改同一文件，B 同步时 rebase 冲突 ——
         a.write("a.md", "# A\n\nA 又改了这行\n");
-        let res = sync_now_impl(&a.path()).unwrap();
+        let res = sync_now_impl(&a.path(), true).unwrap();
         assert!(res.ok);
 
         b.write("a.md", "# A\n\nB 也改了这行\n");
-        let res = sync_now_impl(&b.path()).expect("B sync 应返回冲突结果而非 Err");
+        let res = sync_now_impl(&b.path(), true).expect("B sync 应返回冲突结果而非 Err");
         assert!(!res.ok && res.conflicted, "应为冲突状态: {:?}", res);
 
         let st = status_impl(&b.path()).unwrap();
@@ -804,7 +851,7 @@ mod tests {
         // —— 处理二：用云端覆盖本地 ——
         b.write("a.md", "# A\n\nB 又改了一次\n");
         let _ = commit_all(Path::new(&b.0));
-        let res = sync_now_impl(&b.path()).expect("B sync 应再次冲突");
+        let res = sync_now_impl(&b.path(), true).expect("B sync 应再次冲突");
         assert!(res.conflicted);
         reset_remote_impl(&b.path()).expect("reset_remote 失败");
         assert!(
@@ -813,6 +860,58 @@ mod tests {
         );
         let st = status_impl(&b.path()).unwrap();
         assert!(!st.conflicted && !st.dirty);
+    }
+
+    /// 自动同步（pull=false）只提交 + 推送：云端领先时不 rebase、不进冲突状态，
+    /// 返回可读提示，把「拉取合并」留给用户手动触发。
+    #[test]
+    fn auto_sync_pushes_only_and_defers_pull() {
+        let remote = TempDir::new("remote-pushonly");
+        let out = git(Path::new(&remote.0), &["init", "--bare", "-b", "main"]);
+        assert!(out.ok, "git init --bare 失败: {}", out.err_text());
+
+        // 机器 A：建库并首推
+        let a = TempDir::new("vault-push-a");
+        a.write("a.md", "# A\n\n初始\n");
+        let res = setup_impl(&a.path(), &remote.path()).expect("A setup 失败");
+        assert!(res.ok, "A setup: {}", res.message);
+
+        // 机器 B：连同一远程，拿到 a.md
+        let b = TempDir::new("vault-push-b");
+        b.write("c.md", "# C\n\nB 自己的笔记\n");
+        let res = setup_impl(&b.path(), &remote.path()).expect("B setup 失败");
+        assert!(res.ok, "B setup: {}", res.message);
+        assert!(b.read("a.md").contains("初始"), "B 应拿到云端内容");
+
+        // A 手动同步把改动推上去 → 云端领先 B
+        a.write("a.md", "# A\n\nA 的改动\n");
+        let res = sync_now_impl(&a.path(), true).expect("A 手动同步失败");
+        assert!(res.ok, "A: {}", res.message);
+
+        // B 本地也改 → 自动同步：只提交推送，不拉取
+        b.write("b.md", "# B\n\nB 的改动\n");
+        let res = sync_now_impl(&b.path(), false).expect("自动同步不该抛 Err");
+        assert!(!res.ok, "云端领先时自动同步应报告未推送: {:?}", res);
+        assert!(!res.conflicted, "自动同步不应进入冲突状态");
+        assert!(
+            res.message.contains("立即同步"),
+            "应提示手动同步: {}",
+            res.message
+        );
+        assert!(b.read("b.md").contains("B 的改动"), "本地提交应保留");
+        assert!(
+            !b.read("a.md").contains("A 的改动"),
+            "自动同步绝不能把云端内容拉进工作区"
+        );
+        let st = status_impl(&b.path()).unwrap();
+        assert!(!st.conflicted, "自动同步后不应处于冲突状态");
+        assert!(st.ahead >= 1, "本地提交应领先云端: ahead={}", st.ahead);
+
+        // 手动同步 → 拉取合并并推送
+        let res = sync_now_impl(&b.path(), true).expect("B 手动同步失败");
+        assert!(res.ok, "B 手动同步: {}", res.message);
+        assert!(b.read("a.md").contains("A 的改动"), "手动同步应拉取云端内容");
+        assert!(b.read("b.md").contains("B 的改动"), "本地内容不能丢");
     }
 
     #[test]

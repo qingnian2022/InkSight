@@ -213,7 +213,12 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="sync-primary-row">
-        <button class="sync-primary" :disabled="state.syncBusy" @click="syncAll()">
+        <!-- 手动同步：唯一会拉取合并（pull --rebase）的入口 -->
+        <button
+          class="sync-primary"
+          :disabled="state.syncBusy"
+          @click="syncAll({ manual: true })"
+        >
           {{ state.syncBusy ? "同步中…" : "立即同步" }}
         </button>
         <button
@@ -223,7 +228,7 @@ onBeforeUnmount(() => {
           :disabled="!st?.hasRemote"
           :aria-pressed="state.syncAuto"
           aria-label="自动同步"
-          title="自动同步：写盘约 5 秒后提交并推送"
+          title="自动同步：写盘约 5 秒后提交并推送（只推不拉，拉取请点「立即同步」）"
           @click="setSyncAuto(!state.syncAuto)"
         >
           <span class="sync-auto-knob" />

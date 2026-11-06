@@ -115,8 +115,14 @@ export const gitSyncStatus = (vault: string) =>
 export const gitSyncSetup = (vault: string, remote: string) =>
   invoke<SyncResult>("git_sync_setup", { vault, remote });
 
-/** 一次完整同步：提交 → 拉取 rebase → 推送。 */
-export const gitSyncNow = (vault: string) => invoke<SyncResult>("git_sync_now", { vault });
+/**
+ * 一次同步：提交 →（`pull` 为真时）拉取 rebase → 推送。
+ *
+ * 自动同步必须传 `pull = false`：拉取会改写工作区，随后被服务器通道
+ * 当成「本地新增改动」再推一遍，两条通道互相回声覆盖。
+ */
+export const gitSyncNow = (vault: string, pull = true) =>
+  invoke<SyncResult>("git_sync_now", { vault, pull });
 
 /** 从远程同步：拉取远程，内容冲突以远程为准。 */
 export const gitSyncFromRemote = (vault: string) =>

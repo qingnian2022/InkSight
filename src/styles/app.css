@@ -172,9 +172,9 @@ body.resizing .app-body {
   width: 40px;
   height: 21px;
   border-radius: 20px;
-  background: #303136;
+  background: rgba(255, 255, 255, 0.14);
   flex: none;
-  transition: background 0.4s;
+  transition: background 140ms ease;
 }
 
 .as-slider::before {
@@ -184,18 +184,15 @@ body.resizing .app-body {
   left: 2px;
   width: 17px;
   height: 17px;
-  border-radius: 20px;
-  background: linear-gradient(40deg, #ff0080, #ff8c00 70%);
-  transition: 0.4s;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  transition: transform 140ms ease, background 140ms ease;
 }
 
 .as-slider.on::before {
-  background: #303136;
+  background: var(--titlebar-fg);
   transform: translateX(19px);
-  /* 月亮：暗面上留下紫色边缘光和蓝色新月 */
-  box-shadow:
-    inset -3px -2px 5px -2px #8983f7,
-    inset -7px -3px 0 0 #a3dafb;
+  box-shadow: none;
 }
 
 .win-btn {
@@ -259,8 +256,8 @@ body.resizing .app-body {
   padding: 0 8px;
   border-radius: var(--r-md);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--text-primary);
   max-width: 148px;
   flex: none;
@@ -403,9 +400,9 @@ body.resizing .app-body {
 }
 
 .tree-row.pin-head .label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--text-tertiary);
 }
 
@@ -423,7 +420,7 @@ body.resizing .app-body {
 
 /* 置顶项：浅底卡片 + 左侧强调条 */
 .tree-row.pinned-card {
-  height: 32px;
+  height: 34px;
   margin: 0 6px 3px;
   padding-left: 8px;
   gap: 8px;
@@ -2700,13 +2697,12 @@ body.resizing .app-body {
   line-height: 1;
   box-shadow: var(--shadow-chip);
   pointer-events: auto;
-  transition: color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  transition: color 120ms ease, border-color 120ms ease;
 }
 
 .tbl-plus:hover {
   color: var(--accent);
   border-color: var(--accent);
-  transform: scale(1.12);
 }
 
 /* ---------- 标题栏 git 同步 ---------- */
@@ -2744,10 +2740,10 @@ body.resizing .app-body {
   background: #9aa2a2;
 }
 
-.sync-dot.green { background: #97c459; }
-.sync-dot.amber { background: #f0a04b; }
-.sync-dot.red { background: #ef7d7d; }
-.sync-dot.blue { background: #8ec2f4; }
+.sync-dot.green { background: var(--success); }
+.sync-dot.amber { background: var(--warning); }
+.sync-dot.red { background: var(--danger); }
+.sync-dot.blue { background: var(--accent); }
 
 .sync-spin {
   animation: sync-rotate 0.9s linear infinite;
@@ -2797,8 +2793,8 @@ body.resizing .app-body {
 }
 
 .sync-sub-err {
-  background: color-mix(in srgb, #e5484d 10%, var(--surface));
-  color: color-mix(in srgb, #e5484d 78%, var(--text-primary));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: color-mix(in srgb, var(--danger) 78%, var(--text-primary));
 }
 
 .sync-actions {
@@ -2848,12 +2844,12 @@ body.resizing .app-body {
 
 .sync-btn.danger {
   background: var(--surface);
-  color: #c5353a;
-  border: 1px solid color-mix(in srgb, #e5484d 45%, var(--border));
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
 }
 
 .sync-btn.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, #e5484d 10%, var(--surface));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
 }
 
 .sync-auto-label {
@@ -2867,9 +2863,9 @@ body.resizing .app-body {
   width: 32px;
   height: 17px;
   border-radius: 16px;
-  background: #303136;
+  background: var(--surface-sunken);
   flex: none;
-  transition: background 0.4s;
+  transition: background 140ms ease;
 }
 
 .sync-auto:disabled {
@@ -2883,17 +2879,15 @@ body.resizing .app-body {
   left: 2px;
   width: 13px;
   height: 13px;
-  border-radius: 20px;
-  background: linear-gradient(40deg, #ff0080, #ff8c00 70%);
-  transition: 0.4s;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  transition: transform 140ms ease, background 140ms ease;
 }
 
 .sync-auto.on .sync-auto-knob {
-  background: #303136;
+  background: var(--accent);
   transform: translateX(15px);
-  box-shadow:
-    inset -3px -2px 5px -2px #8983f7,
-    inset -5px -2px 0 0 #a3dafb;
+  box-shadow: none;
 }
 
 .sync-remote {
@@ -3421,71 +3415,20 @@ body.resizing .app-body {
 .update-dot.active {
   background: var(--accent);
   opacity: 1;
-  animation: update-pulse 1s ease-in-out infinite alternate;
 }
 
 .update-dot.hot {
-  background: #f5a524;
+  background: var(--warning);
   opacity: 1;
 }
 
 .update-btn.hot {
-  color: #b77512;
+  color: var(--warning);
 }
 
 .update-dot.err {
-  background: #e5484d;
+  background: var(--danger);
   opacity: 1;
-}
-
-@keyframes update-pulse {
-  from { opacity: 0.35; }
-  to { opacity: 1; }
-}
-
-/* 状态栏：版本号 + 检查更新 */
-.ver {
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.update-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.update-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-  opacity: 0.55;
-}
-
-.update-dot.active {
-  background: var(--accent);
-  opacity: 1;
-  animation: update-pulse 1s ease-in-out infinite alternate;
-}
-
-.update-dot.hot {
-  background: #f5a524;
-  opacity: 1;
-}
-
-.update-btn.hot {
-  color: #b77512;
-}
-
-.update-dot.err {
-  background: #e5484d;
-  opacity: 1;
-}
-
-@keyframes update-pulse {
-  from { opacity: 0.35; }
-  to { opacity: 1; }
 }
 
 /* ---------- 主题内确认弹窗（替代系统 dialog） ---------- */
