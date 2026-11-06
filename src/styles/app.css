@@ -2718,13 +2718,13 @@ body.resizing .app-body {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: 28px;
   padding: 0 12px;
-  border-radius: 15px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.12);
   color: var(--titlebar-fg);
-  font-size: 11.5px;
-  transition: background 120ms ease;
+  font-size: 12px;
+  transition: background 140ms ease;
 }
 
 .sync-pill:hover {
@@ -2733,11 +2733,11 @@ body.resizing .app-body {
 
 /* 状态点：灰未配置 / 绿已同步 / 橙待同步 / 红冲突出错 / 蓝同步中 */
 .sync-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex: none;
-  background: #9aa2a2;
+  background: var(--border-strong);
 }
 
 .sync-dot.green { background: var(--success); }
@@ -2757,7 +2757,7 @@ body.resizing .app-body {
   position: fixed;
   z-index: 1000;
   width: 340px;
-  padding: 12px 14px 14px;
+  padding: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -2770,99 +2770,39 @@ body.resizing .app-body {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 20px;
 }
 
 .sync-status-label {
-  font-weight: 600;
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .sync-status-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
   color: var(--text-tertiary);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
-.sync-sub {
-  margin: 8px 0 0;
-  padding: 6px 9px;
-  border-radius: var(--r-sm);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-  line-height: 1.5;
+.sync-sep {
+  color: var(--border-strong);
 }
 
-.sync-sub-err {
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
-  color: color-mix(in srgb, var(--danger) 78%, var(--text-primary));
-}
-
-.sync-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-/* 方向性同步：两个按钮纵向铺满面板宽度 */
-.sync-actions.sync-directional {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.sync-btn {
-  height: 26px;
-  padding: 0 14px;
-  border-radius: var(--r-sm);
-  background: var(--accent);
-  color: #fff;
-  font-size: 12px;
-  transition: background 120ms ease;
-}
-
-.sync-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.sync-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.sync-btn.ghost {
-  background: var(--surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-strong);
-}
-
-.sync-btn.ghost:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.sync-btn.danger {
-  background: var(--surface);
-  color: var(--danger);
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
-}
-
-.sync-btn.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
-}
-
-.sync-auto-label {
-  margin-left: auto;
-  color: var(--text-secondary);
+.sync-ahead {
+  color: var(--warning);
 }
 
 /* 小号滑块开关（自动同步），与标题栏自动保存同款配色语言 */
 .sync-auto {
   position: relative;
-  width: 32px;
-  height: 17px;
-  border-radius: 16px;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
   background: var(--surface-sunken);
   flex: none;
   transition: background 140ms ease;
@@ -2877,8 +2817,8 @@ body.resizing .app-body {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--text-tertiary);
   transition: transform 140ms ease, background 140ms ease;
@@ -2886,26 +2826,19 @@ body.resizing .app-body {
 
 .sync-auto.on .sync-auto-knob {
   background: var(--accent);
-  transform: translateX(15px);
-  box-shadow: none;
-}
-
-.sync-remote {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  transform: translateX(16px);
 }
 
 .sync-input {
   flex: 1;
   min-width: 0;
-  height: 26px;
-  padding: 0 9px;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border-radius: 6px;
   background: var(--surface);
   color: var(--text-primary);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .sync-input:focus {
@@ -2917,19 +2850,28 @@ body.resizing .app-body {
   color: var(--text-tertiary);
 }
 
-.sync-hint {
-  margin-top: 7px;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 1.55;
-}
-
+/* 冲突行：只在 rebase 中断时出现，动作保留文字——误点会丢内容 */
 .sync-conflict {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--border-strong);
+  min-height: 24px;
+}
+
+.sync-conflict-icon {
+  color: var(--danger);
+  flex: none;
+}
+
+.sync-conflict-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-primary);
 }
 
 /* ---------- 主题色选择器 ---------- */
@@ -4066,24 +4008,34 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
 .sync-mode {
   display: flex;
   gap: 2px;
-  margin: 8px 0;
+  margin: 12px 0;
   padding: 2px;
-  border-radius: var(--r-md);
+  border-radius: 8px;
   background: var(--surface-hover);
 }
 
 .sync-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 1;
-  height: 26px;
+  height: 24px;
   border-radius: 6px;
   font-size: 12px;
   color: var(--text-secondary);
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.sync-mode-btn:hover:not(.active) {
+  color: var(--text-primary);
 }
 
 .sync-mode-btn.active {
   background: var(--surface);
   color: var(--text-primary);
-  box-shadow: 0 0 0 1px var(--border);
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
 }
 
 /* ---------- 标题栏账号入口 ---------- */
@@ -4475,27 +4427,31 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   outline-offset: 3px;
 }
 
-/* 同步面板：紧凑布局 */
+/* 同步面板：状态 / 模式 / 动作 / 身份 四行，全部落在 4px 网格 */
 .sync-primary-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
 }
 
 .sync-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
   height: 32px;
   border-radius: 8px;
   background: var(--accent);
   color: #fff;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  transition: filter 140ms ease, opacity 140ms ease;
+  transition: background 140ms ease, opacity 140ms ease;
 }
 
 .sync-primary:hover:not(:disabled) {
-  filter: brightness(0.95);
+  background: var(--accent-hover);
 }
 
 .sync-primary:disabled {
@@ -4503,152 +4459,114 @@ html[data-theme="dark"] .milkdown .ProseMirror blockquote.md-callout[data-callou
   cursor: default;
 }
 
-.sync-remote-line {
+/* 图标按钮：28px 等宽，图标恒定居中，靠 title 说明语义 */
+.sync-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.sync-icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.sync-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sync-icon-btn.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+}
+
+.sync-icon-btn.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  color: var(--danger);
+}
+
+/* 小号文字按钮：只用在输入行的「连接」和冲突行的两个裁决动作上 */
+.sync-ghost {
+  height: 24px;
+  padding: 0 8px;
+  flex: none;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.sync-ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.sync-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sync-ghost.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+}
+
+.sync-ghost.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+}
+
+/* 身份行：左边远程地址（可点改），右边服务器账号首字母 */
+.sync-foot {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  min-width: 0;
+  margin-top: 12px;
+  min-height: 20px;
 }
 
-.sync-remote-host {
+.sync-foot-icon {
+  color: var(--text-tertiary);
+  flex: none;
+}
+
+.sync-host {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: left;
+  transition: color 140ms ease;
 }
 
-.sync-link {
-  flex: none;
-  font-size: 11.5px;
-  color: var(--accent);
+button.sync-host:hover {
+  color: var(--text-primary);
 }
 
-.sync-link:hover {
-  text-decoration: underline;
-}
-
-.sync-link.danger {
-  color: var(--danger, #b3261e);
-}
-
-.sync-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.sync-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.sync-line-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-  flex: none;
-}
-
-.sync-line-dot.ok {
-  background: #1d9e75;
-}
-
-.sync-warn {
-  margin-right: auto;
-  font-size: 11.5px;
-  color: var(--danger, #b3261e);
-}
-
-.sync-conflict {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-/* 同步说明：悬浮/聚焦显示 */
-.sync-info {
-  position: relative;
+.sync-avatar {
   display: grid;
   place-items: center;
   width: 20px;
   height: 20px;
+  flex: none;
   border-radius: 50%;
-  color: var(--text-tertiary);
-  flex: none;
-}
-
-.sync-info:hover,
-.sync-info:focus-visible {
+  background: var(--surface-sunken);
   color: var(--text-secondary);
-  background: var(--surface-hover);
-}
-
-.sync-info:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.sync-info-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 14px;
-  z-index: 2;
-  width: 272px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: 0 10px 24px -10px rgba(16, 20, 18, 0.28);
-  font-size: 11.5px;
-  line-height: 1.65;
-  color: var(--text-secondary);
-  text-align: left;
-  pointer-events: none;
-}
-
-.sync-info-pop::after {
-  content: "";
-  position: absolute;
-  left: 58px;
-  top: -5px;
-  width: 8px;
-  height: 8px;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
-  border-top: 1px solid var(--border);
-  transform: rotate(45deg);
-}
-
-
-
-.sync-info-row {
-  display: flex;
-  gap: 8px;
-}
-
-.sync-info-row + .sync-info-row {
-  margin-top: 5px;
-}
-
-.sync-info-row b {
-  flex: none;
-  min-width: 38px;
-  font-weight: 500;
-  color: var(--text-primary);
+  font-size: 11px;
 }
 
 /* ---------- 启动页 ---------- */

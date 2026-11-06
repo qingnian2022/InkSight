@@ -28,7 +28,6 @@ import {
 
 const open = ref(false);
 const editingRemote = ref(false);
-const helpOpen = ref(false);
 const remoteInput = ref("");
 const st = computed(() => state.syncStatus);
 const wrapEl = ref<HTMLElement | null>(null);
@@ -79,9 +78,24 @@ const remoteHost = computed(() => {
 });
 
 const modeOptions = [
-  { key: "git" as const, label: "Git" },
-  { key: "server" as const, label: "服务器" },
-  { key: "both" as const, label: "同时" },
+  {
+    key: "git" as const,
+    label: "Git",
+    icon: "git-branch",
+    hint: "Git：同步到代码仓库，多台机器共用一份",
+  },
+  {
+    key: "server" as const,
+    label: "服务器",
+    icon: "server",
+    hint: "服务器：登录账号后同步到自建服务",
+  },
+  {
+    key: "both" as const,
+    label: "同时",
+    icon: "swap",
+    hint: "同时：两条通道都执行",
+  },
 ];
 
 function relTime(ts: number): string {
@@ -93,14 +107,26 @@ function relTime(ts: number): string {
   return new Date(ts).toLocaleString("zh-CN", { hour12: false });
 }
 
+/** 状态行右侧的紧凑信息：时间 · 分支（「上次同步」「待推送」这类前缀词一律省掉） */
 const lastLine = computed(() => {
   const parts: string[] = [];
   const t = relTime(state.syncAt);
-  if (t) parts.push(`上次同步 ${t}`);
+  if (t) parts.push(t);
   const s = st.value;
   if (s?.branch) parts.push(s.branch);
-  if (s?.ahead) parts.push(`待推送 ${s.ahead}`);
   return parts.join(" · ");
+});
+
+/** 待推送提交数单独成项，配 ↑ 图标，不混进上一条文字里 */
+const aheadCount = computed(() => st.value?.ahead ?? 0);
+
+/** 身份行：优先显示 Git 远程，其次服务器账号 */
+const accountLabel = computed(() =>
+  state.serverToken ? state.serverUsername || state.serverEmail : "未登录",
+);
+const avatarInitial = computed(() => {
+  const raw = accountLabel.value.trim();
+  return raw && raw !== "未登录" ? raw.charAt(0).toUpperCase() : "?";
 });
 
 async function toggle() {
@@ -179,24 +205,11 @@ onBeforeUnmount(() => {
       <div class="sync-status">
         <span class="sync-dot" :class="tone" />
         <span class="sync-status-label">{{ label }}</span>
-        <button
-          class="sync-info"
-          type="button"
-          aria-label="同步说明"
-          aria-describedby="sync-help"
-          @mouseenter="helpOpen = true"
-          @mouseleave="helpOpen = false"
-          @focus="helpOpen = true"
-          @blur="helpOpen = false"
-          @click="helpOpen = !helpOpen"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
-            <path d="M9.6 9.1a2.5 2.5 0 1 1 3.6 2.4c-.7.4-1.1 1-1.1 1.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            <circle cx="12" cy="17.1" r="1.1" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
-        <span v-if="lastLine" class="sync-status-meta">{{ lastLine }}</span>
+        <span v-if="lastLine || aheadCount" class="sync-status-meta">
+          <span v-if="lastLine">{{ lastLine }}</span>
+          <span v-if="lastLine && aheadCount" class="sync-sep">·</span>
+          <span v-if="aheadCount" class="sync-ahead">↑ {{ aheadCount }}</span>
+        </span>
       </div>
 
       <div class="sync-mode" role="group" aria-label="同步方式">
@@ -206,9 +219,11 @@ onBeforeUnmount(() => {
           class="sync-mode-btn"
           :class="{ active: state.syncMode === m.key }"
           :aria-pressed="state.syncMode === m.key"
+          :title="m.hint"
           @click="setSyncMode(m.key)"
         >
-          {{ m.label }}
+          <Icon :name="m.icon" :size="12" />
+          <span>{{ m.label }}</span>
         </button>
       </div>
 
@@ -216,11 +231,47 @@ onBeforeUnmount(() => {
         <!-- 手动同步：唯一会拉取合并（pull --rebase）的入口 -->
         <button
           class="sync-primary"
-          :disabled="state.syncBusy"
+          :disabled="state.syncBusy || !!st?.conflicted"
+          title="同步：提交并推送本地改动，会先拉取合并云端"
           @click="syncAll({ manual: true })"
         >
-          {{ state.syncBusy ? "同步中…" : "立即同步" }}
+          <Icon name="sync" :size="14" :class="{ 'sync-spin': state.syncBusy }" />
+          <span>{{ state.syncBusy ? "同步中" : "同步" }}</span>
         </button>
+
+        <button
+          v-if="serverEnabled"
+          class="sync-icon-btn"
+          :disabled="state.syncBusy || !state.serverToken"
+          title="从服务器拉取：只下载，不覆盖本地改动"
+          aria-label="从服务器拉取"
+          @click="pullFromServer()"
+        >
+          <Icon name="cloud-down" :size="14" />
+        </button>
+
+        <button
+          v-if="gitEnabled"
+          class="sync-icon-btn"
+          :disabled="state.syncBusy || !!st?.conflicted || !st?.hasRemote"
+          title="用云端覆盖本地：未同步的本地改动会丢失"
+          aria-label="用云端覆盖本地"
+          @click="syncFromRemote()"
+        >
+          <Icon name="download" :size="14" />
+        </button>
+
+        <button
+          v-if="gitEnabled"
+          class="sync-icon-btn danger"
+          :disabled="state.syncBusy || !!st?.conflicted || !st?.hasRemote"
+          title="用本地覆盖云端：云端内容会被整份覆盖"
+          aria-label="用本地覆盖云端"
+          @click="syncToRemote()"
+        >
+          <Icon name="upload" :size="14" />
+        </button>
+
         <button
           v-if="gitEnabled"
           class="sync-auto"
@@ -228,30 +279,22 @@ onBeforeUnmount(() => {
           :disabled="!st?.hasRemote"
           :aria-pressed="state.syncAuto"
           aria-label="自动同步"
-          title="自动同步：写盘约 5 秒后提交并推送（只推不拉，拉取请点「立即同步」）"
+          title="自动同步：写盘约 5 秒后提交并推送（只推不拉，拉取请点「同步」）"
           @click="setSyncAuto(!state.syncAuto)"
         >
           <span class="sync-auto-knob" />
         </button>
       </div>
 
-      <button
-        v-if="serverEnabled"
-        class="sync-pull"
-        :disabled="state.syncBusy || !state.serverToken"
-        title="把服务器上的笔记下载到本地，不上传本地改动；两边都改过的会另存为副本"
-        @click="pullFromServer()"
-      >
-        <Icon name="download" :size="13" />
-        <span>从服务器拉取</span>
-      </button>
+      <div v-if="st?.conflicted" class="sync-conflict">
+        <Icon name="alert" :size="14" class="sync-conflict-icon" />
+        <span class="sync-conflict-text">两台机器改了同一篇</span>
+        <button class="sync-ghost" @click="syncAbort">放弃</button>
+        <button class="sync-ghost danger" @click="resetRemote">用云端</button>
+      </div>
 
-      <template v-if="gitEnabled">
-        <div v-if="st?.hasRemote && !editingRemote" class="sync-remote-line">
-          <span class="sync-remote-host" :title="st.remote">{{ remoteHost }}</span>
-          <button class="sync-link" @click="editingRemote = true">更换</button>
-        </div>
-        <div v-if="!st?.hasRemote || editingRemote" class="sync-remote">
+      <div class="sync-foot">
+        <template v-if="gitEnabled && (!st?.hasRemote || editingRemote)">
           <input
             v-model="remoteInput"
             class="sync-input"
@@ -259,49 +302,30 @@ onBeforeUnmount(() => {
             placeholder="仓库地址（gitee / github）"
             @keydown.enter="connect"
           />
-          <button class="sync-btn ghost" :disabled="state.syncBusy || !remoteInput.trim()" @click="connect">
+          <button
+            class="sync-ghost"
+            :disabled="state.syncBusy || !remoteInput.trim()"
+            @click="connect"
+          >
             连接
           </button>
-        </div>
+        </template>
 
-        <div class="sync-pair">
-          <button
-            class="sync-btn ghost"
-            :disabled="state.syncBusy || !st?.hasRemote"
-            title="拉取云端内容覆盖本地"
-            @click="syncFromRemote()"
-          >
-            ⬇ 用云端
+        <template v-else-if="gitEnabled">
+          <Icon name="link" :size="12" class="sync-foot-icon" />
+          <button class="sync-host" :title="`更换远程仓库：${st?.remote || ''}`" @click="editingRemote = true">
+            {{ remoteHost }}
           </button>
-          <button
-            class="sync-btn ghost"
-            :disabled="state.syncBusy || !st?.hasRemote"
-            title="推送本地内容覆盖云端"
-            @click="syncToRemote()"
-          >
-            ⬆ 用本地
-          </button>
-        </div>
+        </template>
 
-        <div v-if="st?.conflicted" class="sync-conflict">
-          <span class="sync-warn">有冲突</span>
-          <button class="sync-link" @click="syncAbort">放弃</button>
-          <button class="sync-link danger" @click="resetRemote">用云端覆盖</button>
-        </div>
-      </template>
+        <span v-else class="sync-host" :title="state.serverEmail">{{ accountLabel }}</span>
 
-      <div v-if="serverEnabled" class="sync-line">
-        <span class="sync-line-dot" :class="{ ok: !!state.serverToken }" />
-        <span>{{ state.serverToken ? state.serverUsername || state.serverEmail : "未登录 · 点击头像登录" }}</span>
+        <span
+          v-if="serverEnabled"
+          class="sync-avatar"
+          :title="state.serverToken ? state.serverEmail : '未登录'"
+        >{{ avatarInitial }}</span>
       </div>
-
-      <Transition name="fade">
-        <div v-if="helpOpen" id="sync-help" class="sync-info-pop" role="tooltip">
-          <span class="sync-info-row"><b>Git</b>同步到代码仓库，多台机器共用一份</span>
-          <span class="sync-info-row"><b>服务器</b>登录账号后同步到自建服务</span>
-          <span class="sync-info-row"><b>同时</b>两条通道都执行；冲突内容另存副本</span>
-        </div>
-      </Transition>
     </div>
   </div>
 </template>

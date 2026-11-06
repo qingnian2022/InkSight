@@ -9,6 +9,16 @@ const shapes: Record<string, string> = {
   "chevron-right": '<path d="M9 6l6 6-6 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   download: '<path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/>',
+  upload: '<path d="M12 20V9m0 0l-4 4m4-4l4 4M5 4h14"/>',
+  "cloud-down":
+    '<path d="M6.5 13.5h11a3.2 3.2 0 0 0 .3-6.4A4.6 4.6 0 0 0 8.6 6.2 3.5 3.5 0 0 0 6.5 13.5z"/><path d="M12 13.5v6m0 0l2-2m-2 2l-2-2"/>',
+  "git-branch":
+    '<circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="9" r="2.2"/><path d="M7 8.2v7.6"/><path d="M17 11.2c0 3.2-4 2.6-6.8 3.8"/>',
+  server:
+    '<rect x="3.5" y="4" width="17" height="6.4" rx="1.6"/><rect x="3.5" y="13.6" width="17" height="6.4" rx="1.6"/><circle cx="7.2" cy="7.2" r="1.1" fill="currentColor" stroke="none"/><circle cx="7.2" cy="16.8" r="1.1" fill="currentColor" stroke="none"/>',
+  swap: '<path d="M4 8h13m0 0l-3.2-3.2M17 8l-3.2 3.2"/><path d="M20 16H7m0 0l3.2-3.2M7 16l3.2 3.2"/>',
+  alert:
+    '<path d="M12 3.8L21 20H3L12 3.8z"/><path d="M12 9.6v4.2"/><circle cx="12" cy="16.9" r="1.1" fill="currentColor" stroke="none"/>',
   pin: '<path d="M9.6 2.4l4 4-1.6 1.6-1-.3-2.4 2.4.3 1.9-1 1-3.9-3.9 1-1 1.9.3L10 6.2l-.3-1z"/><path d="M7.6 8.4l-3 3"/>',
   refresh: '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M21 4v5h-5"/>',
   sync: '<path d="M21 12a9 9 0 0 0-9-9 9.7 9.7 0 0 0-6.7 2.7L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.7 9.7 0 0 0 6.7-2.7L21 16"/><path d="M16 16h5v5"/>',
