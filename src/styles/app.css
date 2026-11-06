@@ -1752,7 +1752,9 @@ body.resizing .app-body {
 }
 
 .rich-editor .milkdown .ProseMirror strong {
-  font-weight: 500;
+  /* 正文加粗：这是内容语义，不能和正文同重（上一轮把全项目的 600 压成 500，
+     顺带把这里也压平了，表现就是「点了加粗没反应」） */
+  font-weight: 600;
 }
 
 .rich-editor .milkdown .ProseMirror blockquote {
