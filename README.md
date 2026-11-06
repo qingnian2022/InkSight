@@ -70,9 +70,9 @@ src-tauri/src/lib.rs       数据目录解析、vault 扫描、读写、新建�
 
 - **源码模式默认未启用**：现在固定走富文本。Live Preview 那套代码还在，改 `store.ts` 里 `editorMode` 的初值就能切回去——它的光标行会显示 `#`、`**`，这是该形态的固有表现。
 - **保存会重排**：Milkdown 的序列化器会统一 `*`→`-`、表格补空格对齐、列表缩进、合并连续空行。动过字之后 `git diff` 会出现格式噪音——这是结构化编辑器的固有代价，不是 bug。
-- ~~本地图片暂显示为占位 chip~~ **已支持**：`assetProtocol` 已开启，文档内的本地图片（相对路径以文档所在目录为基准解析）通过 asset 协议加载显示；`http(s)` 图片正常显示。
+- ~~本地图片暂显示为占位 chip~~ **已支持**：`assetProtocol` 已开启，文档内的本地图片（相对路径以文档所在目录为基准解析）通过 asset 协议加载显示；`http(s)` 图片正常显示。出于安全考虑，`assetProtocol.scope` 已在配置里收紧为空，实际知识库根目录由后端启动时（`src-tauri/src/lib.rs` 的 `setup`）动态加入白名单——**因此文档里引用知识库之外的绝对路径图片（如 `C:\Users\x\photo.png`）收紧后将无法显示**；库内相对路径图片（含 `../assets/...`）不受影响。
 - 表格渲染是整块 widget：光标进入表格任意一行会切回源码，可直接编辑。
 - 代码块（富文本模式）是卡片式：顶栏左边是语言名、右边是「复制」，代码区带行号，四周 1px 边框、9px 圆角。语法高亮走项目自己的 `--syn-*` 低饱和色板（关键字墨绿、字符串赭石、数字砖红、注释灰斜体），深浅色自动跟随；Crepe 自带的折叠箭头已隐藏。
-- `src-tauri/tauri.conf.json` 的 `csp` 仍为 `null`，正式版前需收紧。
+- `src-tauri/tauri.conf.json` 已配置 `csp`（`default-src 'self'`，放行 asset / IPC / 网络图片 / 内联样式 / WebSocket，未开启 `'unsafe-eval'`），不再为 `null`；同步服务器的 CORS 也改为显式来源白名单，可用 `SYNC_CORS_ORIGINS`（逗号分隔）覆盖默认值 `http://tauri.localhost,http://localhost:1420`。
 - 本机 `pnpm install` 会生成空 `@scope` 目录导致 Vite 找不到依赖，暂用 `npm install`。
 - 未提交 git（按当前约定）。

@@ -18,14 +18,17 @@ use argon2::{
 };
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, StatusCode},
+    http::{
+        header::{AUTHORIZATION, CONTENT_TYPE},
+        HeaderMap, HeaderValue, Method, StatusCode,
+    },
     routing::{get, post, put},
     Json, Router,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -488,6 +491,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         attempts: Arc::new(Mutex::new(HashMap::new())),
     };
 
+    // CORS 白名单层：默认只放行 Tauri 2 Windows 生产环境 `http://tauri.localhost`
+    // 与 dev 环境 `http://localhost:1420`；自托管可用 SYNC_CORS_ORIGINS
+    // （逗号分隔）覆盖。显式写 `*` 时放行任意来源（不启用 credentials，组合合法）。
+    // 前端请求带 `Authorization: Bearer` 与 `content-type: application/json`，
+    // 属于非简单请求，会先发 OPTIONS 预检，因此 methods / headers 必须齐全，
+    // 否则带 token 的预检会失败、同步整体不可用。
+    fn cors_layer() -> CorsLayer {
+        const DEFAULT_ORIGINS: &str = "http://tauri.localhost,http://localhost:1420";
+        let raw = env::var("SYNC_CORS_ORIGINS").unwrap_or_else(|_| DEFAULT_ORIGINS.to_string());
+        let values: Vec<String> = raw
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let allow_origin = if values.iter().any(|s| s == "*") {
+            AllowOrigin::any()
+        } else {
+            let mut list: Vec<HeaderValue> = Vec::new();
+            for value in &values {
+                match value.parse::<HeaderValue>() {
+                    Ok(origin) => list.push(origin),
+                    Err(_) => eprintln!("inksight-sync: 忽略无效的 CORS 来源 {value}"),
+                }
+            }
+            if list.is_empty() {
+                // 环境变量写成空串 / 全是非法值时回退到默认来源，别把同步全挡掉
+                for value in DEFAULT_ORIGINS.split(',') {
+                    if let Ok(origin) = value.parse::<HeaderValue>() {
+                        list.push(origin);
+                    }
+                }
+            }
+            // AllowOrigin::list 遇到通配符 `*` 会 panic，上面已分流到 any()
+            AllowOrigin::list(list)
+        };
+
+        CorsLayer::new()
+            .allow_origin(allow_origin)
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+            ])
+            .allow_headers([AUTHORIZATION, CONTENT_TYPE])
+    }
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/auth/register", post(register))
@@ -497,7 +550,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/auth/profile", axum::routing::patch(update_profile))
         .route("/sync", get(sync))
         .route("/notes", put(put_note).delete(delete_note))
-        .layer(CorsLayer::permissive())
+        .layer(cors_layer())
         .with_state(state);
 
     let addr: SocketAddr = env::var("SYNC_ADDR")

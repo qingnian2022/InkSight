@@ -23,12 +23,10 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: http: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://*:* https://* https://*:* ws://* ws://*:* wss://* wss://*:*",
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "**"
-        ]
+        "scope": []
       }
     }
   },

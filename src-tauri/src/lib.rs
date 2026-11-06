@@ -24,7 +24,7 @@ mod tray;
 mod util;
 mod vault;
 
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -47,7 +47,21 @@ pub fn run() {
                 }
             }
         })
-        .setup(|app| tray::setup(app))
+        .setup(|app| {
+            // assetProtocol.scope 已在配置里收紧为空；vault 根是运行时决定的，
+            // 这里把实际数据目录（含子目录）动态加入白名单，保证库内本地图片
+            // 仍能加载，同时不再允许 asset:// 读取本机任意文件。
+            match app_paths::resolve_vault_dir(app.handle()) {
+                Ok(vault) => {
+                    if let Err(e) = app.asset_protocol_scope().allow_directory(&vault.path, true) {
+                        eprintln!("[Inksight] 放行 asset 协议目录失败：{e}");
+                    }
+                }
+                Err(e) => eprintln!("[Inksight] 解析数据目录失败，本地图片可能无法加载：{e}"),
+            }
+            // 原托盘行为保持不变；托盘初始化失败仍会中断启动
+            tray::setup(app)
+        })
         .invoke_handler(tauri::generate_handler![
             vault::vault_scan,
             doc::doc_read,
