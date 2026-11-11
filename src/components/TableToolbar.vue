@@ -25,6 +25,9 @@ const plusCols = ref<{ left: number; index: number }[]>([]);
 /** 当前列的对齐方式（工具条高亮用） */
 const align = ref<TableAlign | "">("");
 const plusRows = ref<{ top: number; index: number }[]>([]);
+/** 工具条本体：用它实测宽度，横向夹取才不会越出编辑区 */
+const toolbarEl = ref<HTMLElement | null>(null);
+let toolbarHalf = 0;
 let hideTimer: number | undefined;
 let refreshTimer: number | undefined;
 let scrollEl: HTMLElement | null = null;
@@ -94,9 +97,21 @@ function place(block: HTMLElement) {
   // 这时不再画列「+」，插入列的动作交给工具条自己的左列/右列按钮
   const toolbarPushedDown = toolbarTop > wantTop + 0.5;
 
+  // 横向：按工具条实测半宽夹取（原来写死 130，而 12 个按钮实际半宽 ~270，
+  // 大纲抽屉展开或窗口变窄时右端会越出编辑区）
+  const measured = toolbarEl.value?.offsetWidth ?? 0;
+  if (measured > 0) toolbarHalf = measured / 2;
+  const half = toolbarHalf || 260;
+  const minLeft = area.left + half + 4;
+  const maxLeft = area.right - half - 4;
+  const toolbarLeft =
+    maxLeft > minLeft
+      ? Math.min(Math.max(rawLeft, minLeft), maxLeft)
+      : (area.left + area.right) / 2;
+
   pos.value = {
     top: toolbarTop,
-    left: Math.max(130, Math.min(rawLeft, window.innerWidth - 130)),
+    left: toolbarLeft,
     // 列插入点的纵向位置：表头滚出视口时贴在可视区上沿，不跑到工具栏上面
     plusColTop: clampY(tableTop - 10, 20),
     // 行插入点的横向位置：表格左边距外 26px，但不越出可视区左沿
@@ -222,7 +237,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="show && view" class="tbl-layer">
-    <div class="tbl-toolbar" role="toolbar" aria-label="表格工具" :style="{ top: `${pos.top}px`, left: `${pos.left}px` }">
+    <div
+      ref="toolbarEl"
+      class="tbl-toolbar"
+      role="toolbar"
+      aria-label="表格工具"
+      :style="{ top: `${pos.top}px`, left: `${pos.left}px` }"
+    >
       <button class="tbl-btn" title="在上方插入行" @mousedown.prevent @click="run('rowBefore')">
         <Icon name="plus" :size="13" />上行
       </button>

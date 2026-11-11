@@ -1856,7 +1856,8 @@ body.resizing .app-body {
   background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
 }
 
-.rich-editor .milkdown .ProseMirror table tr:hover {
+/* 悬停只高亮数据行：表头是 th，不参与，避免整表一起亮 */
+.rich-editor .milkdown .ProseMirror table tbody tr:hover td {
   background: var(--surface-hover);
 }
 
@@ -3289,24 +3290,6 @@ body.resizing .app-body {
   background: var(--accent-soft);
 }
 
-/* ---------- 表格：列宽自适应 + 工具条对齐按钮 ---------- */
-/* 列宽按内容分配（语雀同款）；拖动过的列仍以 colwidth 作为期望宽度 */
-.milkdown .milkdown-table-block table {
-  table-layout: auto !important;
-  width: 100%;
-}
-
-.milkdown .milkdown-table-block th,
-.milkdown .milkdown-table-block td {
-  vertical-align: middle;
-}
-
-/* 工具条对齐按钮激活态 */
-.tbl-btn.active {
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-}
-
 /* 表格铺满正文宽度：Crepe 的 .table-wrapper 会收缩包裹表格，导致表格只有内容宽 */
 .milkdown .milkdown-table-block,
 .milkdown .milkdown-table-block > div,
@@ -3319,16 +3302,45 @@ body.resizing .app-body {
   width: 100% !important;
 }
 
-/* 表格铺满正文宽度：Crepe 的 .table-wrapper 会收缩包裹表格，导致表格只有内容宽 */
-.milkdown .milkdown-table-block,
-.milkdown .milkdown-table-block > div,
-.milkdown .milkdown-table-block .table-wrapper {
-  width: 100%;
-  box-sizing: border-box;
+/* ---------- 表格交互反馈 ---------- */
+/* 框选多个单元格：ProseMirror 会加 .selectedCell，之前没有样式，选中范围完全看不见 */
+.milkdown .milkdown-table-block th.selectedCell,
+.milkdown .milkdown-table-block td.selectedCell {
+  position: relative;
 }
 
-.milkdown .milkdown-table-block .table-wrapper table {
-  width: 100% !important;
+.milkdown .milkdown-table-block .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+
+/* 选区底色已经表达选中，单元格内文字不再叠一层高亮 */
+.milkdown .milkdown-table-block .selectedCell::selection,
+.milkdown .milkdown-table-block .selectedCell *::selection {
+  background: transparent;
+}
+
+/* 拖列宽时的分界线 */
+.milkdown .milkdown-table-block .column-resize-handle {
+  background: var(--accent);
+  width: 2px;
+}
+
+/* Crepe 自带的行列「+」与按钮组和悬浮工具条功能重复，只保留拖拽手柄 */
+.milkdown .milkdown-table-block .line-handle,
+.milkdown .milkdown-table-block .cell-handle .button-group {
+  display: none;
+}
+
+/* 拖拽预览：跟随指针的半透明表格，走中性底而不是默认高饱和 */
+.milkdown .milkdown-table-block .drag-preview {
+  background: var(--surface);
+  opacity: 0.6;
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
 /* 状态栏：版本号 + 检查更新 */
