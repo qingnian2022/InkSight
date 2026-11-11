@@ -15,7 +15,7 @@ import { remarkFlattenQuote } from "../editor/remark-flatten-quote";
 import { deleteQuoteBlockAtEdge } from "../editor/block-delete";
 import { toggleList } from "../editor/list-commands";
 import { attachToolbarTips } from "../editor/toolbar-tips";
-import { TextSelection } from "@milkdown/kit/prose/state";
+import { NodeSelection, TextSelection } from "@milkdown/kit/prose/state";
 import { attachOverlayScrollbar } from "../editor/overlay-scrollbar";
 import { noNestedQuote } from "../editor/quote-normalize";
 import { listNormalizePlugin } from "../editor/list-normalize";
@@ -103,6 +103,78 @@ function onHostClick(e: MouseEvent) {
   if (!img || !host.value?.contains(img)) return;
   e.preventDefault();
   openImageLightbox(img.currentSrc || img.src, img.alt || "");
+}
+
+/* ---------- 表格：Tab / Shift+Tab 在单元格间跳 ---------- */
+
+/** 光标所在的表格单元格（不在表格里返回 null） */
+function cellFromSelection(): HTMLElement | null {
+  const sel = window.getSelection();
+  const node = sel?.anchorNode;
+  if (!node) return null;
+  const el = node.nodeType === 1 ? (node as Element) : node.parentElement;
+  const cell = el?.closest?.("td, th") ?? null;
+  return cell && pmView.value?.dom.contains(cell) ? (cell as HTMLElement) : null;
+}
+
+/** 相邻单元格：先横向，末尾转到下一行行首（反向同理） */
+function siblingCell(cell: HTMLElement, dir: 1 | -1): HTMLElement | null {
+  const row = cell.parentElement;
+  if (!row) return null;
+  const cells = Array.from(row.children) as HTMLElement[];
+  const i = cells.indexOf(cell);
+  if (i < 0) return null;
+  const next = cells[i + dir];
+  if (next) return next;
+  const nextRow = (dir > 0 ? row.nextElementSibling : row.previousElementSibling) as HTMLElement | null;
+  if (!nextRow) return null;
+  const line = Array.from(nextRow.children) as HTMLElement[];
+  return dir > 0 ? line[0] ?? null : line[line.length - 1] ?? null;
+}
+
+/* ---------- 表格：单击单元格直接进文字末尾 ---------- */
+
+/**
+ * Crepe 的表格 node view 在 pointerdown 里把被点的单元格做成 NodeSelection（整格选中），
+ * 所以第一次点击不能直接打字，要再点一次。这里把它降级成格内文字末尾的光标。
+ * 只处理「单击产生的 NodeSelection」，拖选 / 双击 / 多格选区一概不动。
+ */
+function onCellMouseUp(e: MouseEvent) {
+  const view = pmView.value;
+  if (!view || !view.editable) return;
+  if (!(view.state.selection instanceof NodeSelection)) return;
+  const el = e.target as HTMLElement | null;
+  const cell = el?.closest?.("td, th") as HTMLElement | null;
+  if (!cell || !view.dom.contains(cell)) return;
+  try {
+    const pos = view.posAtDOM(cell, cell.childNodes.length);
+    const $pos = view.state.doc.resolve(Math.min(pos, view.state.doc.content.size));
+    // bias -1：从单元格末尾往回找最近的文字位置
+    view.dispatch(view.state.tr.setSelection(TextSelection.near($pos, -1)));
+  } catch {
+    /* 单元格刚重建时偶发取不到位置，保持原样即可 */
+  }
+}
+
+function onEditorKeydown(e: KeyboardEvent) {
+  if (e.key !== "Tab" || e.defaultPrevented) return;
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const view = pmView.value;
+  if (!view) return;
+  const cell = cellFromSelection();
+  if (!cell) return;
+  const target = siblingCell(cell, e.shiftKey ? -1 : 1);
+  // 末尾单元格不拦截：交给默认行为，避免把焦点困在表格里
+  if (!target) return;
+  e.preventDefault();
+  try {
+    const pos = view.posAtDOM(target, 0);
+    const $pos = view.state.doc.resolve(Math.min(pos, view.state.doc.content.size));
+    view.dispatch(view.state.tr.setSelection(TextSelection.near($pos)));
+  } catch {
+    /* 单元格刚被重建时偶发取不到位置，忽略即可，下一次 Tab 会正常 */
+  }
+  view.focus();
 }
 
 async function teardown() {
@@ -507,7 +579,7 @@ watch(
 </script>
 
 <template>
-  <div class="rich-editor" @click="onHostClick">
+  <div class="rich-editor" @click="onHostClick" @mouseup="onCellMouseUp" @keydown="onEditorKeydown">
     <div ref="host" class="rich-editor-body" data-rich-editor />
     <ColorPalette />
     <TableToolbar :view="pmView" />

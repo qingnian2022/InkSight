@@ -3300,6 +3300,28 @@ body.resizing .app-body {
 
 .milkdown .milkdown-table-block .table-wrapper table {
   width: 100% !important;
+  /* 列宽不足时按内容撑开，超出容器交给 wrapper 横向滚动，而不是把字压成竖排 */
+  min-width: max-content;
+}
+
+/* 多列表格横向滚动：列不压缩，滚动条细到不干扰阅读 */
+.milkdown .milkdown-table-block .table-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
+.milkdown .milkdown-table-block .table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.milkdown .milkdown-table-block .table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.milkdown .milkdown-table-block .table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* ---------- 表格交互反馈 ---------- */
