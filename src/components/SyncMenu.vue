@@ -27,6 +27,8 @@ import {
  */
 
 const open = ref(false);
+/** inline = 嵌进设置页时用：不渲染 pill，面板常开且去掉浮层定位 */
+const props = defineProps<{ inline?: boolean }>();
 const editingRemote = ref(false);
 const remoteInput = ref("");
 const st = computed(() => state.syncStatus);
@@ -177,6 +179,8 @@ async function resetRemote() {
 onMounted(() => {
   document.addEventListener("pointerdown", onDocPointerDown, true);
   document.addEventListener("keydown", onKeydown);
+  // 内联在设置页里时没有「打开」这个动作，挂载即刷新一次状态
+  if (props.inline) void refreshSyncStatus();
 });
 
 onBeforeUnmount(() => {
@@ -186,8 +190,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="wrapEl" class="sync-wrap">
+  <div ref="wrapEl" class="sync-wrap" :class="{ inline: props.inline }">
     <button
+      v-if="!props.inline"
       class="sync-pill"
       :title="isTauri ? '同步方式可切换：Git / 自建服务器 / 两者同时' : '同步功能仅桌面版可用'"
       @click="toggle"
@@ -198,9 +203,10 @@ onBeforeUnmount(() => {
     </button>
 
     <div
-      v-if="open"
+      v-if="props.inline || open"
       class="sync-menu"
-      :style="{ top: `${menuPos.top}px`, right: `${menuPos.right}px` }"
+      :class="{ inline: props.inline }"
+      :style="props.inline ? undefined : { top: `${menuPos.top}px`, right: `${menuPos.right}px` }"
     >
       <div class="sync-status">
         <span class="sync-dot" :class="tone" />

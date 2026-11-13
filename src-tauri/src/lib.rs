@@ -17,8 +17,10 @@ mod archive;
 mod asset;
 mod doc;
 mod git_sync;
+mod localfs;
 mod node;
 mod pins;
+mod sftp;
 mod template;
 mod terminal;
 mod tray;
@@ -40,6 +42,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         // 终端会话表：前端只拿 id，PTY 句柄留在后端
         .manage(terminal::TermState::default())
+        // SFTP 连接表
+        .manage(sftp::SftpState::default())
         // 点 ✕ 不退出：隐藏窗口、进程驻留托盘；真正退出走托盘菜单「退出」
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -97,7 +101,16 @@ pub fn run() {
             terminal::term_write,
             terminal::term_resize,
             terminal::term_close,
-            terminal::term_history
+            terminal::term_history,
+            sftp::sftp_connect,
+            sftp::sftp_list,
+            sftp::sftp_download,
+            sftp::sftp_disconnect,
+            sftp::sftp_profiles_load,
+            sftp::sftp_profiles_save,
+            sftp::sftp_rename,
+            sftp::sftp_remove,
+            localfs::local_list
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

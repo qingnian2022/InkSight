@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { openAccountDialog, setAutoSave, state } from "../store";
-import { avatarStyle, normalizeAvatar } from "../ui/avatar";
+import { setAutoSave, state } from "../store";
+import { openSettings } from "../settings";
 import Icon from "./Icon.vue";
-import SyncMenu from "./SyncMenu.vue";
 
 /**
  * 自绘系统标题栏：去掉原生窗口边框后，这一条承担拖拽、双击最大化
@@ -16,10 +15,6 @@ const isTauri =
   "__TAURI_INTERNALS__" in window ||
   (import.meta.env.DEV && new URLSearchParams(location.search).has("winbtns"));
 const maximized = ref(false);
-const accountInitial = computed(() =>
-  (state.serverUsername || state.serverEmail || "?").trim().charAt(0).toUpperCase(),
-);
-const accountAvatar = computed(() => normalizeAvatar(state.serverAvatar));
 let unlisten: (() => void) | null = null;
 
 function minimize() {
@@ -66,27 +61,9 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="titlebar-controls">
-      <button
-        class="account-btn"
-        :title="state.serverToken ? `账号：${state.serverUsername || state.serverEmail}` : '登录 / 注册'"
-        :aria-label="state.serverToken ? '账号设置' : '登录或注册'"
-        @click="openAccountDialog"
-      >
-        <span
-          v-if="state.serverToken"
-          class="acct-avatar"
-          :style="avatarStyle(accountAvatar)"
-        >
-          <template v-if="!accountAvatar.startsWith('data:image/')">{{ accountInitial }}</template>
-        </span>
-        <span v-else class="acct-avatar guest">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="5.4" r="2.6" stroke="currentColor" stroke-width="1.2" />
-            <path d="M3 13c.6-2.4 2.5-3.6 5-3.6s4.4 1.2 5 3.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-          </svg>
-        </span>
+      <button class="account-btn" title="设置" aria-label="设置" @click="openSettings">
+        <Icon name="settings" :size="15" />
       </button>
-      <SyncMenu />
 
       <button
         class="as-toggle"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { setModule, state, WORK_MODULES, type WorkModule } from "../store";
+import { setModule, state, type WorkModule } from "../store";
 import { ensureSession } from "../terminal";
+import { railVisible, visibleModules } from "../settings";
 import Icon from "./Icon.vue";
 
 /**
@@ -15,9 +16,9 @@ function pick(key: WorkModule) {
 </script>
 
 <template>
-  <nav class="act-rail" aria-label="工作台模块">
+  <nav v-if="railVisible" class="act-rail" aria-label="工作台模块">
     <button
-      v-for="m in WORK_MODULES"
+      v-for="m in visibleModules"
       :key="m.key"
       class="act-btn"
       :class="{ on: state.module === m.key }"

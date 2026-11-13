@@ -8,6 +8,7 @@ const shapes: Record<string, string> = {
   notes:
     '<path d="M4 5.4A2.4 2.4 0 0 1 6.4 3H20v15.6H6.4A2.4 2.4 0 0 0 4 21z"/><path d="M8 7.4h8M8 11h6"/>',
   terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9.2l2.8 2.8L7 14.8M13 15h4"/>',
+  "arrow-up": '<path d="M12 19V5M12 5l-6 6M12 5l6 6"/>',
   chevron: '<path d="M6 9l6 6 6-6"/>',
   "chevron-right": '<path d="M9 6l6 6-6 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',

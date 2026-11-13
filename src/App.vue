@@ -3,8 +3,12 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import ContextMenu from "./components/ContextMenu.vue";
 import ActivityRail from "./components/ActivityRail.vue";
+import FilesSidebar from "./components/FilesSidebar.vue";
 import ModulePanel from "./components/ModulePanel.vue";
 import ModuleStage from "./components/ModuleStage.vue";
+import SftpBrowser from "./components/SftpBrowser.vue";
+import SettingsDialog from "./components/SettingsDialog.vue";
+import { railVisible, visibleModules, featureOn } from "./settings";
 import TerminalDock from "./components/TerminalDock.vue";
 import TerminalSidebar from "./components/TerminalSidebar.vue";
 import EditorPane from "./components/EditorPane.vue";
@@ -23,6 +27,15 @@ import StatusBar from "./components/StatusBar.vue";
 import TabBar from "./components/TabBar.vue";
 import TitleBar from "./components/TitleBar.vue";
 import { openContextMenu, type CtxItem } from "./ui/contextMenu";
+import {
+  beginRename as beginRemoteRename,
+  downloadPath,
+  list as loadRemote,
+  loadProfiles,
+  removeEntry,
+  sftpStore,
+  type SftpEntry,
+} from "./sftp";
 import {
   acceptSuggestion,
   beginRename,
@@ -150,20 +163,48 @@ function onTermKeyCapture(event: KeyboardEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  // 文件模块的功能键：和右键菜单里标出来的快捷键一致
+  const remote = sftpStore.selected;
+  if (state.module === "files" && remote) {
+    if (event.key === "F2") {
+      event.preventDefault();
+      beginRemoteRename(remote.path);
+      return;
+    }
+    if (event.key === "F5") {
+      event.preventDefault();
+      void downloadPath(remote.path);
+      return;
+    }
+    if (event.key === "F8") {
+      event.preventDefault();
+      void removeEntry(remote);
+      return;
+    }
+    if (event.key === "F9") {
+      event.preventDefault();
+      remoteProps(remote);
+      return;
+    }
+  }
+
   const mod = event.ctrlKey || event.metaKey;
   if (!mod) return;
   const key = event.key.toLowerCase();
 
-  // Ctrl+1–4：切活动栏模块（只换侧栏，会话不动）
+  // Ctrl+1–4：切活动栏模块（只换侧栏，会话不动）；被关掉的模块不响应
   const modIdx = ["1", "2", "3", "4"].indexOf(key);
   if (modIdx >= 0 && !event.shiftKey && !event.altKey) {
     event.preventDefault();
-    setModule(WORK_MODULES[modIdx].key);
+    const target = WORK_MODULES[modIdx].key;
+    if (visibleModules.value.some((m) => m.key === target)) setModule(target);
     return;
   }
 
   // Ctrl+` 收起 / 展开终端 Dock；加 Shift 再开一个会话
   if (event.code === "Backquote") {
+    // 终端功能没开放时，这个键完全不接管
+    if (!featureOn("terminal")) return;
     event.preventDefault();
     if (event.shiftKey) {
       // 新会话一定要看得见：不在笔记页就先回去，然后连 Dock 一起打开
@@ -350,6 +391,51 @@ function termListMenuItems(): CtxItem[] {
   ];
 }
 
+/** 属性：能力范围内能给的信息都放一行 */
+function remoteProps(entry: SftpEntry) {
+  const size = entry.dir ? "目录" : `${entry.size} B`;
+  const time = entry.modified ? new Date(entry.modified * 1000).toLocaleString("zh-CN") : "—";
+  notify(`${entry.name} · ${size} · ${time}\n${entry.path}`);
+}
+
+/** 远端文件行的菜单：对齐 WinSCP 的常用项，只保留我们真做得到的动作 */
+function sftpMenuItems(path: string, dir: boolean): CtxItem[] {
+  const entry = sftpStore.entries.find((item) => item.path === path);
+  return [
+    {
+      label: "打开",
+      action: () => {
+        if (dir) void loadRemote(path);
+        else void downloadPath(path);
+      },
+    },
+    { label: "下载", shortcut: "F5", action: () => void downloadPath(path) },
+    { separator: true, label: "" },
+    { label: "重命名", shortcut: "F2", action: () => beginRemoteRename(path) },
+    {
+      label: "删除",
+      shortcut: "F8",
+      action: () => {
+        if (entry) void removeEntry(entry);
+      },
+    },
+    { separator: true, label: "" },
+    {
+      label: "复制路径",
+      action: () => {
+        void navigator.clipboard.writeText(path).catch(() => {});
+      },
+    },
+    {
+      label: "属性",
+      shortcut: "F9",
+      action: () => {
+        if (entry) remoteProps(entry);
+      },
+    },
+  ];
+}
+
 /** 组装右键菜单：编辑器内是编辑动作，目录树是文件操作，其余是应用动作 */
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
@@ -370,6 +456,17 @@ function onContextMenu(e: MouseEvent) {
   if (target.closest(".term-list")) {
     openContextMenu(e.clientX, e.clientY, termListMenuItems());
     return;
+  }
+
+  // 0.5) SFTP 远端文件行
+  const sftpRow = target.closest<HTMLElement>(".sftp-row[data-entry-path]");
+  if (sftpRow) {
+    const path = sftpRow.dataset.entryPath ?? "";
+    const dir = sftpRow.dataset.entryDir === "1";
+    if (path) {
+      openContextMenu(e.clientX, e.clientY, sftpMenuItems(path, dir));
+      return;
+    }
   }
 
   // 1) 目录树节点
@@ -501,6 +598,11 @@ function onContextMenu(e: MouseEvent) {
 
 const unlisteners: (() => void)[] = [];
 
+// 关掉某个功能时，如果正停在那页，退回笔记
+watch(visibleModules, (list) => {
+  if (!list.some((m) => m.key === state.module)) setModule("notes");
+});
+
 // 终端模块的主区就是终端本身：切进来时保证至少有一个会话在跑。
 // 注意只补会话，不动 termStore.open —— 那是「笔记页下沿 Dock」的开关，
 // 让它跟着模块走的话，从终端回到笔记会凭空多出一条终端。
@@ -513,9 +615,12 @@ watch(
 
 onMounted(() => {
   void init().then(() => {
-    // 上次退出时停在终端模块：等数据目录就位再起 shell，cwd 才对
-    if (state.module === "terminal") ensureSession();
+    // 上次停在被关掉的模块上时退回笔记；还在终端模块则起一个会话
+    if (!visibleModules.value.some((m) => m.key === state.module)) setModule("notes");
+    else if (state.module === "terminal") ensureSession();
   });
+  // 连接配置（含密码）存在数据目录，随应用启动读一次
+  void loadProfiles();
   applySidebarWidth(sidebarWidth.value); // 恢复上次拖拽后的侧栏宽度
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("keydown", onTermKeyCapture, true);
@@ -543,12 +648,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app" :class="{ 'rail-collapsed': state.railCollapsed }">
+  <div class="app" :class="{ 'rail-collapsed': state.railCollapsed, 'no-rail': !railVisible }">
     <TitleBar />
     <div class="app-body">
       <ActivityRail />
       <SidebarTree v-if="state.module === 'notes'" />
       <TerminalSidebar v-else-if="state.module === 'terminal'" />
+      <FilesSidebar v-else-if="state.module === 'files'" />
       <ModulePanel v-else :module="state.module" />
       <div
         class="sidebar-resizer"
@@ -567,10 +673,8 @@ onBeforeUnmount(() => {
           <EditorPane />
           <OutlineDrawer />
         </div>
-        <ModuleStage
-          v-if="state.module === 'files' || state.module === 'search'"
-          :module="state.module"
-        />
+        <SftpBrowser v-if="state.module === 'files'" />
+        <ModuleStage v-if="state.module === 'search'" :module="state.module" />
         <TerminalDock :full="state.module === 'terminal'" :dock="state.module === 'notes'" />
       </div>
     </div>
@@ -584,5 +688,6 @@ onBeforeUnmount(() => {
     <Toast />
     <TemplatePicker />
     <ImageLightbox />
+    <SettingsDialog />
   </div>
 </template>

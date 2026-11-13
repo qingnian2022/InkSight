@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { isUntitledPath, saveActive, state, toggleReadonly, WORK_MODULES } from "../store";
+import { sftpStore } from "../sftp";
 import { termStore } from "../terminal";
 import { checkForUpdates, updateState } from "../update";
 
@@ -122,6 +123,7 @@ const path = computed(() => {
       <span class="status-sep" />
       <div class="status-group grow">
         <span v-if="state.module === 'terminal'">{{ termStore.sessions.length }} 个会话</span>
+        <span v-else-if="state.module === 'files'">{{ sftpStore.conns.length }} 个连接</span>
         <span v-else>未接入</span>
       </div>
       <div class="status-group">

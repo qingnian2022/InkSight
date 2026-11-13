@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { activate, closeTab, newDoc, state, toggleTheme } from "../store";
-import AccentPicker from "./AccentPicker.vue";
+import { activate, closeTab, newDoc, state } from "../store";
 import WidthPicker from "./WidthPicker.vue";
 import Icon from "./Icon.vue";
 
@@ -198,7 +197,6 @@ function onBarDoubleClick(event: MouseEvent) {
 
     <div class="tabbar-actions">
       <WidthPicker />
-      <AccentPicker />
       <button
         class="tool-btn"
         :aria-pressed="state.outlineOpen"
@@ -207,9 +205,6 @@ function onBarDoubleClick(event: MouseEvent) {
         @click="state.outlineOpen = !state.outlineOpen"
       >
         <Icon name="outline" :size="15" />
-      </button>
-      <button class="tool-btn" title="切换浅色 / 深色" aria-label="切换主题" @click="toggleTheme">
-        <Icon :name="state.theme === 'dark' ? 'sun' : 'moon'" :size="15" />
       </button>
     </div>
   </div>
