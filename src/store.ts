@@ -82,7 +82,7 @@ export type Skin = "default" | "macos";
  * 侧栏跟着模块换内容，主区的标签行不受影响 —— 换模块不销毁已打开的会话。
  * 目前只有 notes 接了真实数据，其余三个是占位骨架。
  */
-export type WorkModule = "notes" | "files" | "terminal" | "search";
+export type WorkModule = "notes" | "files" | "terminal" | "search" | "secrets";
 
 export const WORK_MODULES: {
   key: WorkModule;
@@ -119,6 +119,13 @@ export const WORK_MODULES: {
     icon: "search",
     hint: "跨工作区搜索（Ctrl+4）",
     blurb: "跨知识库与远程文件的全文搜索。",
+  },
+  {
+    key: "secrets",
+    label: "凭据",
+    icon: "key",
+    hint: "本地凭据库（Ctrl+5）",
+    blurb: "账号密码与 API Key，只存本机安装目录。",
   },
 ];
 

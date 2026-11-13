@@ -22,6 +22,7 @@ const FEATURES: { key: FeatureKey; label: string; desc: string }[] = [
   { key: "files", label: "文件 / SFTP", desc: "本地与远程文件管理，可拖拽下载" },
   { key: "terminal", label: "终端", desc: "内置 PowerShell 会话" },
   { key: "search", label: "搜索", desc: "跨工作区搜索（尚未接入）" },
+  { key: "secrets", label: "凭据", desc: "账号密码与 API Key，加密存在安装目录" },
 ];
 
 const SKINS: { key: Skin; label: string }[] = [

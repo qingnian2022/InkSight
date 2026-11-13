@@ -26,14 +26,18 @@ interface Ghost {
   marker: IMarker;
   deco: IDecoration;
   el: HTMLElement | null;
-  /** 创建时所在列，decoration 的 left 就按这一列固定，后续靠 transform 平移 */
+  /** 创建时所在列。元素从此不再移动，靠左侧裁剪模拟「被自己敲掉」的部分 */
   baseX: number;
   /** 当前光标列 */
   x: number;
-  /** 完整建议文本（未被裁切） */
-  text: string;
-  /** 已经写进 DOM 的文本，重复赋值会触发重绘 */
-  appliedText: string;
+  /** 命中的完整命令 */
+  hit: string;
+  /** 创建时渲染进 DOM 的剩余文本，之后不再改写 */
+  full: string;
+  /** 创建时的输入行长度，用来算要裁掉多少个字符 */
+  lineLen: number;
+  /** 已经应用的裁剪像素，避免重复写样式 */
+  appliedClip: number;
   cellWidth: number;
 }
 
@@ -48,6 +52,8 @@ interface Instance {
   tracked: boolean;
   /** 正在显示的回显（xterm 装饰器，纯视觉，不进缓冲区） */
   ghost: Ghost | null;
+  /** 待执行的定位任务句柄：输出还在刷时先攒着，别把中间态画出来 */
+  ghostTimer: number;
 }
 
 const LS_HEIGHT = "md-rust.term-height";
@@ -129,9 +135,9 @@ async function ensureListeners() {
   await listen<{ id: number; data: string }>("term://data", (event) => {
     const inst = instances.get(event.payload.id);
     if (!inst) return;
-    // 必须等这帧解析完再定位回显：xterm 的 write 是异步队列，
-    // 立刻读 cursorX 拿到的还是「回显前」的位置，灰字会整整提前一个字符
-    inst.term.write(event.payload.data, () => updateGhost(inst));
+    // 每次写都立即重定位会被「回显 + 整行重绘」这两个分片拆开画，
+    // 中间态（光标短暂回到行首/行中）就是抖动的来源。攒 32ms 再定位，只画稳定后的位置。
+    inst.term.write(event.payload.data, () => scheduleGhost(inst));
   });
   await listen<{ id: number }>("term://exit", (event) => {
     const session = termStore.sessions.find((s) => s.id === event.payload.id);
@@ -200,7 +206,7 @@ export function mountSession(id: number, host: HTMLElement) {
   });
   ro.observe(host);
 
-  inst = { id, term, fit, ro, line: "", tracked: true, ghost: null };
+  inst = { id, term, fit, ro, line: "", tracked: true, ghost: null, ghostTimer: 0 };
   instances.set(id, inst);
 
   term.onData((data) => {
@@ -311,7 +317,26 @@ function submit(inst: Instance) {
   }
 }
 
+/**
+ * 把定位推迟到输出稍微安静下来之后。
+ * PSReadLine 一次按键常常先回显字符、再整行重绘做语法着色，两个分片之间光标会短暂
+ * 回到行首/行中；如果每个分片都立刻重定位，中间态就会被画出来 —— 这是「抖」的主因。
+ */
+function scheduleGhost(inst: Instance) {
+  if (inst.ghostTimer) window.clearTimeout(inst.ghostTimer);
+  inst.ghostTimer = window.setTimeout(() => {
+    inst.ghostTimer = 0;
+    // 这 32ms 里会话可能已经被关掉
+    if (instances.get(inst.id) !== inst) return;
+    updateGhost(inst);
+  }, 32);
+}
+
 function clearGhost(inst: Instance) {
+  if (inst.ghostTimer) {
+    window.clearTimeout(inst.ghostTimer);
+    inst.ghostTimer = 0;
+  }
   if (!inst.ghost) return;
   inst.ghost.deco.dispose();
   inst.ghost.marker.dispose();
@@ -327,20 +352,21 @@ function findSuggestion(line: string) {
   return hit ? hit.slice(line.length) : "";
 }
 
-/** 把当前建议画到 DOM 上：只动 textContent 与 transform，元素本身不重建 */
+/**
+ * 只改左侧裁剪，不移动元素、不改文本。
+ * 字形一旦画在某个位置就不再动 —— 打字时是「露出的部分变少」，而不是「整段右移并重新排版」。
+ * 之前每键都在改 transform 与 textContent，等于每键都让浏览器重新栅格化一次字，
+ * 亚像素栅格一换就看见抖。
+ */
 function paintGhost(inst: Instance) {
   const g = inst.ghost;
   if (!g?.el) return;
-  const room = inst.term.cols - g.x;
-  const { text } = fitCells(g.text, Math.max(1, room));
-  if (text !== g.appliedText) {
-    // 同一段文本重复赋值也会触发一次重绘，这就是「每敲一个字闪一下」的来源之一
-    g.el.textContent = text;
-    g.appliedText = text;
-  }
-  const dx = Math.round((g.x - g.baseX) * g.cellWidth);
-  const transform = dx === 0 ? "" : `translateX(${dx}px)`;
-  if (g.el.style.transform !== transform) g.el.style.transform = transform;
+  const grown = Math.max(0, inst.line.length - g.lineLen);
+  const typed = g.hit.slice(g.lineLen, g.lineLen + grown);
+  const clip = textCells(typed) * g.cellWidth;
+  if (Math.abs(clip - g.appliedClip) < 0.01) return;
+  g.appliedClip = clip;
+  g.el.style.clipPath = clip > 0.01 ? `inset(0 0 0 ${clip.toFixed(2)}px)` : "";
 }
 
 function updateGhost(inst: Instance) {
@@ -349,17 +375,18 @@ function updateGhost(inst: Instance) {
     clearGhost(inst);
     return;
   }
+  const hit = inst.line + rest;
   const x = inst.term.buffer.active.cursorX;
-  // 折行后光标回到下一行行首（x < baseX），transform 已经不够用，重建一次
-  if (inst.ghost && x < inst.ghost.baseX) clearGhost(inst);
-  if (inst.ghost) {
-    inst.ghost.text = rest;
-    inst.ghost.x = x;
+  const g = inst.ghost;
+  // 命中没变、也没折行：同一段文字留在原地，只把左边裁多一格
+  if (g && g.hit === hit && x >= g.baseX) {
+    g.x = x;
     paintGhost(inst);
     return;
   }
+  clearGhost(inst);
   try {
-    renderGhost(inst, rest);
+    renderGhost(inst, hit, rest, x);
   } catch {
     // 装饰器是 proposed API：万一升级 xterm 后签名变了，宁可没有回显，也不能让异常打断输入
   }
@@ -380,32 +407,25 @@ function cellWidth(ch: string) {
     : 1;
 }
 
-/** 按剩余单元格裁切建议，返回能画下的部分与它的列宽 */
-function fitCells(rest: string, room: number) {
-  let text = "";
-  let width = 0;
-  for (const ch of rest) {
-    const w = cellWidth(ch);
-    if (width + w > room) break;
-    text += ch;
-    width += w;
-  }
-  return { text, width };
+/** 一段文本占多少单元格：CJK / 全角按 2 算 */
+function textCells(text: string) {
+  let cells = 0;
+  for (const ch of text) cells += cellWidth(ch);
+  return cells;
 }
 
-function renderGhost(inst: Instance, rest: string) {
+function renderGhost(inst: Instance, hit: string, full: string, x: number) {
   const term = inst.term;
   const buffer = term.buffer.active;
   // 备用缓冲区（vim / less）里没有「当前输入行」，不画
   if (buffer.type !== "normal") return;
   // 带控制符的历史（含 Tab）没法按单元格宽度画，直接放弃这条建议
-  if (/[\x00-\x1f\x7f]/.test(rest)) return;
-  const x = buffer.cursorX;
+  if (/[\x00-\x1f\x7f]/.test(full)) return;
   const room = term.cols - x;
   if (room <= 0) return;
   const marker = term.registerMarker(0);
   if (!marker) return;
-  // 宽度按整行剩余格数预留：建议会随输入变长变短，预留够就不必为每次变化重建元素
+  // 宽度按整行剩余格数预留：露出的部分只会变少，不用为它重建元素
   const deco = term.registerDecoration({ marker, x, width: room, layer: "top" });
   if (!deco) {
     marker.dispose();
@@ -418,8 +438,10 @@ function renderGhost(inst: Instance, rest: string) {
     el: null,
     baseX: x,
     x,
-    text: rest,
-    appliedText: "",
+    hit,
+    full,
+    lineLen: inst.line.length,
+    appliedClip: 0,
     cellWidth: 0,
   };
   inst.ghost = g;
@@ -428,6 +450,7 @@ function renderGhost(inst: Instance, rest: string) {
   const lineHeight = term.options.lineHeight ?? 1.2;
   deco.onRender((el) => {
     g.el = el;
+    el.textContent = full;
     el.style.fontFamily = term.options.fontFamily ?? "";
     el.style.fontSize = `${fontSize}px`;
     // 行高必须等于 xterm 给这个格子算出的高度（13px/1.4 时是 21px，不是 18px），
@@ -436,6 +459,8 @@ function renderGhost(inst: Instance, rest: string) {
     // 比正文淡一档：不抢注意力，但一眼看得出是「建议」而不是已经输入的内容
     el.style.color = "color-mix(in srgb, var(--text-tertiary) 55%, transparent)";
     el.style.whiteSpace = "pre";
+    // 元素宽度是「整行剩余格数」，长建议靠这里裁掉右端，别画到终端外面
+    el.style.overflow = "hidden";
     el.style.pointerEvents = "none";
     if (!g.cellWidth) {
       const widthPx = parseFloat(el.style.width || "0");

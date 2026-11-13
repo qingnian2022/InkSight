@@ -7,6 +7,7 @@ import FilesSidebar from "./components/FilesSidebar.vue";
 import ModulePanel from "./components/ModulePanel.vue";
 import ModuleStage from "./components/ModuleStage.vue";
 import SftpBrowser from "./components/SftpBrowser.vue";
+import SecretsPage from "./components/SecretsPage.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import { railVisible, visibleModules, featureOn } from "./settings";
 import TerminalDock from "./components/TerminalDock.vue";
@@ -193,7 +194,7 @@ function onKeydown(event: KeyboardEvent) {
   const key = event.key.toLowerCase();
 
   // Ctrl+1–4：切活动栏模块（只换侧栏，会话不动）；被关掉的模块不响应
-  const modIdx = ["1", "2", "3", "4"].indexOf(key);
+  const modIdx = ["1", "2", "3", "4", "5"].indexOf(key);
   if (modIdx >= 0 && !event.shiftKey && !event.altKey) {
     event.preventDefault();
     const target = WORK_MODULES[modIdx].key;
@@ -648,14 +649,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app" :class="{ 'rail-collapsed': state.railCollapsed, 'no-rail': !railVisible }">
+  <div class="app" :class="{ 'rail-collapsed': state.railCollapsed, 'no-rail': !railVisible, 'no-sidebar': state.module === 'secrets' }">
     <TitleBar />
     <div class="app-body">
       <ActivityRail />
       <SidebarTree v-if="state.module === 'notes'" />
       <TerminalSidebar v-else-if="state.module === 'terminal'" />
       <FilesSidebar v-else-if="state.module === 'files'" />
-      <ModulePanel v-else :module="state.module" />
+      <ModulePanel v-else-if="state.module === 'search'" :module="state.module" />
       <div
         class="sidebar-resizer"
         :class="{ active: resizing }"
@@ -674,6 +675,7 @@ onBeforeUnmount(() => {
           <OutlineDrawer />
         </div>
         <SftpBrowser v-if="state.module === 'files'" />
+        <SecretsPage v-if="state.module === 'secrets'" />
         <ModuleStage v-if="state.module === 'search'" :module="state.module" />
         <TerminalDock :full="state.module === 'terminal'" :dock="state.module === 'notes'" />
       </div>

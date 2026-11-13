@@ -21,6 +21,7 @@ mod localfs;
 mod node;
 mod pins;
 mod sftp;
+mod secrets;
 mod template;
 mod terminal;
 mod tray;
@@ -110,6 +111,10 @@ pub fn run() {
             sftp::sftp_profiles_save,
             sftp::sftp_rename,
             sftp::sftp_remove,
+            secrets::secrets_list,
+            secrets::secrets_save,
+            secrets::secrets_remove,
+            secrets::secrets_location,
             localfs::local_list
         ])
         .run(tauri::generate_context!())

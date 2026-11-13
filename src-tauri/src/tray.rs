@@ -1,8 +1,8 @@
-//! 托盘常驻与窗口唤回：托盘菜单（打开 / 新建文档 / 退出）、双击图标、
+//! 托盘常驻与窗口唤回：托盘菜单（打开 / 新建文档 / 退出）、**单击图标**、
 //! 单实例二次启动，统一走 `show_main`。
 
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
 
 /// 显示并聚焦主窗口（托盘菜单 / 双击图标 / 单实例二次启动共用）。
@@ -36,7 +36,14 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::DoubleClick { .. } = event {
+            // 单击（抬起那一下）就唤回主窗口：双击会先触发一次单击，所以只监听 Click 即可，
+            // 不必再单独处理 DoubleClick —— 否则同一次双击会把窗口 show 两遍。
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 show_main(tray.app_handle());
             }
         })

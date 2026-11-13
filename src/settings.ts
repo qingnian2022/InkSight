@@ -8,12 +8,17 @@ import { WORK_MODULES, type WorkModule } from "./store";
  * 只开笔记时活动栏整条隐藏 —— 回到纯粹的写作界面。
  */
 
-export type FeatureKey = "files" | "terminal" | "search";
+export type FeatureKey = "files" | "terminal" | "search" | "secrets";
 
 const LS = "md-rust.features";
 
 function readFeatures(): Record<FeatureKey, boolean> {
-  const off: Record<FeatureKey, boolean> = { files: false, terminal: false, search: false };
+  const off: Record<FeatureKey, boolean> = {
+    files: false,
+    terminal: false,
+    search: false,
+    secrets: false,
+  };
   try {
     const raw = localStorage.getItem(LS);
     if (!raw) return off;
@@ -24,6 +29,7 @@ function readFeatures(): Record<FeatureKey, boolean> {
       files: row.files === true,
       terminal: row.terminal === true,
       search: row.search === true,
+      secrets: row.secrets === true,
     };
   } catch {
     return off;
