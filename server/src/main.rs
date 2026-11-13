@@ -498,7 +498,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 属于非简单请求，会先发 OPTIONS 预检，因此 methods / headers 必须齐全，
     // 否则带 token 的预检会失败、同步整体不可用。
     fn cors_layer() -> CorsLayer {
-        const DEFAULT_ORIGINS: &str = "http://tauri.localhost,http://localhost:1420";
+        const DEFAULT_ORIGINS: &str = "http://tauri.localhost,http://localhost:1421";
         let raw = env::var("SYNC_CORS_ORIGINS").unwrap_or_else(|_| DEFAULT_ORIGINS.to_string());
         let values: Vec<String> = raw
             .split(',')

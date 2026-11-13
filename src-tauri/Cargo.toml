@@ -28,6 +28,7 @@ walkdir = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tauri-plugin-updater = "2.14.0"
 tauri-plugin-process = "2.4.0"
+portable-pty = "0.9.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

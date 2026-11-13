@@ -126,6 +126,23 @@
   border-right: 0.5px solid var(--border);
 }
 
+/* 活动栏：一体式窗口里是最左的一条窄带，和侧栏同一底色，只靠发丝线分隔 */
+:root[data-skin="macos"] .act-rail {
+  padding: 8px 0;
+  border: none;
+  border-right: 0.5px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface-sunken);
+}
+
+/* 折叠侧栏时无内边距，绝对定位的侧栏要贴到活动栏右侧 */
+:root[data-skin="macos"] .app.rail-collapsed .sidebar {
+  left: var(--act-w);
+  top: 0;
+  bottom: 0;
+}
+
 :root[data-skin="macos"] .main {
   border: none;
   border-radius: 0;
@@ -410,7 +427,7 @@
 :root[data-skin="macos"] .sidebar-resizer {
   top: 0;
   bottom: 0;
-  left: calc(var(--rail-w) - 4px);
+  left: calc(var(--act-w) + var(--rail-w) - 4px);
   width: 8px;
   border-radius: 0;
 }

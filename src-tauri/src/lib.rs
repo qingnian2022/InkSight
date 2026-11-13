@@ -20,6 +20,7 @@ mod git_sync;
 mod node;
 mod pins;
 mod template;
+mod terminal;
 mod tray;
 mod util;
 mod vault;
@@ -37,6 +38,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // 终端会话表：前端只拿 id，PTY 句柄留在后端
+        .manage(terminal::TermState::default())
         // 点 ✕ 不退出：隐藏窗口、进程驻留托盘；真正退出走托盘菜单「退出」
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -89,7 +92,12 @@ pub fn run() {
             template::template_save,
             template::template_delete,
             pins::pin_list,
-            pins::pin_set
+            pins::pin_set,
+            terminal::term_open,
+            terminal::term_write,
+            terminal::term_resize,
+            terminal::term_close,
+            terminal::term_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

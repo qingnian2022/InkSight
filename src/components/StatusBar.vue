@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { isUntitledPath, saveActive, state, toggleReadonly } from "../store";
+import { isUntitledPath, saveActive, state, toggleReadonly, WORK_MODULES } from "../store";
+import { termStore } from "../terminal";
 import { checkForUpdates, updateState } from "../update";
+
+/** 非笔记模块的左侧标签：状态栏不该再显示「已保存 / 多少字」，那是文档的信息 */
+const moduleLabel = computed(
+  () => WORK_MODULES.find((m) => m.key === state.module)?.label ?? "",
+);
 
 /** 版本号（构建时注入，不需要额外 IPC） */
 const appVersion = ref("");
@@ -50,7 +56,11 @@ const path = computed(() => {
 </script>
 
 <template>
-  <footer class="statusbar" :class="{ dirty: state.saveState === 'dirty' }">
+  <footer
+    class="statusbar"
+    :class="{ dirty: state.module === 'notes' && state.saveState === 'dirty' }"
+  >
+    <template v-if="state.module === 'notes'">
     <button class="status-btn" title="点击立即保存 Ctrl+S" @click="saveActive">
       <span class="status-dot" :class="dotClass" />
       <span class="status-text" :class="{ error: state.saveState === 'error' }">
@@ -105,5 +115,18 @@ const path = computed(() => {
         {{ updateLabel }}
       </button>
     </div>
+    </template>
+
+    <template v-else>
+      <span class="status-btn">{{ moduleLabel }}</span>
+      <span class="status-sep" />
+      <div class="status-group grow">
+        <span v-if="state.module === 'terminal'">{{ termStore.sessions.length }} 个会话</span>
+        <span v-else>未接入</span>
+      </div>
+      <div class="status-group">
+        <span v-if="appVersion" class="ver">v{{ appVersion }}</span>
+      </div>
+    </template>
   </footer>
 </template>

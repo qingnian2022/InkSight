@@ -67,6 +67,7 @@ const LS_SERVER_BASE = "md-rust.server-baseline";
 const LS_SERVER_CURSOR = "md-rust.server-cursor";
 const LS_ACCENT = "md-rust.accent";
 const LS_SKIN = "md-rust.skin";
+const LS_MODULE = "md-rust.module";
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
@@ -75,6 +76,51 @@ export type EditorWidth = "narrow" | "standard" | "wide" | "full";
 export type AccentTheme = "graphite" | "purple" | "blue" | "pink";
 /** 界面皮肤：default = 现有石墨卡片风；macos = macOS 一体式窗口 */
 export type Skin = "default" | "macos";
+
+/**
+ * 工作台模块（活动栏图标）。
+ * 侧栏跟着模块换内容，主区的标签行不受影响 —— 换模块不销毁已打开的会话。
+ * 目前只有 notes 接了真实数据，其余三个是占位骨架。
+ */
+export type WorkModule = "notes" | "files" | "terminal" | "search";
+
+export const WORK_MODULES: {
+  key: WorkModule;
+  label: string;
+  icon: string;
+  hint: string;
+  /** 侧栏空态里的一句话说明 */
+  blurb: string;
+}[] = [
+  {
+    key: "notes",
+    label: "笔记",
+    icon: "notes",
+    hint: "知识库目录（Ctrl+1）",
+    blurb: "本地知识库的目录树。",
+  },
+  {
+    key: "files",
+    label: "文件",
+    icon: "folder",
+    hint: "本地与远程工作区（Ctrl+2）",
+    blurb: "本地目录与已保存的 SSH / SFTP 连接会出现在这里。",
+  },
+  {
+    key: "terminal",
+    label: "终端",
+    icon: "terminal",
+    hint: "终端会话（Ctrl+3）",
+    blurb: "会话列表会出现在这里；终端本身在主区下沿的 Dock。",
+  },
+  {
+    key: "search",
+    label: "搜索",
+    icon: "search",
+    hint: "跨工作区搜索（Ctrl+4）",
+    blurb: "跨知识库与远程文件的全文搜索。",
+  },
+];
 
 /** 主题色候选：石墨为默认基调，其余三种只换主色，整套 chrome 自动派生。 */
 export const ACCENT_THEMES: {
@@ -116,6 +162,8 @@ export const state = reactive({
   editorWidth: "standard" as EditorWidth,
   sourceMode: false,
   readonly: true,
+  /** 活动栏当前模块：常驻入口，换模块只换侧栏 */
+  module: "notes" as WorkModule,
   railCollapsed: false,
   outlineOpen: false,
   saveState: "saved" as SaveState,
@@ -247,6 +295,12 @@ export function setSkin(skin: Skin) {
   state.skin = skin;
   document.documentElement.dataset.skin = skin;
   localStorage.setItem(LS_SKIN, skin);
+}
+
+/** 切换活动栏模块：只换侧栏，不动标签行与编辑器。 */
+export function setModule(module: WorkModule) {
+  state.module = module;
+  localStorage.setItem(LS_MODULE, module);
 }
 
 /** 色板里「默认」色点：macOS 皮肤下默认强调色是系统蓝 */
@@ -700,12 +754,13 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
   const versions: Record<string, number> = {};
   for (const [path, item] of Object.entries(baseline)) versions[path] = item.version;
 
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   let pushed = 0;
   let removed = 0;
   let renamed = 0;
   let pulled = 0;
   let conflicts = 0;
+  /** 冲突文件的远端内容：只用来算 baseline，绝不落盘成副本 */
+  const conflictRemote = new Map<string, string>();
 
   // ---------- 1) 推送本地变更 ----------
   const snapshot: { path: string; content: string; fp: string }[] = [];
@@ -730,8 +785,7 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
       baseVersion: base?.version ?? 0,
     });
     if (!next.ok) {
-      // 服务端也改过：先把服务端内容另存，再由本地覆盖（与 git「本地为准」一致）
-      await writeDoc(file.path.replace(/\.md$/i, `.server-${stamp}.md`), next.content ?? "");
+      // 服务端也改过：直接以本地覆盖，不再另存服务端副本
       conflicts += 1;
       next = await serverPut(url, token, {
         path: file.path,
@@ -794,8 +848,9 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
       await writeDoc(note.path, note.content);
       pulled += 1;
     } else {
-      await writeDoc(note.path.replace(/\.md$/i, `.server-${stamp}.md`), note.content);
+      // 两边都改过：保留本地，不生成副本；下一轮推送以本地覆盖服务端
       conflicts += 1;
+      conflictRemote.set(note.path, note.content);
     }
   }
 
@@ -805,7 +860,9 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
   for (const path of collectMarkdown(state.tree)) {
     try {
       const content = await readDoc(path);
-      nextBaseline[path] = { fp: fingerprint(content), version: versions[path] ?? 0 };
+      // 冲突文件：baseline 记成远端内容，下一轮推送才会真正把本地覆盖上去
+      const remote = conflictRemote.get(path);
+      nextBaseline[path] = { fp: fingerprint(remote ?? content), version: versions[path] ?? 0 };
     } catch {
       /* 忽略读失败 */
     }
@@ -816,14 +873,14 @@ async function syncViaServer(): Promise<{ ok: boolean; message: string; changed:
 
   const parts = [`↑${pushed}`, `↓${pulled}`];
   if (removed) parts.push(`删${removed}${renamed ? `（改名${renamed}）` : ""}`);
-  if (conflicts) parts.push(`冲突${conflicts}`);
+  if (conflicts) parts.push(`冲突${conflicts}（保留本地）`);
   return { ok: true, message: `服务器：${parts.join(" ")}`, changed: pushed + pulled };
 }
 
 /**
  * 仅从服务器拉取到本地（不回推）。
  * 用于「服务器上有新内容，我想先下下来」的场景：不会覆盖本地改动，
- * 同一篇两边都改过时，远端内容另存为 `原名.server-时间.md`。
+ * 同一篇两边都改过时保留本地、跳过远端，**不生成任何副本**。
  */
 export async function pullFromServer(): Promise<void> {
   const url = state.serverUrl.trim();
@@ -836,13 +893,14 @@ export async function pullFromServer(): Promise<void> {
 
   state.syncBusy = true;
   state.syncError = false;
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   const baseline = readBaseline();
   const versions: Record<string, number> = {};
   for (const [path, item] of Object.entries(baseline)) versions[path] = item.version;
 
   let pulled = 0;
   let conflicts = 0;
+  /** 冲突文件的远端内容：只用来算 baseline，绝不落盘成副本 */
+  const conflictRemote = new Map<string, string>();
   try {
     // since=0：全量拉取远端清单（包括墓碑）
     const result = await serverPull(url, token, 0);
@@ -879,8 +937,9 @@ export async function pullFromServer(): Promise<void> {
         await writeDoc(note.path, note.content);
         pulled += 1;
       } else {
-        await writeDoc(note.path.replace(/\.md$/i, `.server-${stamp}.md`), note.content);
+        // 两边都改过：保留本地，不生成副本
         conflicts += 1;
+        conflictRemote.set(note.path, note.content);
       }
     }
 
@@ -889,8 +948,10 @@ export async function pullFromServer(): Promise<void> {
     for (const path of collectMarkdown(state.tree)) {
       try {
         const content = await readDoc(path);
+        // 冲突文件：baseline 记成远端内容，下一轮推送才会真正把本地覆盖上去
+        const remote = conflictRemote.get(path);
         nextBaseline[path] = {
-          fp: fingerprint(content),
+          fp: fingerprint(remote ?? content),
           version: versions[path] ?? baseline[path]?.version ?? 0,
         };
       } catch {
@@ -903,7 +964,7 @@ export async function pullFromServer(): Promise<void> {
 
     showToast(
       pulled || conflicts
-        ? `已从服务器拉取 ${pulled} 篇${conflicts ? `，${conflicts} 处冲突另存` : ""}`
+        ? `已从服务器拉取 ${pulled} 篇${conflicts ? `，${conflicts} 篇冲突已跳过（保留本地）` : ""}`
         : "本地已是最新",
       "info",
       3500,
@@ -1635,6 +1696,10 @@ export async function init() {
   );
 
   setSkin(localStorage.getItem(LS_SKIN) === "default" ? "default" : "macos");
+
+  const storedModule = localStorage.getItem(LS_MODULE) as WorkModule | null;
+  state.module =
+    storedModule && WORK_MODULES.some((m) => m.key === storedModule) ? storedModule : "notes";
 
   const storedWidth = localStorage.getItem(LS_ED_WIDTH) as EditorWidth | null;
   applyEditorWidth(

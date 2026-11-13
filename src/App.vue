@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import ContextMenu from "./components/ContextMenu.vue";
+import ActivityRail from "./components/ActivityRail.vue";
+import ModulePanel from "./components/ModulePanel.vue";
+import ModuleStage from "./components/ModuleStage.vue";
+import TerminalDock from "./components/TerminalDock.vue";
+import TerminalSidebar from "./components/TerminalSidebar.vue";
 import EditorPane from "./components/EditorPane.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import NamePrompt from "./components/NamePrompt.vue";
@@ -18,6 +23,22 @@ import StatusBar from "./components/StatusBar.vue";
 import TabBar from "./components/TabBar.vue";
 import TitleBar from "./components/TitleBar.vue";
 import { openContextMenu, type CtxItem } from "./ui/contextMenu";
+import {
+  acceptSuggestion,
+  beginRename,
+  clearActive,
+  closeAll,
+  closeOthers,
+  closeSession,
+  ensureSession,
+  newSession,
+  openDock,
+  pasteToActive,
+  selectAllActive,
+  selectionText,
+  termStore,
+  toggleDock,
+} from "./terminal";
 import { getPmView } from "./editor/pmViewRef";
 import type { TableCmd } from "./editor/tableCmds";
 import {
@@ -41,10 +62,12 @@ import {
   renamePath,
   saveAsTemplate,
   saveActive,
+  setModule,
   state,
   togglePin,
   toggleReadonly,
   trashPath,
+  WORK_MODULES,
 } from "./store";
 
 /** 表格命令按需加载：prosemirror 体系不进首屏 */
@@ -94,10 +117,73 @@ function endSidebarResize(e: PointerEvent) {
   localStorage.setItem(SIDEBAR_W_LS, String(sidebarWidth.value));
 }
 
+/**
+ * 终端的复制 / 粘贴快捷键必须在捕获阶段拦下来：
+ * xterm 自己也监听 keydown，晚一步 Ctrl+Shift+C 会被当成 Ctrl+C（发 \x03 给 shell）。
+ */
+function onTermKeyCapture(event: KeyboardEvent) {
+  const el = event.target as HTMLElement | null;
+  if (!el?.closest(".term-dock")) return;
+
+  // 右方向键：有回显就接受；没有则原样放行，普通右移不能坏
+  if (
+    event.key === "ArrowRight" &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey
+  ) {
+    if (acceptSuggestion()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    return;
+  }
+
+  if (!(event.ctrlKey || event.metaKey) || !event.shiftKey) return;
+  const key = event.key.toLowerCase();
+  if (key !== "c" && key !== "v") return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (key === "c") void copyTermSelection();
+  else void pasteToTerminal();
+}
+
 function onKeydown(event: KeyboardEvent) {
   const mod = event.ctrlKey || event.metaKey;
   if (!mod) return;
   const key = event.key.toLowerCase();
+
+  // Ctrl+1–4：切活动栏模块（只换侧栏，会话不动）
+  const modIdx = ["1", "2", "3", "4"].indexOf(key);
+  if (modIdx >= 0 && !event.shiftKey && !event.altKey) {
+    event.preventDefault();
+    setModule(WORK_MODULES[modIdx].key);
+    return;
+  }
+
+  // Ctrl+` 收起 / 展开终端 Dock；加 Shift 再开一个会话
+  if (event.code === "Backquote") {
+    event.preventDefault();
+    if (event.shiftKey) {
+      // 新会话一定要看得见：不在笔记页就先回去，然后连 Dock 一起打开
+      if (state.module !== "notes") setModule("notes");
+      void newSession(true);
+    } else if (state.module === "terminal") {
+      // 终端已经铺满主区时，「收起」等于离开这个模块
+      setModule("notes");
+    } else if (state.module !== "notes") {
+      // 文件 / 搜索页脚下没有 Dock：这一下当成「回笔记并打开终端」
+      setModule("notes");
+      openDock();
+    } else {
+      toggleDock();
+    }
+    return;
+  }
+
+  // 焦点在终端里时，Ctrl+W / Ctrl+N 归 shell（PSReadLine 的删词、历史），不再抢作文档快捷键
+  if ((event.target as HTMLElement | null)?.closest(".term-dock")) return;
 
   if (key === "n") {
     event.preventDefault();
@@ -190,6 +276,80 @@ function treeMenuItems(isDir: boolean, path: string, name: string): CtxItem[] {
   ];
 }
 
+/* ---------- 终端：右键与快捷键走终端语义 ---------- */
+
+async function copyTermSelection() {
+  const text = selectionText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // WebView 拒绝写剪贴板时静默，用户仍可用系统级复制
+  }
+}
+
+async function pasteToTerminal() {
+  let text = "";
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    return;
+  }
+  pasteToActive(text);
+}
+
+/**
+ * 终端菜单：复制 / 粘贴 / 全选 / 清屏 + 会话动作。
+ * 和文档菜单刻意不混 —— 「新建文档」「保存当前文档」在终端里没有意义。
+ */
+function termMenuItems(): CtxItem[] {
+  const hasSelection = !!selectionText();
+  return [
+    {
+      label: "复制",
+      shortcut: "Ctrl+Shift+C",
+      disabled: !hasSelection,
+      action: () => void copyTermSelection(),
+    },
+    { label: "粘贴", shortcut: "Ctrl+Shift+V", action: () => void pasteToTerminal() },
+    { separator: true, label: "" },
+    { label: "全选", action: selectAllActive },
+    { label: "清屏", shortcut: "Ctrl+L", action: clearActive },
+    { separator: true, label: "" },
+    { label: "新建终端", shortcut: "Ctrl+Shift+`", action: () => void newSession() },
+    {
+      label: "关闭当前终端",
+      disabled: !termStore.activeId,
+      action: () => void closeSession(termStore.activeId),
+    },
+  ];
+}
+
+/** 侧栏里的单个会话：重命名 / 关闭在这一行完成，不跳去应用动作 */
+function termSessionMenuItems(id: number, title: string): CtxItem[] {
+  const others = termStore.sessions.filter((s) => s.id !== id).length;
+  return [
+    { label: "重命名", shortcut: "F2", action: () => beginRename(id) },
+    { label: "新建终端", shortcut: "Ctrl+Shift+`", action: () => void newSession() },
+    { separator: true, label: "" },
+    { label: `关闭「${title}」`, action: () => void closeSession(id) },
+    { label: "关闭其他终端", disabled: others === 0, action: () => void closeOthers(id) },
+  ];
+}
+
+/** 会话列表空白处：只留「新建」与「全部关闭」 */
+function termListMenuItems(): CtxItem[] {
+  return [
+    { label: "新建终端", shortcut: "Ctrl+Shift+`", action: () => void newSession() },
+    { separator: true, label: "" },
+    {
+      label: "关闭全部终端",
+      disabled: termStore.sessions.length === 0,
+      action: () => void closeAll(),
+    },
+  ];
+}
+
 /** 组装右键菜单：编辑器内是编辑动作，目录树是文件操作，其余是应用动作 */
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
@@ -197,6 +357,20 @@ function onContextMenu(e: MouseEvent) {
   const editable = target.closest<HTMLElement>(
     ".ProseMirror, .cm-content, input, textarea, [contenteditable='true']",
   );
+  // 0) 终端侧栏：会话行 / 列表空白处各有自己的动作，不落到应用菜单
+  const termRow = target.closest<HTMLElement>(".term-row[data-term-id]");
+  if (termRow) {
+    const id = Number(termRow.dataset.termId);
+    if (Number.isFinite(id) && id > 0) {
+      const title = termStore.sessions.find((s) => s.id === id)?.title ?? "终端";
+      openContextMenu(e.clientX, e.clientY, termSessionMenuItems(id, title));
+      return;
+    }
+  }
+  if (target.closest(".term-list")) {
+    openContextMenu(e.clientX, e.clientY, termListMenuItems());
+    return;
+  }
 
   // 1) 目录树节点
   const treeRow = target.closest<HTMLElement>(".tree-row[data-path]");
@@ -227,7 +401,13 @@ function onContextMenu(e: MouseEvent) {
     return;
   }
 
-  // 3) 编辑器内
+  // 3) 终端：动作是终端语义，不是文档动作（xterm 内部有个隐藏 textarea，会被当成可编辑区）
+  if (target.closest(".term-dock")) {
+    openContextMenu(e.clientX, e.clientY, termMenuItems());
+    return;
+  }
+
+  // 4) 编辑器内
   const items: CtxItem[] = [];
   if (editable) {
     const el = editable;
@@ -321,10 +501,24 @@ function onContextMenu(e: MouseEvent) {
 
 const unlisteners: (() => void)[] = [];
 
+// 终端模块的主区就是终端本身：切进来时保证至少有一个会话在跑。
+// 注意只补会话，不动 termStore.open —— 那是「笔记页下沿 Dock」的开关，
+// 让它跟着模块走的话，从终端回到笔记会凭空多出一条终端。
+watch(
+  () => state.module,
+  (module) => {
+    if (module === "terminal") ensureSession();
+  },
+);
+
 onMounted(() => {
-  void init();
+  void init().then(() => {
+    // 上次退出时停在终端模块：等数据目录就位再起 shell，cwd 才对
+    if (state.module === "terminal") ensureSession();
+  });
   applySidebarWidth(sidebarWidth.value); // 恢复上次拖拽后的侧栏宽度
   window.addEventListener("keydown", onKeydown);
+  window.addEventListener("keydown", onTermKeyCapture, true);
   window.addEventListener("contextmenu", onContextMenu, true);
 
   // 托盘菜单「新建文档」：唤回窗口（Rust 侧已 show）并开新标签
@@ -341,6 +535,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("keydown", onTermKeyCapture, true);
   window.removeEventListener("contextmenu", onContextMenu, true);
   unlisteners.forEach((un) => un());
   document.body.classList.remove("resizing");
@@ -351,7 +546,10 @@ onBeforeUnmount(() => {
   <div class="app" :class="{ 'rail-collapsed': state.railCollapsed }">
     <TitleBar />
     <div class="app-body">
-      <SidebarTree />
+      <ActivityRail />
+      <SidebarTree v-if="state.module === 'notes'" />
+      <TerminalSidebar v-else-if="state.module === 'terminal'" />
+      <ModulePanel v-else :module="state.module" />
       <div
         class="sidebar-resizer"
         :class="{ active: resizing }"
@@ -362,12 +560,18 @@ onBeforeUnmount(() => {
         @pointercancel="endSidebarResize"
       />
       <div class="main">
-        <TabBar />
-        <EditorToolbar v-if="state.editorMode === 'source'" />
-        <div class="ed-row">
+        <!-- 笔记区：切到别的模块时用 v-show 留活，避免 Milkdown 卸载后丢失撤销栈 -->
+        <TabBar v-show="state.module === 'notes'" />
+        <EditorToolbar v-if="state.editorMode === 'source' && state.module === 'notes'" />
+        <div class="ed-row" v-show="state.module === 'notes'">
           <EditorPane />
           <OutlineDrawer />
         </div>
+        <ModuleStage
+          v-if="state.module === 'files' || state.module === 'search'"
+          :module="state.module"
+        />
+        <TerminalDock :full="state.module === 'terminal'" :dock="state.module === 'notes'" />
       </div>
     </div>
     <StatusBar />

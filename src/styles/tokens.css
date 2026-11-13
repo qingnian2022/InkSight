@@ -61,6 +61,27 @@
   --syn-type: #4a5b8c;
   --syn-punct: #5d6260;
 
+  /* ---------- 终端 ANSI 16 色 ----------
+     刻意不从 --accent 派生：语法色属于语义，换紫色主题时 ANSI 的 cyan 不该跟着变紫。
+     旧版把 cyan 直接指向主色，导致 PowerShell 的字符串着色、git 的分支名和正文同色；
+     magenta 又和 blue 压在同一支钢蓝上，八个槽位实际只有五个能认出来。 */
+  --term-black: #1d2120;
+  --term-red: #b0392c;
+  --term-green: #2f7a4a;
+  --term-yellow: #8a5a0f;
+  --term-blue: #2f6396;
+  --term-magenta: #7c4470;
+  --term-cyan: #2c6f6a;
+  --term-white: #3a4140;
+  --term-bright-black: #6b7370;
+  --term-bright-red: #c9503c;
+  --term-bright-green: #3d8f5b;
+  --term-bright-yellow: #a5711a;
+  --term-bright-blue: #3d7ab5;
+  --term-bright-magenta: #99548a;
+  --term-bright-cyan: #388a83;
+  --term-bright-white: #1d2120;
+
   /* 自绘标题栏：石墨色带，是整个主题的识别点 */
   --titlebar-bg: var(--accent);
   --titlebar-fg: #f1f4f3;
@@ -79,6 +100,8 @@
   --shadow-overlay: 0 2px 6px rgba(24, 28, 27, 0.06), 0 20px 48px -12px rgba(24, 28, 27, 0.22);
 
   --rail-w: 232px;
+  /* 活动栏：常驻图标列，不参与折叠（Ctrl+\ 只收侧栏） */
+  --act-w: 44px;
   --titlebar-h: 38px;
   --tabbar-h: 46px;
   --toolbar-h: 46px;
@@ -153,6 +176,25 @@
   --syn-function: #93b8dc;
   --syn-type: #adb8da;
   --syn-punct: #9aa79f;
+
+  /* 终端 ANSI 16 色（深色）：底是固定中性黑，black 必须提亮，
+     否则 git diff 里的暗色标记、PowerShell 的 DarkGray 参数等于隐形 */
+  --term-black: #3b4441;
+  --term-red: #e08a7c;
+  --term-green: #7dbd92;
+  --term-yellow: #d3a355;
+  --term-blue: #93b8dc;
+  --term-magenta: #c79bd6;
+  --term-cyan: #6fc2b4;
+  --term-white: #c9d2cd;
+  --term-bright-black: #5b6663;
+  --term-bright-red: #ef9d91;
+  --term-bright-green: #95cfa8;
+  --term-bright-yellow: #e3b972;
+  --term-bright-blue: #a9c9e8;
+  --term-bright-magenta: #d6b0e2;
+  --term-bright-cyan: #8ad4c6;
+  --term-bright-white: #e7ece9;
 
   /* 深色下标题栏用墨绿黑，比正文更深一档 */
   --titlebar-bg: #0b1210;
