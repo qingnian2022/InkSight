@@ -80,3 +80,8 @@ pub fn local_list(path: String) -> Result<LocalListing, String> {
 
     Ok(LocalListing { path, entries })
 }
+
+#[tauri::command]
+pub fn local_mkdir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| format!("创建本地文件夹失败：{e}"))
+}

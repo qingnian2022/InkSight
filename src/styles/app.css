@@ -6469,3 +6469,47 @@ button.sync-host:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
+
+.sftp-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sftp-cancel {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.sftp-cancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.sftp-row.creating {
+  background: var(--surface-sunken);
+}
+
+.sftp-row.creating .term-rename {
+  flex: 1;
+  min-width: 0;
+}
+
+.sftp-foot {
+  position: relative;
+}
+
+.sftp-progress {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  height: 2px;
+  max-width: 100%;
+  background: var(--accent);
+  transition: width 160ms linear;
+}

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { reactive } from "vue";
 import { notify } from "./store";
@@ -38,6 +39,12 @@ export interface SftpProfile {
   password: string;
 }
 
+export interface TransferProgress {
+  done: number;
+  total: number;
+  name: string;
+}
+
 export interface SftpConn {
   id: number;
   profileId: string;
@@ -55,6 +62,12 @@ export const sftpStore = reactive({
   selected: null as SftpEntry | null,
   loading: false,
   busy: "",
+  /** 当前传输句柄；取消时回传给后端 */
+  transferId: 0,
+  progress: null as TransferProgress | null,
+  /** "" | "remote" | "local"：正在哪一栏新建文件夹 */
+  creating: "" as "" | "remote" | "local",
+  newFolder: "",
   /** 正在连接中的配置 id（侧栏显示「连接中…」并防重复点击） */
   connectingId: "",
   error: "",
@@ -240,24 +253,106 @@ export function localUp() {
 
 /* ---------- 下载 ---------- */
 
+let transferSeq = 0;
+let eventsBound = false;
+
+/** 进度事件全局只订阅一次（App 启动时调） */
+export async function initSftpEvents() {
+  if (eventsBound) return;
+  eventsBound = true;
+  await listen<{ transferId: number; name: string; done: number; total: number }>(
+    "sftp://progress",
+    (event) => {
+      if (event.payload.transferId !== sftpStore.transferId) return;
+      sftpStore.progress = {
+        done: event.payload.done,
+        total: event.payload.total,
+        name: event.payload.name,
+      };
+    },
+  );
+}
+
 /** 下载到指定本地目录（拖拽落点 / 当前本地目录） */
 export async function downloadTo(remotePath: string, localDir: string) {
   if (!sftpStore.activeId || !remotePath || !localDir) return;
+  const transferId = ++transferSeq;
+  sftpStore.transferId = transferId;
   sftpStore.busy = remotePath;
+  sftpStore.progress = { done: 0, total: 0, name: "" };
   sftpStore.error = "";
   try {
     const saved = await invoke<string>("sftp_download", {
       id: sftpStore.activeId,
+      transferId,
       remotePath,
       localDir,
     });
     notify(`已下载：${saved}`);
     await loadLocal(sftpStore.localPath);
   } catch (err) {
-    sftpStore.error = String(err);
-    notify(String(err));
+    const message = String(err);
+    // 取消是用户主动的，不当成错误弹
+    if (!message.includes("已取消")) {
+      sftpStore.error = message;
+      notify(message);
+    }
   } finally {
     sftpStore.busy = "";
+    sftpStore.transferId = 0;
+    sftpStore.progress = null;
+  }
+}
+
+/** 中断当前传输：后端在下一个分块处停下，并删掉半截文件 */
+export async function cancelTransfer() {
+  if (!sftpStore.transferId) return;
+  try {
+    await invoke("sftp_cancel", { transferId: sftpStore.transferId });
+  } catch {
+    // 传输可能刚好结束
+  }
+}
+
+/* ---------- 新建文件夹 ---------- */
+
+export function startCreateFolder(kind: "remote" | "local") {
+  sftpStore.creating = kind;
+  sftpStore.newFolder = "";
+}
+
+export function cancelCreateFolder() {
+  sftpStore.creating = "";
+  sftpStore.newFolder = "";
+}
+
+export async function commitCreateFolder() {
+  const name = sftpStore.newFolder.trim();
+  const kind = sftpStore.creating;
+  if (!kind || !name) {
+    cancelCreateFolder();
+    return;
+  }
+  cancelCreateFolder();
+  // 「此电脑」盘符列表没有具体目录，建不了
+  if (kind === "local" && !sftpStore.localPath) {
+    notify("先进入一个磁盘分区再新建文件夹");
+    return;
+  }
+  try {
+    if (kind === "remote") {
+      const base = sftpStore.path.replace(/\/+$/, "");
+      await invoke("sftp_mkdir", { id: sftpStore.activeId, path: `${base}/${name}` });
+      await list(sftpStore.path);
+    } else {
+      const base = sftpStore.localPath.replace(/[\\/]+$/, "");
+      // 盘符根是 "C:\"，去掉尾斜杠后变 "C:"，join 时要补回分隔符
+      const sep = base.includes("\\") ? "\\" : "/";
+      await invoke("local_mkdir", { path: `${base}${sep}${name}` });
+      await loadLocal(sftpStore.localPath);
+    }
+  } catch (err) {
+    notify(String(err));
   }
 }
 

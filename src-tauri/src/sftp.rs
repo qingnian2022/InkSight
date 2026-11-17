@@ -13,10 +13,73 @@ use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex as AsyncMutex;
+
+const CANCELLED: &str = "传输已取消";
+
+/// 进度聚合器：按 150ms 节流上报，避免每个 64KB 分块都过一次 IPC
+struct Progress<'a> {
+    app: &'a AppHandle,
+    transfer_id: u32,
+    total: u64,
+    done: u64,
+    last: std::time::Instant,
+}
+
+impl<'a> Progress<'a> {
+    fn new(app: &'a AppHandle, transfer_id: u32, total: u64) -> Self {
+        Self {
+            app,
+            transfer_id,
+            total,
+            done: 0,
+            last: std::time::Instant::now(),
+        }
+    }
+
+    fn tick(&mut self, name: &str, bytes: u64, force: bool) {
+        self.done = self.done.saturating_add(bytes);
+        if !force && self.last.elapsed().as_millis() < 150 {
+            return;
+        }
+        self.last = std::time::Instant::now();
+        let _ = self.app.emit(
+            "sftp://progress",
+            serde_json::json!({
+                "transferId": self.transfer_id,
+                "name": name,
+                "done": self.done,
+                "total": self.total,
+            }),
+        );
+    }
+}
+
+/// 先走一遍目录算总量：没总量就只能显示“下载中”，有总量才能给百分比
+async fn total_size(sftp: &SftpSession, remote: &str) -> u64 {
+    let Ok(meta) = sftp.symlink_metadata(remote).await else {
+        return 0;
+    };
+    if !meta.is_dir() {
+        return meta.size.unwrap_or(0);
+    }
+    let mut sum = 0u64;
+    if let Ok(read_dir) = sftp.read_dir(remote).await {
+        let mut children = Vec::new();
+        for item in read_dir {
+            children.push(item.file_name());
+        }
+        for name in children {
+            let child = format!("{}/{}", remote.trim_end_matches('/'), name);
+            sum += Box::pin(total_size(sftp, &child)).await;
+        }
+    }
+    sum
+}
 
 struct Client;
 
@@ -43,6 +106,8 @@ struct Conn {
 pub struct SftpState {
     next_id: AtomicU32,
     conns: Mutex<HashMap<u32, Arc<Conn>>>,
+    /// 传输句柄 → 取消标记。取消是协作式的：下载循环每个分块检查一次
+    cancels: Mutex<HashMap<u32, Arc<AtomicBool>>>,
 }
 
 #[derive(Serialize)]
@@ -203,7 +268,12 @@ async fn download_to(
     sftp: &SftpSession,
     remote: &str,
     local: &Path,
+    cancel: &AtomicBool,
+    progress: &mut Progress<'_>,
 ) -> Result<u64, String> {
+    if cancel.load(Ordering::Relaxed) {
+        return Err(CANCELLED.to_string());
+    }
     let meta = sftp
         .symlink_metadata(remote)
         .await
@@ -219,11 +289,14 @@ async fn download_to(
             .await
             .map_err(|e| format!("读取远端目录失败：{e}"))?;
         for item in read_dir {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(CANCELLED.to_string());
+            }
             let name = item.file_name();
             let child_remote = format!("{}/{}", remote.trim_end_matches('/'), name);
             let child_local = local.join(&name);
             // 递归要走 Box::pin：async fn 不能直接递归
-            total += Box::pin(download_to(sftp, &child_remote, &child_local)).await?;
+            total += Box::pin(download_to(sftp, &child_remote, &child_local, cancel, progress)).await?;
         }
         return Ok(total);
     }
@@ -240,9 +313,33 @@ async fn download_to(
     let mut sink = tokio::fs::File::create(local)
         .await
         .map_err(|e| format!("创建本地文件失败：{e}"))?;
-    tokio::io::copy(&mut source, &mut sink)
-        .await
-        .map_err(|e| format!("写入本地文件失败：{e}"))
+
+    // 不用 io::copy：要在分块之间检查取消标记，几 MB 的复制也不能一口气跑完
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut total = 0u64;
+    let label = local
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| remote.to_string());
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(CANCELLED.to_string());
+        }
+        let read = source
+            .read(&mut buf)
+            .await
+            .map_err(|e| format!("读取远端数据失败：{e}"))?;
+        if read == 0 {
+            break;
+        }
+        sink.write_all(&buf[..read])
+            .await
+            .map_err(|e| format!("写入本地文件失败：{e}"))?;
+        total += read as u64;
+        progress.tick(&label, read as u64, false);
+    }
+    let _ = sink.flush().await;
+    Ok(total)
 }
 
 /// 把远端文件 / 目录下载到 `local_dir`，返回落地的本地路径
@@ -250,8 +347,10 @@ async fn download_to(
 pub async fn sftp_download(
     state: State<'_, SftpState>,
     id: u32,
+    transfer_id: u32,
     remote_path: String,
     local_dir: String,
+    app: AppHandle,
 ) -> Result<String, String> {
     let conn = conn_of(&state, id).await?;
     let sftp = conn.sftp.lock().await;
@@ -268,8 +367,59 @@ pub async fn sftp_download(
         .unwrap_or("download");
     let target = unique_path(&dir, name);
 
-    download_to(&sftp, &remote_path, &target).await?;
+    // 先登记取消标记，再开始传输；前端拿到 transfer_id 才能中途叫停
+    // 先量总量，百分比才有意义；目录树会多走一遍 read_dir，换来可用的进度条
+    let total = total_size(&sftp, &remote_path).await;
+    let mut progress = Progress::new(&app, transfer_id, total);
+    progress.tick(name, 0, true);
+
+    let flag = Arc::new(AtomicBool::new(false));
+    {
+        let mut guard = state.cancels.lock().map_err(|_| "SFTP 状态不可用".to_string())?;
+        guard.insert(transfer_id, flag.clone());
+    }
+
+    let result = download_to(&sftp, &remote_path, &target, &flag, &mut progress).await;
+
+    if let Ok(mut guard) = state.cancels.lock() {
+        guard.remove(&transfer_id);
+    }
+
+    if result.is_ok() {
+        progress.done = total;
+        progress.tick(name, 0, true);
+    }
+
+    if let Err(err) = result {
+        // 中断或失败都不留半截：目录和文件都尝试清掉
+        let _ = tokio::fs::remove_dir_all(&target).await;
+        let _ = tokio::fs::remove_file(&target).await;
+        return Err(err);
+    }
     Ok(target.to_string_lossy().to_string())
+}
+
+/// 协作式取消：只置标记，真正的停止发生在下载循环的下一个分块
+#[tauri::command]
+pub fn sftp_cancel(state: State<'_, SftpState>, transfer_id: u32) -> Result<(), String> {
+    let guard = state.cancels.lock().map_err(|_| "SFTP 状态不可用".to_string())?;
+    if let Some(flag) = guard.get(&transfer_id) {
+        flag.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn sftp_mkdir(
+    state: State<'_, SftpState>,
+    id: u32,
+    path: String,
+) -> Result<(), String> {
+    let conn = conn_of(&state, id).await?;
+    let sftp = conn.sftp.lock().await;
+    sftp.create_dir(path.as_str())
+        .await
+        .map_err(|e| format!("创建文件夹失败：{e}"))
 }
 
 #[tauri::command]

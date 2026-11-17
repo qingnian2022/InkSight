@@ -32,8 +32,11 @@ import {
   beginRename as beginRemoteRename,
   downloadPath,
   list as loadRemote,
+  initSftpEvents,
+  loadLocal,
   loadProfiles,
   removeEntry,
+  startCreateFolder,
   sftpStore,
   type SftpEntry,
 } from "./sftp";
@@ -470,6 +473,24 @@ function onContextMenu(e: MouseEvent) {
     }
   }
 
+  // 0.6) SFTP 左右栏空白处：新建文件夹 / 刷新
+  const sftpPane = target.closest<HTMLElement>(".sftp-side[data-pane]");
+  if (sftpPane) {
+    const kind = sftpPane.dataset.pane === "local" ? "local" : "remote";
+    openContextMenu(e.clientX, e.clientY, [
+      { label: "新建文件夹", action: () => startCreateFolder(kind) },
+      { separator: true, label: "" },
+      {
+        label: "刷新",
+        action: () => {
+          if (kind === "remote") void loadRemote(sftpStore.path);
+          else void loadLocal(sftpStore.localPath);
+        },
+      },
+    ]);
+    return;
+  }
+
   // 1) 目录树节点
   const treeRow = target.closest<HTMLElement>(".tree-row[data-path]");
   if (treeRow) {
@@ -622,6 +643,7 @@ onMounted(() => {
   });
   // 连接配置（含密码）存在数据目录，随应用启动读一次
   void loadProfiles();
+  void initSftpEvents();
   applySidebarWidth(sidebarWidth.value); // 恢复上次拖拽后的侧栏宽度
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("keydown", onTermKeyCapture, true);

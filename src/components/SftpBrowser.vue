@@ -4,6 +4,9 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import {
   activeConn,
   beginRename,
+  cancelCreateFolder,
+  cancelTransfer,
+  commitCreateFolder,
   cancelRename,
   commitRename,
   connect,
@@ -74,6 +77,32 @@ function go(path: string) {
 
 function formatSize(bytes: number) {
   if (!bytes) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+const transferPercent = computed(() => {
+  const progress = sftpStore.progress;
+  if (!progress || !progress.total) return 0;
+  return Math.min(100, Math.round((progress.done / progress.total) * 100));
+});
+
+const busyText = computed(() => {
+  const progress = sftpStore.progress;
+  if (!progress) return "下载中…";
+  if (!progress.total) return `下载中 ${formatBytes(progress.done)}`;
+  return `下载中 ${transferPercent.value}% · ${formatBytes(progress.done)} / ${formatBytes(progress.total)}`;
+});
+
+/** 进度的 0 要显示成 0 B，列表里的 formatSize 对 0 返回空串 */
+function formatBytes(bytes: number) {
+  if (!bytes) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
@@ -177,6 +206,7 @@ function onDrop(event: DragEvent, dir: string) {
       <!-- 左：本地 -->
       <section
         class="sftp-side"
+        data-pane="local"
         :class="{ 'drop-pane': hoverPane }"
         @dragover="onPaneDragOver"
         @dragleave="onPaneDragLeave"
@@ -206,6 +236,20 @@ function onDrop(event: DragEvent, dir: string) {
         </div>
 
         <div class="sftp-rows">
+          <div v-if="sftpStore.creating === 'local'" class="sftp-row creating">
+            <span class="c-name">
+              <Icon name="folder" :size="14" />
+              <input
+                :ref="focusRename"
+                v-model="sftpStore.newFolder"
+                class="term-rename"
+                placeholder="新建文件夹"
+                @keydown.enter.prevent="commitCreateFolder"
+                @keydown.esc.prevent="cancelCreateFolder"
+                @blur="commitCreateFolder"
+              />
+            </span>
+          </div>
           <div
             v-for="entry in sftpStore.localEntries"
             :key="entry.path"
@@ -239,7 +283,7 @@ function onDrop(event: DragEvent, dir: string) {
       </section>
 
       <!-- 右：远端 -->
-      <section class="sftp-side">
+      <section class="sftp-side" data-pane="remote">
         <header class="sftp-side-bar">
           <button class="tool-btn" title="上一级" aria-label="远端上一级" @click="up">
             <Icon name="arrow-up" :size="15" />
@@ -266,6 +310,20 @@ function onDrop(event: DragEvent, dir: string) {
         </div>
 
         <div class="sftp-rows">
+          <div v-if="sftpStore.creating === 'remote'" class="sftp-row creating">
+            <span class="c-name">
+              <Icon name="folder" :size="14" />
+              <input
+                :ref="focusRename"
+                v-model="sftpStore.newFolder"
+                class="term-rename"
+                placeholder="新建文件夹"
+                @keydown.enter.prevent="commitCreateFolder"
+                @keydown.esc.prevent="cancelCreateFolder"
+                @blur="commitCreateFolder"
+              />
+            </span>
+          </div>
           <div
             v-for="entry in sftpStore.entries"
             :key="entry.path"
@@ -307,8 +365,16 @@ function onDrop(event: DragEvent, dir: string) {
         </div>
 
         <footer class="sftp-foot">
+          <span
+            v-if="sftpStore.busy && sftpStore.progress?.total"
+            class="sftp-progress"
+            :style="{ width: transferPercent + '%' }"
+          />
           <span v-if="sftpStore.error" class="err">{{ sftpStore.error }}</span>
-          <span v-else-if="sftpStore.busy">下载中…</span>
+          <span v-else-if="sftpStore.busy" class="sftp-busy" :title="sftpStore.progress?.name">
+            {{ busyText }}
+            <button class="sftp-cancel" @click="cancelTransfer">中断</button>
+          </span>
           <span v-else>{{ sftpStore.entries.length }} 项 · 拖到左侧下载</span>
         </footer>
       </section>

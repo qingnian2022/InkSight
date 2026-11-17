@@ -111,11 +111,14 @@ pub fn run() {
             sftp::sftp_profiles_save,
             sftp::sftp_rename,
             sftp::sftp_remove,
+            sftp::sftp_cancel,
+            sftp::sftp_mkdir,
             secrets::secrets_list,
             secrets::secrets_save,
             secrets::secrets_remove,
             secrets::secrets_location,
-            localfs::local_list
+            localfs::local_list,
+            localfs::local_mkdir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
