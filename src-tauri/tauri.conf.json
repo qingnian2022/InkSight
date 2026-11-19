@@ -20,7 +20,8 @@
         "center": true,
         "decorations": false,
         "backgroundColor": "#f4f5f5",
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "devtools": false
       }
     ],
     "security": {

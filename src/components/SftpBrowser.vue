@@ -19,6 +19,7 @@ import {
   loadLocal,
   localEnter,
   localUp,
+  openLocalPreferred,
   sftpStore,
   up,
   type LocalEntry,
@@ -51,7 +52,7 @@ const conn = computed(() => activeConn());
 const showSecret = ref(false);
 
 onMounted(() => {
-  if (!sftpStore.localEntries.length) void loadLocal(sftpStore.localPath);
+  if (!sftpStore.localEntries.length) void openLocalPreferred();
 });
 
 const crumbs = computed(() => {
@@ -185,25 +186,8 @@ function onLocalPress(entry: LocalEntry, event: MouseEvent) {
   sftpStore.localSelected = entry;
 }
 
-function onLocalClick(entry: LocalEntry, event: MouseEvent) {
-  if (event.shiftKey || event.ctrlKey || event.metaKey) return;
-  if (sftpStore.localSelectedPaths.length > 1) {
-    sftpStore.localSelectedPaths = [entry.path];
-  }
-  sftpStore.localSelected = entry;
-}
-
 function isLocalSelected(entry: LocalEntry) {
   return sftpStore.localSelectedPaths.includes(entry.path);
-}
-
-/** 普通点击收拢（拖拽不会触发 click，所以不会误伤多选） */
-function onRowClick(entry: SftpEntry, event: MouseEvent) {
-  if (event.shiftKey || event.ctrlKey || event.metaKey) return;
-  if (sftpStore.selectedPaths.length > 1) {
-    sftpStore.selectedPaths = [entry.path];
-  }
-  sftpStore.selected = entry;
 }
 
 function isSelected(entry: SftpEntry) {
@@ -388,7 +372,6 @@ function onDrop(event: DragEvent, dir: string) {
             :data-local-path="entry.path"
             :data-local-dir="entry.dir ? '1' : '0'"
             @mousedown.left="onLocalPress(entry, $event)"
-            @click="onLocalClick(entry, $event)"
             @dblclick="localEnter(entry)"
             @keydown.enter="localEnter(entry)"
             @dragover="onRowDragOver($event, entry)"
@@ -468,7 +451,6 @@ function onDrop(event: DragEvent, dir: string) {
             :data-entry-dir="entry.dir ? '1' : '0'"
             :draggable="sftpStore.renamingPath !== entry.path"
             @mousedown.left="onRowPress(entry, $event)"
-            @click="onRowClick(entry, $event)"
             @dblclick="onRowDouble(entry)"
             @keydown.enter="onRowDouble(entry)"
             @keydown.f2.prevent="beginRename(entry.path)"

@@ -419,7 +419,7 @@ function sftpMenuItems(path: string, dir: boolean): CtxItem[] {
     { separator: true, label: "" },
     { label: "重命名", shortcut: "F2", action: () => beginRemoteRename(path) },
     {
-      label: "删除",
+      label: dir ? "删除文件夹" : "删除",
       shortcut: "F8",
       action: () => {
         if (entry) void removeEntry(entry);
@@ -493,7 +493,7 @@ function onContextMenu(e: MouseEvent) {
           ? sftpStore.localSelectedPaths.length
           : 1;
         items.push({
-          label: picked > 1 ? "删除 " + picked + " 项" : "删除",
+          label: picked > 1 ? "删除 " + picked + " 项" : dir ? "删除文件夹" : "删除",
           action: () => void removeLocal(entry),
         });
       }

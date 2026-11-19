@@ -65,6 +65,52 @@ export interface SftpConn {
   user: string;
 }
 
+const LS_REMOTE_PATHS = "md-rust.sftp-remote-paths";
+const LS_LOCAL_PATH = "md-rust.sftp-local-path";
+
+function readRemotePaths(): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(LS_REMOTE_PATHS) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberRemotePath(profileId: string, path: string) {
+  if (!profileId || !path) return;
+  try {
+    const map = readRemotePaths();
+    map[profileId] = path;
+    localStorage.setItem(LS_REMOTE_PATHS, JSON.stringify(map));
+  } catch {
+    // 存不下不影响使用
+  }
+}
+
+function readLocalPath(): string {
+  try {
+    return localStorage.getItem(LS_LOCAL_PATH) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberLocalPath(path: string) {
+  try {
+    localStorage.setItem(LS_LOCAL_PATH, path);
+  } catch {
+    // 同上
+  }
+}
+
+/** 上一级；根目录返回自身 */
+function parentOf(path: string) {
+  const trimmed = path.replace(/\/+$/, "");
+  const cut = trimmed.lastIndexOf("/");
+  return cut <= 0 ? "/" : trimmed.slice(0, cut);
+}
+
 export const sftpStore = reactive({
   profiles: [] as SftpProfile[],
   conns: [] as SftpConn[],
@@ -166,8 +212,8 @@ export async function connect(profile: SftpProfile) {
     });
     sftpStore.activeId = id;
     upsertProfile({ ...profile, name: profile.name || profile.host });
-    await list("");
-    if (!sftpStore.localEntries.length) await loadLocal(sftpStore.localPath);
+    await openRemotePath(profile.id);
+    if (!sftpStore.localEntries.length) await openLocalPreferred();
   } catch (err) {
     sftpStore.error = String(err);
     notify(String(err));
@@ -179,9 +225,9 @@ export async function connect(profile: SftpProfile) {
   }
 }
 
-export async function list(path: string) {
+export async function list(path: string): Promise<boolean> {
   const id = sftpStore.activeId;
-  if (!id) return;
+  if (!id) return false;
   sftpStore.loading = true;
   sftpStore.error = "";
   try {
@@ -190,11 +236,27 @@ export async function list(path: string) {
     sftpStore.entries = res.entries;
     sftpStore.selected = null;
     sftpStore.selectedPaths = [];
+    // 记住每个连接最后停留的目录，下次直接打开
+    const profileId = sftpStore.conns.find((c) => c.id === id)?.profileId ?? "";
+    rememberRemotePath(profileId, res.path);
+    return true;
   } catch (err) {
     sftpStore.error = String(err);
+    return false;
   } finally {
     sftpStore.loading = false;
   }
+}
+
+/** 连接后恢复上次目录；失效就退到上一级，再不行回家目录 */
+async function openRemotePath(profileId: string) {
+  const preferred = readRemotePaths()[profileId];
+  if (preferred) {
+    if (await list(preferred)) return;
+    const parent = parentOf(preferred);
+    if (parent && parent !== preferred && (await list(parent))) return;
+  }
+  await list("");
 }
 
 export function up() {
@@ -215,7 +277,8 @@ export function activate(id: number) {
   sftpStore.activeId = id;
   sftpStore.entries = [];
   sftpStore.path = "";
-  void list("");
+  const profileId = sftpStore.conns.find((c) => c.id === id)?.profileId ?? "";
+  void openRemotePath(profileId);
 }
 
 export async function disconnect(id: number) {
@@ -236,16 +299,26 @@ export async function disconnect(id: number) {
 
 /* ---------- 本地 ---------- */
 
-export async function loadLocal(path: string) {
+export async function loadLocal(path: string): Promise<boolean> {
   try {
     const res = await invoke<{ path: string; entries: LocalEntry[] }>("local_list", { path });
     sftpStore.localPath = res.path;
     sftpStore.localEntries = res.entries;
     sftpStore.localSelected = null;
     sftpStore.localSelectedPaths = [];
-  } catch (err) {
-    notify(String(err));
+    rememberLocalPath(res.path);
+    return true;
+  } catch {
+    // 记住的目录可能已被删：交给调用方回退，不弹错
+    return false;
   }
+}
+
+/** 恢复上次的本地位置；失效就回到「此电脑」 */
+export async function openLocalPreferred() {
+  const saved = readLocalPath();
+  if (saved && (await loadLocal(saved))) return;
+  await loadLocal("");
 }
 
 export function localEnter(entry: LocalEntry) {
@@ -508,19 +581,35 @@ export async function commitRename(entry: SftpEntry, name: string) {
 }
 
 export async function removeEntry(entry: SftpEntry) {
+  // 右键落在选区里就整组删，和本地栏一致
+  const selected = sftpStore.entries.filter((item) =>
+    sftpStore.selectedPaths.includes(item.path),
+  );
+  const targets = selected.some((item) => item.path === entry.path) ? selected : [entry];
+
   const ok = await openConfirm({
     title: "删除远端项目",
-    message: `确定删除「${entry.name}」？`,
-    detail: entry.dir ? "目录会连同内部所有文件一起删除，不可恢复。" : "删除后不可恢复。",
+    message:
+      targets.length > 1
+        ? "确定删除选中的 " + targets.length + " 项？"
+        : "确定删除「" + targets[0].name + "」？",
+    detail: targets.some((item) => item.dir)
+      ? "其中的文件夹会连同内部所有文件一起删除，不可恢复。"
+      : "删除后不可恢复。",
     okText: "删除",
     danger: true,
   });
   if (!ok) return;
-  try {
-    await invoke("sftp_remove", { id: sftpStore.activeId, path: entry.path });
-    notify(`已删除：${entry.name}`);
-    await list(sftpStore.path);
-  } catch (err) {
-    notify(String(err));
+
+  let failed = 0;
+  for (const item of targets) {
+    try {
+      await invoke("sftp_remove", { id: sftpStore.activeId, path: item.path });
+    } catch {
+      failed += 1;
+    }
   }
+  if (failed) notify(failed + " 项删除失败");
+  else notify("已删除 " + targets.length + " 项");
+  await list(sftpStore.path);
 }

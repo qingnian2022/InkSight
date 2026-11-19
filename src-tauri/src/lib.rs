@@ -119,7 +119,7 @@ pub fn run() {
             secrets::secrets_location,
             localfs::local_list,
             localfs::local_mkdir,
-            localfs::local_remove
+            localfs::local_remove,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

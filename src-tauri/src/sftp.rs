@@ -476,15 +476,10 @@ pub fn sftp_profiles_save(app: AppHandle, profiles: Vec<StoredProfile>) -> Resul
 
 /// 递归删除：先清空子项再删目录（SFTP 的 rmdir 只接受空目录）
 async fn remove_recursive(sftp: &SftpSession, path: &str) -> Result<(), String> {
-    let meta = sftp
-        .symlink_metadata(path)
-        .await
-        .map_err(|e| format!("读取远端信息失败：{e}"))?;
-    if meta.is_dir() {
-        let read = sftp
-            .read_dir(path)
-            .await
-            .map_err(|e| format!("读取远端目录失败：{e}"))?;
+    // 不用 lstat 的 permissions 判断目录：有些服务器不回 mode 位，
+    // is_dir() 会把它当成文件，接着 remove_file 一个目录必然失败。
+    // 直接试着列目录更可靠：列得动就是目录。
+    if let Ok(read) = sftp.read_dir(path).await {
         let mut children: Vec<String> = Vec::new();
         for item in read {
             children.push(item.file_name());
@@ -493,14 +488,14 @@ async fn remove_recursive(sftp: &SftpSession, path: &str) -> Result<(), String> 
             let child = format!("{}/{}", path.trim_end_matches('/'), name);
             Box::pin(remove_recursive(sftp, &child)).await?;
         }
-        sftp.remove_dir(path)
+        return sftp
+            .remove_dir(path)
             .await
-            .map_err(|e| format!("删除目录失败：{e}"))
-    } else {
-        sftp.remove_file(path)
-            .await
-            .map_err(|e| format!("删除文件失败：{e}"))
+            .map_err(|e| format!("删除文件夹失败：{e}"));
     }
+    sftp.remove_file(path)
+        .await
+        .map_err(|e| format!("删除文件失败：{e}"))
 }
 
 #[tauri::command]
