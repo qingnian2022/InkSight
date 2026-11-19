@@ -39,10 +39,22 @@ export interface SftpProfile {
   password: string;
 }
 
-export interface TransferProgress {
+export type TransferStatus = "queued" | "running" | "done" | "error" | "canceled";
+
+export interface TransferItem {
+  id: number;
+  /** 展示名（远端文件名） */
+  name: string;
+  remotePath: string;
+  localDir: string;
+  /** 入队时的连接 id：队列跑起来后用户可能切走连接 */
+  connId: number;
   done: number;
   total: number;
-  name: string;
+  status: TransferStatus;
+  /** 当前正在传的文件（目录下载时会变） */
+  label: string;
+  error?: string;
 }
 
 export interface SftpConn {
@@ -61,10 +73,12 @@ export const sftpStore = reactive({
   entries: [] as SftpEntry[],
   selected: null as SftpEntry | null,
   loading: false,
-  busy: "",
-  /** 当前传输句柄；取消时回传给后端 */
-  transferId: 0,
-  progress: null as TransferProgress | null,
+  /** 传输队列：顺序执行，因为后端同一时刻只有一个 SFTP 通道 */
+  transfers: [] as TransferItem[],
+  /** 远端多选 */
+  selectedPaths: [] as string[],
+  /** 正在拖拽的远端路径集合 */
+  dragPaths: [] as string[],
   /** "" | "remote" | "local"：正在哪一栏新建文件夹 */
   creating: "" as "" | "remote" | "local",
   newFolder: "",
@@ -77,8 +91,8 @@ export const sftpStore = reactive({
   localPath: "",
   localEntries: [] as LocalEntry[],
   localSelected: null as LocalEntry | null,
-  /* 拖拽中的远端路径 */
-  dragPath: "",
+  /** 本地多选 */
+  localSelectedPaths: [] as string[],
   /** 正在内联重命名的远端路径 */
   renamingPath: "",
 });
@@ -175,6 +189,7 @@ export async function list(path: string) {
     sftpStore.path = res.path;
     sftpStore.entries = res.entries;
     sftpStore.selected = null;
+    sftpStore.selectedPaths = [];
   } catch (err) {
     sftpStore.error = String(err);
   } finally {
@@ -227,6 +242,7 @@ export async function loadLocal(path: string) {
     sftpStore.localPath = res.path;
     sftpStore.localEntries = res.entries;
     sftpStore.localSelected = null;
+    sftpStore.localSelectedPaths = [];
   } catch (err) {
     notify(String(err));
   }
@@ -254,64 +270,144 @@ export function localUp() {
 /* ---------- 下载 ---------- */
 
 let transferSeq = 0;
+let queueRunning = false;
 let eventsBound = false;
 
-/** 进度事件全局只订阅一次（App 启动时调） */
+/** 进度事件全局只订阅一次（App 启动时调）；按 transferId 找到对应那一项 */
 export async function initSftpEvents() {
   if (eventsBound) return;
   eventsBound = true;
   await listen<{ transferId: number; name: string; done: number; total: number }>(
     "sftp://progress",
     (event) => {
-      if (event.payload.transferId !== sftpStore.transferId) return;
-      sftpStore.progress = {
-        done: event.payload.done,
-        total: event.payload.total,
-        name: event.payload.name,
-      };
+      const item = sftpStore.transfers.find((t) => t.id === event.payload.transferId);
+      if (!item) return;
+      item.done = event.payload.done;
+      item.total = event.payload.total;
+      if (event.payload.name) item.label = event.payload.name;
     },
   );
 }
 
-/** 下载到指定本地目录（拖拽落点 / 当前本地目录） */
-export async function downloadTo(remotePath: string, localDir: string) {
+/** 入队；真正开始由 runQueue 顺序执行 */
+export function downloadTo(remotePath: string, localDir: string) {
   if (!sftpStore.activeId || !remotePath || !localDir) return;
-  const transferId = ++transferSeq;
-  sftpStore.transferId = transferId;
-  sftpStore.busy = remotePath;
-  sftpStore.progress = { done: 0, total: 0, name: "" };
+  const name = remotePath.replace(/\/+$/, "").split("/").pop() || remotePath;
+  sftpStore.transfers.push({
+    id: ++transferSeq,
+    name,
+    remotePath,
+    localDir,
+    connId: sftpStore.activeId,
+    done: 0,
+    total: 0,
+    status: "queued",
+    label: "",
+  });
   sftpStore.error = "";
+  void runQueue();
+}
+
+/** 一次拖多个：逐个入队，顺序执行 */
+export function downloadMany(paths: string[], localDir: string) {
+  for (const path of paths) downloadTo(path, localDir);
+}
+
+async function runQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
   try {
-    const saved = await invoke<string>("sftp_download", {
-      id: sftpStore.activeId,
-      transferId,
-      remotePath,
-      localDir,
-    });
-    notify(`已下载：${saved}`);
-    await loadLocal(sftpStore.localPath);
-  } catch (err) {
-    const message = String(err);
-    // 取消是用户主动的，不当成错误弹
-    if (!message.includes("已取消")) {
-      sftpStore.error = message;
-      notify(message);
+    for (;;) {
+      const next = sftpStore.transfers.find((item) => item.status === "queued");
+      if (!next) break;
+      next.status = "running";
+      try {
+        const saved = await invoke<string>("sftp_download", {
+          id: next.connId,
+          transferId: next.id,
+          remotePath: next.remotePath,
+          localDir: next.localDir,
+        });
+        next.status = "done";
+        next.done = next.total || next.done;
+        notify("已下载：" + saved);
+      } catch (err) {
+        const message = String(err);
+        next.status = message.includes("已取消") ? "canceled" : "error";
+        if (next.status === "error") {
+          next.error = message;
+          sftpStore.error = message;
+          notify(message);
+        }
+      }
+      await loadLocal(sftpStore.localPath);
     }
   } finally {
-    sftpStore.busy = "";
-    sftpStore.transferId = 0;
-    sftpStore.progress = null;
+    queueRunning = false;
   }
 }
 
-/** 中断当前传输：后端在下一个分块处停下，并删掉半截文件 */
-export async function cancelTransfer() {
-  if (!sftpStore.transferId) return;
-  try {
-    await invoke("sftp_cancel", { transferId: sftpStore.transferId });
-  } catch {
-    // 传输可能刚好结束
+/** 取消某一项：排队中的直接标记，进行中的让后端在下一个分块停下 */
+export async function cancelTransfer(id?: number) {
+  const target = id ?? sftpStore.transfers.find((t) => t.status === "running")?.id;
+  if (!target) return;
+  const item = sftpStore.transfers.find((t) => t.id === target);
+  if (!item) return;
+  if (item.status === "queued") {
+    item.status = "canceled";
+    return;
   }
+  if (item.status !== "running") return;
+  try {
+    await invoke("sftp_cancel", { transferId: item.id });
+  } catch {
+    // 可能刚好结束
+  }
+}
+
+/** 清掉已完成/已取消/失败的记录，只留下还在跑的 */
+export function clearFinishedTransfers() {
+  sftpStore.transfers = sftpStore.transfers.filter(
+    (t) => t.status === "queued" || t.status === "running",
+  );
+}
+
+/** 删除本地文件 / 目录：多选时一次删完，先进应用内确认 */
+export async function removeLocal(entry: LocalEntry) {
+  const selected = sftpStore.localEntries.filter((item) =>
+    sftpStore.localSelectedPaths.includes(item.path),
+  );
+  const targets = selected.some((item) => item.path === entry.path) ? selected : [entry];
+
+  // 盘符根（C:////）是分区本身，删不得
+  if (targets.some((item) => /^[A-Za-z]:[\\/]?$/.test(item.path))) {
+    notify("不能删除磁盘分区");
+    return;
+  }
+
+  const ok = await openConfirm({
+    title: "删除本地项目",
+    message:
+      targets.length > 1
+        ? "确定删除选中的 " + targets.length + " 项？"
+        : "确定删除「" + targets[0].name + "」？",
+    detail: "删除后不进回收站，无法恢复。",
+    okText: "删除",
+    danger: true,
+  });
+  if (!ok) return;
+
+  let failed = 0;
+  for (const item of targets) {
+    try {
+      await invoke("local_remove", { path: item.path });
+    } catch {
+      failed += 1;
+    }
+  }
+  if (failed) notify(failed + " 项删除失败");
+  else notify("已删除 " + targets.length + " 项");
+  await loadLocal(sftpStore.localPath);
 }
 
 /* ---------- 新建文件夹 ---------- */
@@ -360,6 +456,12 @@ export async function commitCreateFolder() {
 export async function downloadWithPicker(remotePath: string) {
   const picked = await open({ directory: true, title: "选择保存位置" });
   if (typeof picked === "string") await downloadTo(remotePath, picked);
+}
+
+/** 一次拖多个且没有落地目录：只弹一次，选完统一入队 */
+export async function downloadManyWithPicker(paths: string[]) {
+  const picked = await open({ directory: true, title: "选择保存位置" });
+  if (typeof picked === "string") downloadMany(paths, picked);
 }
 
 /** 「下载」按钮 / 双击文件：优先进当前本地目录，没有就弹目录选择 */

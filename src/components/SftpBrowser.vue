@@ -10,9 +10,10 @@ import {
   cancelRename,
   commitRename,
   connect,
+  clearFinishedTransfers,
   download,
-  downloadTo,
-  downloadWithPicker,
+  downloadMany,
+  downloadManyWithPicker,
   enter,
   list,
   loadLocal,
@@ -23,6 +24,7 @@ import {
   type LocalEntry,
   type SftpEntry,
   type SftpProfile,
+  type TransferItem,
 } from "../sftp";
 import Icon from "./Icon.vue";
 
@@ -87,19 +89,6 @@ function formatSize(bytes: number) {
   return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 
-const transferPercent = computed(() => {
-  const progress = sftpStore.progress;
-  if (!progress || !progress.total) return 0;
-  return Math.min(100, Math.round((progress.done / progress.total) * 100));
-});
-
-const busyText = computed(() => {
-  const progress = sftpStore.progress;
-  if (!progress) return "下载中…";
-  if (!progress.total) return `下载中 ${formatBytes(progress.done)}`;
-  return `下载中 ${transferPercent.value}% · ${formatBytes(progress.done)} / ${formatBytes(progress.total)}`;
-});
-
 /** 进度的 0 要显示成 0 B，列表里的 formatSize 对 0 返回空串 */
 function formatBytes(bytes: number) {
   if (!bytes) return "0 B";
@@ -110,21 +99,115 @@ function formatBytes(bytes: number) {
     value /= 1024;
     unit += 1;
   }
-  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+  return (value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)) + " " + units[unit];
 }
 
 function formatTime(seconds: number) {
   if (!seconds) return "—";
   const date = new Date(seconds * 1000);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate(),
-  ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes(),
-  ).padStart(2, "0")}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) +
+    " " + pad(date.getHours()) + ":" + pad(date.getMinutes());
 }
 
-function onRowClick(entry: SftpEntry) {
+/**
+ * 按下时决定选中：带修饰键立即生效；普通按下只补选未选中项。
+ * 普通点击「收拢选区」放到 click 里做 —— 拖拽会抑制 click，
+ * 这样先选三行再拖其中一行，不会在 mousedown 时把另外两行丢掉。
+ */
+function onRowPress(entry: SftpEntry, event: MouseEvent) {
+  if (event.button !== 0) return;
+  const all = sftpStore.entries.map((item) => item.path);
+
+  if (event.shiftKey && sftpStore.selected) {
+    const from = all.indexOf(sftpStore.selected.path);
+    const to = all.indexOf(entry.path);
+    if (from >= 0 && to >= 0) {
+      const lo = Math.min(from, to);
+      const hi = Math.max(from, to);
+      sftpStore.selectedPaths = all.slice(lo, hi + 1);
+      sftpStore.selected = entry;
+      return;
+    }
+  }
+
+  if (event.ctrlKey || event.metaKey) {
+    const on = sftpStore.selectedPaths.includes(entry.path);
+    sftpStore.selectedPaths = on
+      ? sftpStore.selectedPaths.filter((path) => path !== entry.path)
+      : [...sftpStore.selectedPaths, entry.path];
+    // 取消的正好是锚点：把锚点交给剩下的最后一项，下次 Shift 才从对的地方起算
+    const remaining = sftpStore.selectedPaths[sftpStore.selectedPaths.length - 1];
+    sftpStore.selected = on
+      ? sftpStore.entries.find((item) => item.path === remaining) ?? null
+      : entry;
+    return;
+  }
+
+  if (!sftpStore.selectedPaths.includes(entry.path)) {
+    sftpStore.selectedPaths = [entry.path];
+  }
   sftpStore.selected = entry;
+}
+
+/* 本地栏：规则与远端一致 */
+function onLocalPress(entry: LocalEntry, event: MouseEvent) {
+  if (event.button !== 0) return;
+  const all = sftpStore.localEntries.map((item) => item.path);
+
+  if (event.shiftKey && sftpStore.localSelected) {
+    const from = all.indexOf(sftpStore.localSelected.path);
+    const to = all.indexOf(entry.path);
+    if (from >= 0 && to >= 0) {
+      const lo = Math.min(from, to);
+      const hi = Math.max(from, to);
+      sftpStore.localSelectedPaths = all.slice(lo, hi + 1);
+      sftpStore.localSelected = entry;
+      return;
+    }
+  }
+
+  if (event.ctrlKey || event.metaKey) {
+    const on = sftpStore.localSelectedPaths.includes(entry.path);
+    sftpStore.localSelectedPaths = on
+      ? sftpStore.localSelectedPaths.filter((path) => path !== entry.path)
+      : [...sftpStore.localSelectedPaths, entry.path];
+    const remaining = sftpStore.localSelectedPaths[sftpStore.localSelectedPaths.length - 1];
+    sftpStore.localSelected = on
+      ? sftpStore.localEntries.find((item) => item.path === remaining) ?? null
+      : entry;
+    return;
+  }
+
+  if (!sftpStore.localSelectedPaths.includes(entry.path)) {
+    sftpStore.localSelectedPaths = [entry.path];
+  }
+  sftpStore.localSelected = entry;
+}
+
+function onLocalClick(entry: LocalEntry, event: MouseEvent) {
+  if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+  if (sftpStore.localSelectedPaths.length > 1) {
+    sftpStore.localSelectedPaths = [entry.path];
+  }
+  sftpStore.localSelected = entry;
+}
+
+function isLocalSelected(entry: LocalEntry) {
+  return sftpStore.localSelectedPaths.includes(entry.path);
+}
+
+/** 普通点击收拢（拖拽不会触发 click，所以不会误伤多选） */
+function onRowClick(entry: SftpEntry, event: MouseEvent) {
+  if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+  if (sftpStore.selectedPaths.length > 1) {
+    sftpStore.selectedPaths = [entry.path];
+  }
+  sftpStore.selected = entry;
+}
+
+function isSelected(entry: SftpEntry) {
+  return sftpStore.selectedPaths.includes(entry.path);
 }
 
 function onRowDouble(entry: SftpEntry) {
@@ -132,41 +215,80 @@ function onRowDouble(entry: SftpEntry) {
   else void download(entry);
 }
 
-/** 重命名输入框挂载后全选，和资源管理器的 F2 一致 */
+/** 重命名 / 新建文件夹输入框：函数式 ref 每次都跑，已聚焦就别再 select */
 function focusRename(el: unknown) {
   if (!(el instanceof HTMLInputElement)) return;
+  if (document.activeElement === el) return;
   el.focus();
   el.select();
 }
 
 function onRenameBlur(entry: SftpEntry, event: FocusEvent) {
-  // 回车 / Esc 已经结束重命名时不再提交，否则 Esc 会把输入写回去
   if (sftpStore.renamingPath !== entry.path) return;
   void commitRename(entry, (event.target as HTMLInputElement).value);
 }
 
+/* ---------- 传输面板 ---------- */
+
+const activeTransfers = computed(
+  () => sftpStore.transfers.filter((t) => t.status === "queued" || t.status === "running"),
+);
+/** 正在传的排最前，其次排队（先来先走），已结束的按时间倒序 */
+const visibleTransfers = computed(() => {
+  const rank = (item: TransferItem) =>
+    item.status === "running" ? 0 : item.status === "queued" ? 1 : 2;
+  return [...sftpStore.transfers].sort((a, b) => {
+    const delta = rank(a) - rank(b);
+    if (delta !== 0) return delta;
+    return rank(a) === 1 ? a.id - b.id : b.id - a.id;
+  });
+});
+
+const hasFinished = computed(
+  () => sftpStore.transfers.some((t) => t.status !== "queued" && t.status !== "running"),
+);
+
+function transferText(item: TransferItem) {
+  if (item.status === "queued") return "排队中";
+  if (item.status === "running") {
+    if (!item.total) return "下载中 " + formatBytes(item.done);
+    const pct = Math.min(100, Math.round((item.done / item.total) * 100));
+    return pct + "% · " + formatBytes(item.done) + " / " + formatBytes(item.total);
+  }
+  if (item.status === "done") return "已完成";
+  if (item.status === "canceled") return "已取消";
+  return "失败";
+}
+
+function transferPercentOf(item: TransferItem) {
+  if (!item.total) return 0;
+  return Math.min(100, Math.round((item.done / item.total) * 100));
+}
+
 /* ---------- 拖拽：远端 → 本地 ---------- */
 
-/** 正在悬停的本地目录行（空串 = 面板本身） */
 const hoverRow = ref("");
 const hoverPane = ref(false);
 
 function onDragStart(event: DragEvent, entry: SftpEntry) {
   if (!event.dataTransfer) return;
-  // 只带路径，不带内容：真正的传输交给后端命令
-  event.dataTransfer.setData("text/plain", entry.path);
+  // 拖的是「选中集合」里的任意一项，就整组带走；否则只带这一项
+  const paths = sftpStore.selectedPaths.includes(entry.path)
+    ? [...sftpStore.selectedPaths]
+    : [entry.path];
+  sftpStore.dragPaths = paths;
+  event.dataTransfer.setData("text/plain", paths.join("\n"));
   event.dataTransfer.effectAllowed = "copy";
-  sftpStore.dragPath = entry.path;
 }
 
 function onDragEnd() {
-  sftpStore.dragPath = "";
+  sftpStore.dragPaths = [];
   hoverRow.value = "";
   hoverPane.value = false;
 }
 
 function onPaneDragOver(event: DragEvent) {
-  if (!sftpStore.dragPath) return;
+  if (!sftpStore.dragPaths.length) return;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
   hoverPane.value = true;
@@ -178,7 +300,7 @@ function onPaneDragLeave() {
 }
 
 function onRowDragOver(event: DragEvent, entry: LocalEntry) {
-  if (!sftpStore.dragPath || !entry.dir) return;
+  if (!sftpStore.dragPaths.length || !entry.dir) return;
   event.preventDefault();
   event.stopPropagation();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
@@ -189,14 +311,17 @@ function onRowDragOver(event: DragEvent, entry: LocalEntry) {
 function onDrop(event: DragEvent, dir: string) {
   event.preventDefault();
   event.stopPropagation();
-  const remotePath = event.dataTransfer?.getData("text/plain") || sftpStore.dragPath;
+  const raw = event.dataTransfer?.getData("text/plain") ?? "";
+  const paths = (sftpStore.dragPaths.length ? sftpStore.dragPaths : raw.split("\n"))
+    .map((path) => path.trim())
+    .filter(Boolean);
   hoverRow.value = "";
   hoverPane.value = false;
-  sftpStore.dragPath = "";
-  if (!remotePath) return;
+  sftpStore.dragPaths = [];
+  if (!paths.length) return;
   // 停在「此电脑」盘符列表时没有具体目录，让用户选一次
-  if (dir) void downloadTo(remotePath, dir);
-  else void downloadWithPicker(remotePath);
+  if (dir) downloadMany(paths, dir);
+  else void downloadManyWithPicker(paths);
 }
 </script>
 
@@ -255,12 +380,15 @@ function onDrop(event: DragEvent, dir: string) {
             :key="entry.path"
             class="sftp-row"
             :class="{
-              on: sftpStore.localSelected?.path === entry.path,
+              on: isLocalSelected(entry),
               'drop-row': hoverRow === entry.path,
             }"
             role="button"
             tabindex="0"
-            @click="sftpStore.localSelected = entry"
+            :data-local-path="entry.path"
+            :data-local-dir="entry.dir ? '1' : '0'"
+            @mousedown.left="onLocalPress(entry, $event)"
+            @click="onLocalClick(entry, $event)"
             @dblclick="localEnter(entry)"
             @keydown.enter="localEnter(entry)"
             @dragover="onRowDragOver($event, entry)"
@@ -278,7 +406,12 @@ function onDrop(event: DragEvent, dir: string) {
         </div>
 
         <footer class="sftp-foot">
-          {{ hoverPane ? "松手：下载到当前目录" : "从右侧把文件拖进来即可下载" }}
+          <span v-if="sftpStore.localSelectedPaths.length > 1">
+            已选 {{ sftpStore.localSelectedPaths.length }} 项 · 右键可删除
+          </span>
+          <span v-else>
+            {{ hoverPane ? "松手：下载到当前目录" : "从右侧把文件拖进来即可下载" }}
+          </span>
         </footer>
       </section>
 
@@ -328,13 +461,14 @@ function onDrop(event: DragEvent, dir: string) {
             v-for="entry in sftpStore.entries"
             :key="entry.path"
             class="sftp-row"
-            :class="{ on: sftpStore.selected?.path === entry.path }"
+            :class="{ on: isSelected(entry) }"
             role="button"
             tabindex="0"
             :data-entry-path="entry.path"
             :data-entry-dir="entry.dir ? '1' : '0'"
             :draggable="sftpStore.renamingPath !== entry.path"
-            @click="onRowClick(entry)"
+            @mousedown.left="onRowPress(entry, $event)"
+            @click="onRowClick(entry, $event)"
             @dblclick="onRowDouble(entry)"
             @keydown.enter="onRowDouble(entry)"
             @keydown.f2.prevent="beginRename(entry.path)"
@@ -364,18 +498,41 @@ function onDrop(event: DragEvent, dir: string) {
           <p v-if="sftpStore.loading" class="sftp-empty">读取中…</p>
         </div>
 
+        <div v-if="sftpStore.transfers.length" class="sftp-transfers">
+          <div class="sftp-transfers-head">
+            <span>传输 {{ activeTransfers.length }} / {{ sftpStore.transfers.length }}</span>
+            <button v-if="hasFinished" class="sftp-link" @click="clearFinishedTransfers">清除已完成</button>
+          </div>
+          <div
+            v-for="item in visibleTransfers"
+            :key="item.id"
+            class="sftp-transfer"
+            :class="item.status"
+          >
+            <span class="sftp-transfer-name" :title="item.remotePath">{{ item.name }}</span>
+            <span class="sftp-transfer-state">{{ transferText(item) }}</span>
+            <span v-if="item.status === 'running' && item.total" class="sftp-transfer-bar">
+              <i :style="{ width: transferPercentOf(item) + '%' }" />
+            </span>
+            <button
+              v-if="item.status === 'queued' || item.status === 'running'"
+              class="sftp-cancel"
+              @click="cancelTransfer(item.id)"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+
         <footer class="sftp-foot">
-          <span
-            v-if="sftpStore.busy && sftpStore.progress?.total"
-            class="sftp-progress"
-            :style="{ width: transferPercent + '%' }"
-          />
           <span v-if="sftpStore.error" class="err">{{ sftpStore.error }}</span>
-          <span v-else-if="sftpStore.busy" class="sftp-busy" :title="sftpStore.progress?.name">
-            {{ busyText }}
-            <button class="sftp-cancel" @click="cancelTransfer">中断</button>
+          <span v-else>
+            {{ sftpStore.entries.length }} 项
+            <template v-if="sftpStore.selectedPaths.length > 1">
+              · 已选 {{ sftpStore.selectedPaths.length }} 项
+            </template>
+            · 拖到左侧下载
           </span>
-          <span v-else>{{ sftpStore.entries.length }} 项 · 拖到左侧下载</span>
         </footer>
       </section>
     </div>

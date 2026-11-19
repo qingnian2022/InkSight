@@ -6513,3 +6513,83 @@ button.sync-host:hover {
   background: var(--accent);
   transition: width 160ms linear;
 }
+
+/* 传输队列面板 */
+.sftp-transfers {
+  flex: none;
+  max-height: 112px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.sftp-transfers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.sftp-link {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.sftp-link:hover {
+  color: var(--accent-ink);
+}
+
+.sftp-transfer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.sftp-transfer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-transfer-state {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.sftp-transfer-bar {
+  flex: none;
+  width: 56px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+
+.sftp-transfer-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 160ms linear;
+}
+
+.sftp-transfer.done .sftp-transfer-state,
+.sftp-transfer.canceled .sftp-transfer-state,
+.sftp-transfer.error .sftp-transfer-state {
+  color: var(--text-tertiary);
+}
+
+.sftp-transfer.error .sftp-transfer-state {
+  color: var(--danger);
+}
+
+.sftp-row {
+  user-select: none;
+}

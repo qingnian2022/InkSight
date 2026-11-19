@@ -36,8 +36,10 @@ import {
   loadLocal,
   loadProfiles,
   removeEntry,
+  removeLocal,
   startCreateFolder,
   sftpStore,
+  type LocalEntry,
   type SftpEntry,
 } from "./sftp";
 import {
@@ -473,7 +475,39 @@ function onContextMenu(e: MouseEvent) {
     }
   }
 
-  // 0.6) SFTP 左右栏空白处：新建文件夹 / 刷新
+  // 0.6) SFTP 左栏本地文件行
+  const localRow = target.closest<HTMLElement>(".sftp-row[data-local-path]");
+  if (localRow) {
+    const path = localRow.dataset.localPath ?? "";
+    const dir = localRow.dataset.localDir === "1";
+    if (path) {
+      const name = path.split(/[\\/]/).pop() ?? path;
+      const entry: LocalEntry = { name, path, dir, size: 0, modified: 0 };
+      const items: CtxItem[] = [];
+      if (dir) {
+        items.push({ label: "打开", action: () => void loadLocal(path) });
+      }
+      // 盘符列表里没有「删除分区」这种事
+      if (sftpStore.localPath) {
+        const picked = sftpStore.localSelectedPaths.includes(path)
+          ? sftpStore.localSelectedPaths.length
+          : 1;
+        items.push({
+          label: picked > 1 ? "删除 " + picked + " 项" : "删除",
+          action: () => void removeLocal(entry),
+        });
+      }
+      items.push(
+        { separator: true, label: "" },
+        { label: "新建文件夹", action: () => startCreateFolder("local") },
+        { label: "刷新", action: () => void loadLocal(sftpStore.localPath) },
+      );
+      openContextMenu(e.clientX, e.clientY, items);
+    }
+    return;
+  }
+
+  // 0.7) SFTP 左右栏空白处：新建文件夹 / 刷新
   const sftpPane = target.closest<HTMLElement>(".sftp-side[data-pane]");
   if (sftpPane) {
     const kind = sftpPane.dataset.pane === "local" ? "local" : "remote";

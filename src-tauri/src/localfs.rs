@@ -85,3 +85,15 @@ pub fn local_list(path: String) -> Result<LocalListing, String> {
 pub fn local_mkdir(path: String) -> Result<(), String> {
     std::fs::create_dir_all(&path).map_err(|e| format!("创建本地文件夹失败：{e}"))
 }
+
+/// 删除本地文件 / 目录。目录递归删；调用方必须先弹确认（不进回收站）。
+#[tauri::command]
+pub fn local_remove(path: String) -> Result<(), String> {
+    let target = Path::new(&path);
+    let result = if target.is_dir() {
+        std::fs::remove_dir_all(target)
+    } else {
+        std::fs::remove_file(target)
+    };
+    result.map_err(|e| format!("删除失败：{e}"))
+}

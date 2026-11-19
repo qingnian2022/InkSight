@@ -77,6 +77,8 @@ export const secretsStore = reactive({
   editingOpen: false,
   saving: false,
   location: "",
+  /** 本次会话里手敲出来、但还没被任何条目使用的分类 */
+  extraCategories: [] as string[],
 });
 
 export const visibleSecrets = computed(() => {
@@ -113,9 +115,20 @@ export const categoryFilters = computed(() => {
 
 /** 编辑器里可选的分类：内置 + 已经用过的自定义 */
 export const editorCategories = computed(() => {
-  const used = [...new Set(secretsStore.items.map((item) => item.category))];
-  return [...PRESET_CATEGORIES, ...used.filter((name) => !PRESET_CATEGORIES.includes(name))];
+  const used = new Set(secretsStore.items.map((item) => item.category));
+  for (const name of secretsStore.extraCategories) used.add(name);
+  // 刚敲出来的分类还没落库，也要立刻出现在列表里并显示为选中
+  if (secretsStore.editing.category) used.add(secretsStore.editing.category);
+  return [...PRESET_CATEGORIES, ...[...used].filter((name) => !PRESET_CATEGORIES.includes(name))];
 });
+
+/** 记住手输的分类：只改选中项的话，切到别的胶囊它就消失了 */
+export function rememberCategory(name: string) {
+  if (!name || PRESET_CATEGORIES.includes(name)) return;
+  if (secretsStore.extraCategories.includes(name)) return;
+  if (secretsStore.items.some((item) => item.category === name)) return;
+  secretsStore.extraCategories.push(name);
+}
 
 export function countOf(category: CategoryFilter) {
   return category === "all"

@@ -9,6 +9,7 @@ import {
   formatUpdated,
   loadLocation,
   loadSecrets,
+  rememberCategory,
   removeSecret,
   saveEditing,
   secretsStore,
@@ -34,6 +35,13 @@ function subtitleOf(item: { username: string; url: string }) {
 const addingCategory = ref(false);
 const newCategory = ref("");
 
+/** 函数式 ref 每次 patch 都会跑，已聚焦就不再处理 */
+function focusNewCategory(el: unknown) {
+  if (!(el instanceof HTMLInputElement)) return;
+  if (document.activeElement === el) return;
+  el.focus();
+}
+
 function pickCategory(name: string) {
   secretsStore.editing.category = name;
   addingCategory.value = false;
@@ -41,7 +49,10 @@ function pickCategory(name: string) {
 
 function confirmCategory() {
   const name = newCategory.value.trim();
-  if (name) secretsStore.editing.category = name;
+  if (name) {
+    rememberCategory(name);
+    secretsStore.editing.category = name;
+  }
   newCategory.value = "";
   addingCategory.value = false;
 }
@@ -214,6 +225,7 @@ function closeEditor() {
 
             <input
               v-if="addingCategory"
+              :ref="focusNewCategory"
               v-model="newCategory"
               class="pill-input"
               placeholder="分类名"
