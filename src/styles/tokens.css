@@ -36,8 +36,8 @@
   --text-tertiary: #5f6664;
 
   /* ---------- 发丝线（从文字色取，6~12% 之间） ---------- */
-  --border: color-mix(in srgb, var(--text-primary) 12%, transparent);
-  --border-strong: color-mix(in srgb, var(--text-primary) 24%, transparent);
+  --border: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  --border-strong: color-mix(in srgb, var(--text-primary) 12%, transparent);
 
   --focus: color-mix(in srgb, var(--accent) 40%, transparent);
 
@@ -150,12 +150,14 @@
   --surface-active: color-mix(in srgb, var(--accent) 12%, #151d1a);
   --row-active: color-mix(in srgb, var(--accent) 9%, #151d1a);
 
-  --text-primary: #e7ece9;
-  --text-secondary: #a6b3ac;
-  --text-tertiary: #8b988f;
+  /* 深底上纯白级别的字会起光晕，压暗一档：11.2 / 6.8 / 4.9 : 1 */
+  --text-primary: #d2d9d5;
+  --text-secondary: #9aa6a0;
+  --text-tertiary: #87928c;
 
-  --border: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  --border-strong: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  /* 主字色变暗后按同比例混出的边框会跟着淡，补偿 2 个点 */
+  --border: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--text-primary) 22%, transparent);
 
   --focus: color-mix(in srgb, var(--accent) 45%, transparent);
 

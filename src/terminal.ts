@@ -88,7 +88,7 @@ function cssVar(name: string, fallback: string) {
 function terminalTheme(): ITheme {
   const dark = document.documentElement.dataset.theme === "dark";
   const surface = cssVar("--surface", dark ? "#151d1a" : "#ffffff");
-  const text = cssVar("--text-primary", dark ? "#e7ece9" : "#1d2120");
+  const text = cssVar("--text-primary", dark ? "#d2d9d5" : "#1d2120");
   return {
     background: surface,
     foreground: text,
