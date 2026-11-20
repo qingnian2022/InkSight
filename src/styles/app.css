@@ -2288,29 +2288,81 @@ body.term-resizing {
 }
 
 .rich-editor .milkdown .milkdown-list-item-block > .list-item {
-  gap: 6px;
+  gap: 4px;
 }
 
 .rich-editor .milkdown .milkdown-list-item-block li {
-  gap: 6px;
+  gap: 4px;
   line-height: 1.75;
 }
 
-.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper,
-.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
-  /* 两位数序号（10. 11.）比 18px 宽，改成最小宽度 + 自适应，右侧留 4px 间隙 */
-  width: auto;
-  min-width: 18px;
-  height: 28px;
-  padding: 0 4px 0 0;
-  line-height: 28px;
-  text-align: right;
+/* 条目之间给一点呼吸，连续多行不会挤成一块 */
+.rich-editor .milkdown .milkdown-list-item-block li.list-item + li.list-item {
+  margin-top: 4px;
+}
+
+/* 嵌套列表与上一段落之间留白，语雀是 6px 左右 */
+.rich-editor .milkdown .milkdown-list-item-block .children > .milkdown-list-item-block {
+  margin-top: 6px;
 }
 
 .rich-editor .milkdown .milkdown-list-item-block li .label-wrapper {
-  justify-content: flex-start;
+  /* 标记列高度跟随行高（1.75em），不再写死 28px —— 否则标记会比文字低半行 */
+  height: 1.75em;
+  /* 主题库把这里写死 24px：标记会被推离文字十几像素，必须显式收窄 */
+  width: auto;
+  min-width: 12px;
+  padding: 0;
+  line-height: 1.75em;
+  display: flex;
   align-items: center;
-  color: var(--text-tertiary);
+  justify-content: flex-end;
+  /* 比正文淡一档：语雀的标记是明显的弱化灰 */
+  color: color-mix(in srgb, var(--text-tertiary) 70%, transparent);
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .ordered {
+  width: auto;
+  min-width: 16px;
+  padding: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Milkdown 默认用 ⦿ 这个字形当圆点：字号归零后用伪元素重画，才能控制直径 */
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .bullet {
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rich-editor .milkdown .milkdown-list-item-block li .label-wrapper .bullet::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 二级空心圆 */
+.rich-editor .milkdown .milkdown-list-item-block li li .label-wrapper .bullet::before {
+  width: 5px;
+  height: 5px;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+
+/* 三级小方块 */
+.rich-editor .milkdown .milkdown-list-item-block li li li .label-wrapper .bullet::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  border: none;
+  box-sizing: border-box;
 }
 
 /* 列表项内部的段落不要再带段落间距，否则每行会松成两倍 */
@@ -2320,7 +2372,9 @@ body.term-resizing {
 }
 
 .rich-editor .milkdown .milkdown-list-item-block li .label-wrapper svg {
-  fill: var(--text-tertiary);
+  fill: currentColor;
+  width: 5px;
+  height: 5px;
 }
 
 .rich-editor .milkdown .ProseMirror table {

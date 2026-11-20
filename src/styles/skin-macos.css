@@ -60,9 +60,10 @@
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  --text-primary: #f5f5f7;
-  --text-secondary: #b0b0b6;
-  --text-tertiary: #8a8a8f;
+  /* 深底上纯白级别的字会起光晕：10.9 / 6.0 / 4.7 : 1 */
+  --text-primary: #d9d9dd;
+  --text-secondary: #a2a2a8;
+  --text-tertiary: #8f8f94;
 
   --accent: #0a84ff;
   --accent-hover: #409cff;
@@ -73,7 +74,7 @@
   --code-border: rgba(255, 255, 255, 0.08);
 
   --titlebar-bg: #2a2a2d;
-  --titlebar-fg: #f5f5f7;
+  --titlebar-fg: #e3e3e7;
   --titlebar-btn-hover: rgba(255, 255, 255, 0.08);
   --titlebar-btn-active: rgba(255, 255, 255, 0.14);
 
