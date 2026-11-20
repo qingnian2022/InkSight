@@ -560,7 +560,10 @@ function onContextMenu(e: MouseEvent) {
     return;
   }
 
-  // 4) 编辑器内
+  // 4) 编辑器内：这里的动作全是「文档 / 笔记」语义，
+  // 其他模块落到这里只会看到一堆用不上的菜单项，干脆不弹
+  if (state.module !== "notes") return;
+
   const items: CtxItem[] = [];
   if (editable) {
     const el = editable;
