@@ -54,6 +54,9 @@ interface Instance {
   ghost: Ghost | null;
   /** 待执行的定位任务句柄：输出还在刷时先攒着，别把中间态画出来 */
   ghostTimer: number;
+  /** PTY 是否已就绪：term_open 返回前敲的键先攒着，否则第一次输入会被丢掉 */
+  ready: boolean;
+  pending: string;
 }
 
 const LS_HEIGHT = "md-rust.term-height";
@@ -206,12 +209,19 @@ export function mountSession(id: number, host: HTMLElement) {
   });
   ro.observe(host);
 
-  inst = { id, term, fit, ro, line: "", tracked: true, ghost: null, ghostTimer: 0 };
+  inst = { id, term, fit, ro, line: "", tracked: true, ghost: null, ghostTimer: 0, ready: false, pending: "" };
   instances.set(id, inst);
 
   term.onData((data) => {
+    const current = instances.get(id);
+    if (!current) return;
+    // term_open 还没返回时 PTY 不存在，这时候写会静默失败 —— 先攒着，就绪后一次性补发
+    if (!current.ready) {
+      current.pending += data;
+      return;
+    }
     void invoke("term_write", { id, data }).catch(() => {});
-    if (inst) feed(inst, data);
+    feed(current, data);
   });
 
   // 失焦时收起回显，别在切走之后还留一段灰字
@@ -535,6 +545,19 @@ export async function newSession(openDock = false) {
       // 不传工作目录：后端默认落在主盘符根（C:\），比安装目录 / 知识库目录更像终端该在的地方
       cwd: null,
     });
+
+    // 进程起来了：把开屏那几秒里敲的键补发，并确认一次焦点
+    const ready = instances.get(id);
+    if (ready) {
+      ready.ready = true;
+      if (ready.pending) {
+        const buffered = ready.pending;
+        ready.pending = "";
+        void invoke("term_write", { id, data: buffered }).catch(() => {});
+        feed(ready, buffered);
+      }
+      ready.term.focus();
+    }
   } catch (err) {
     termStore.error = String(err);
     notify(String(err));
