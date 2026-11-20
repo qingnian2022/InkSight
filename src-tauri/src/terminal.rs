@@ -122,8 +122,29 @@ pub fn term_history(limit: Option<usize>) -> Result<Vec<String>, String> {
 }
 
 /// id 由前端分配并先挂好 xterm，再调这里启动进程。
-/// 反过来（后端分配 id）会丢掉第一屏输出 —— PowerShell 的提示符往往在
+/// 反过来（后端分配 id）会丢掉第一屏输出 —— 提示符往往在
 /// `term_open` 返回之前就写进了 PTY，那时前端还没有对应的实例可写。
+///
+/// 路径 / 提示符 / 输入命令三种颜色：Prompt 里给路径上色，PSReadLine 给输入行上色。
+/// 写成临时脚本再 -File 执行，避免把带引号的脚本塞进命令行参数。
+fn write_prompt_script(dark: bool) -> Option<std::path::PathBuf> {
+    let (path_color, mark_color, cmd_color) = if dark {
+        (80, 245, 114)
+    } else {
+        (25, 240, 28)
+    };
+    let script = format!(
+        "function global:prompt {{\n  $e = [char]27\n  $p = $ExecutionContext.SessionState.Path.CurrentLocation.Path\n  \"$e[38;5;{path_color}m$p$e[0m $e[38;5;{mark_color}m>$e[0m \"\n}}\ntry {{\n  Import-Module PSReadLine -ErrorAction Stop\n  Set-PSReadLineOption -Colors @{{ Command = \"$([char]27)[38;5;{cmd_color}m\" }}\n}} catch {{ }}\n"
+    );
+    let file = std::env::temp_dir().join(if dark {
+        "inksight-prompt-dark.ps1"
+    } else {
+        "inksight-prompt-light.ps1"
+    });
+    std::fs::write(&file, script).ok()?;
+    Some(file)
+}
+
 #[tauri::command]
 pub fn term_open(
     app: AppHandle,
@@ -132,6 +153,7 @@ pub fn term_open(
     cols: u16,
     rows: u16,
     cwd: Option<String>,
+    dark: Option<bool>,
 ) -> Result<(), String> {
     {
         let map = state.sessions.lock().map_err(|_| "终端状态不可用".to_string())?;
@@ -147,6 +169,11 @@ pub fn term_open(
     let mut cmd = CommandBuilder::new("powershell.exe");
     // -NoLogo 只去掉版权横幅，用户自己的 profile（别名 / 函数）照常加载
     cmd.arg("-NoLogo");
+    if let Some(script) = write_prompt_script(dark.unwrap_or(false)) {
+        cmd.arg("-NoExit");
+        cmd.arg("-File");
+        cmd.arg(script);
+    }
     cmd.env("TERM", "xterm-256color");
     if let Some(dir) = cwd.filter(|d| !d.trim().is_empty()) {
         let path = PathBuf::from(dir);

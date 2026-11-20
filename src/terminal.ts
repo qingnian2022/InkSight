@@ -203,7 +203,11 @@ export function mountSession(id: number, host: HTMLElement) {
       } catch {
         // 容器还没尺寸，跳过即可
       }
-      if (inst) clearGhost(inst); // 重排后单元格坐标变了，旧回显会错位
+      if (inst) {
+        // 重排后单元格坐标变了：回显会错位，行镜像也不再可信
+        clearGhost(inst);
+        inst.tracked = false;
+      }
       push();
     });
   });
@@ -298,6 +302,12 @@ async function seedHistory() {
 function feed(inst: Instance, data: string) {
   if (data === "\r") {
     submit(inst);
+    return;
+  }
+  // 粘贴 / 输入法整段上屏：一次来多个字符，本地镜像没法逐字对齐，这一行不再给建议
+  if (data.length > 1) {
+    inst.tracked = false;
+    clearGhost(inst);
     return;
   }
   if (data === "\x7f") {
@@ -533,6 +543,12 @@ export async function newSession(openDock = false) {
   termStore.activeId = id;
   if (openDock) termStore.open = true;
   await nextTick();
+  // 再等一帧：mountSession 里的 rAF fit 会在这帧跑完。用真实行列数开 PTY，
+  // 避免先按 100×24 画一遍、再由 ConPTY 按新宽度重排造成半行错位
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const mounted = instances.get(id);
+  const initCols = mounted && mounted.term.cols >= 20 ? mounted.term.cols : 100;
+  const initRows = mounted && mounted.term.rows >= 5 ? mounted.term.rows : 24;
 
   try {
     // 新会话顺手把 PSReadLine 的历史补种一次（只做一次）
@@ -540,10 +556,11 @@ export async function newSession(openDock = false) {
     await ensureListeners();
     await invoke("term_open", {
       id,
-      cols: 100,
-      rows: 24,
+      cols: initCols,
+      rows: initRows,
       // 不传工作目录：后端默认落在主盘符根（C:\），比安装目录 / 知识库目录更像终端该在的地方
       cwd: null,
+      dark: state.theme === "dark",
     });
 
     // 进程起来了：把开屏那几秒里敲的键补发，并确认一次焦点
@@ -570,7 +587,19 @@ export async function newSession(openDock = false) {
 export function clearActive() {
   const inst = instances.get(termStore.activeId);
   if (!inst) return;
-  inst.term.clear();
+  // 本地镜像与灰字先清掉：否则清屏后 32ms 的 scheduleGhost 会把建议重新画回空白屏
+  clearGhost(inst);
+  inst.line = "";
+  inst.tracked = true;
+
+  const alive = termStore.sessions.find((s) => s.id === inst.id)?.alive;
+  if (alive) {
+    // 让 shell 自己清屏（Ctrl+L）。只调 term.clear() 的话，本地缓冲空了但 shell 的行号
+    // 还停在原处，下一条输出会从“它以为的位置”开始打印，看起来就是没清干净
+    void invoke("term_write", { id: inst.id, data: "\x0c" }).catch(() => {});
+  } else {
+    inst.term.clear();
+  }
   inst.term.focus();
 }
 

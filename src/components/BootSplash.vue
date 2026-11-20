@@ -15,6 +15,19 @@ const swashEl = ref<SVGPathElement | null>(null);
 const swashDotEl = ref<SVGCircleElement | null>(null);
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * 笔画颜色是品牌墨色（近黑 + 深藏蓝），在暗色底的遮罩上等于隐形。
+ * 暗色下把这两支换成浅墨，橙/青本身就是亮色，保持不变。
+ */
+const DARK_INK: Record<string, string> = {
+  "#1b1d1c": "#e4eae6",
+  "#003060": "#7aa7d6",
+};
+
+function glyphColor(color: string) {
+  return state.theme === "dark" ? (DARK_INK[color.toLowerCase()] ?? color) : color;
+}
 const accountInitial = computed(() =>
   (state.serverUsername || state.serverEmail || "·").trim().charAt(0).toUpperCase(),
 );
@@ -76,7 +89,7 @@ function playIntro() {
         onStart: () => {
           if (penEl.value) {
             penEl.value.style.opacity = "1";
-            penEl.value.style.fill = INK_GLYPHS[i].color;
+            penEl.value.style.fill = glyphColor(INK_GLYPHS[i].color);
           }
         },
         onUpdate: function () {
@@ -132,7 +145,7 @@ onBeforeUnmount(() => {
             :ref="(el) => (pathEls[i] = el as SVGPathElement)"
             :d="g.d"
             :transform="`translate(${g.x} 0)`"
-            :stroke="g.color"
+            :stroke="glyphColor(g.color)"
             :stroke-width="INK_STROKE_WIDTH"
             stroke-linecap="round"
             stroke-linejoin="round"
