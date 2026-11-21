@@ -7,6 +7,8 @@ import FilesSidebar from "./components/FilesSidebar.vue";
 import ModulePanel from "./components/ModulePanel.vue";
 import ModuleStage from "./components/ModuleStage.vue";
 import SftpBrowser from "./components/SftpBrowser.vue";
+import SheetDialog from "./components/SheetDialog.vue";
+import { openLocalSheet } from "./sheet";
 import SecretsPage from "./components/SecretsPage.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import { railVisible, visibleModules, featureOn } from "./settings";
@@ -486,6 +488,8 @@ function onContextMenu(e: MouseEvent) {
       const items: CtxItem[] = [];
       if (dir) {
         items.push({ label: "打开", action: () => void loadLocal(path) });
+      } else if (/.csv$/i.test(path)) {
+        items.push({ label: "用表格打开", action: () => void openLocalSheet(path, name) });
       }
       // 盘符列表里没有「删除分区」这种事
       if (sftpStore.localPath) {
@@ -750,5 +754,6 @@ onBeforeUnmount(() => {
     <TemplatePicker />
     <ImageLightbox />
     <SettingsDialog />
+    <SheetDialog />
   </div>
 </template>

@@ -97,3 +97,19 @@ pub fn local_remove(path: String) -> Result<(), String> {
     };
     result.map_err(|e| format!("删除失败：{e}"))
 }
+
+#[tauri::command]
+pub fn local_read_text(path: String) -> Result<String, String> {
+    let bytes = std::fs::read(&path).map_err(|e| format!("读取文件失败：{e}"))?;
+    if bytes.len() > 16 * 1024 * 1024 {
+        return Err("文件超过 16 MB，暂不支持在表格里打开".to_string());
+    }
+    // Excel 导出的 CSV 常带 BOM，去掉，否则首列表头会多一个不可见字符
+    let text = String::from_utf8_lossy(&bytes).to_string();
+    Ok(text.trim_start_matches('\u{feff}').to_string())
+}
+
+#[tauri::command]
+pub fn local_write_text(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| format!("写入文件失败：{e}"))
+}

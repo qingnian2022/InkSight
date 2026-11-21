@@ -2,7 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { Crepe } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { EditorView } from "@milkdown/prose/view";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -30,6 +30,25 @@ import { activeTab, finishTabReload, isUntitledPath, markDirty, state } from "..
 import { openImageLightbox } from "../ui/imageLightbox";
 import ColorPalette from "./ColorPalette.vue";
 import TableToolbar from "./TableToolbar.vue";
+
+/**
+ * 拖拽 / 粘贴图片：落盘进知识库。默认实现会把 blob: 写进 Markdown，
+ * 重启和换机器都会失效。
+ */
+async function uploadImage(file: File): Promise<string> {
+  const root = state.root;
+  const docPath = state.activePath;
+  if (!root || !docPath || isUntitledPath(docPath)) {
+    return URL.createObjectURL(file);
+  }
+  const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+  return invoke<string>("asset_import_bytes", {
+    vault: root,
+    docPath,
+    fileName: file.name || "image.png",
+    bytes,
+  });
+}
 
 /**
  * 把文档里的图片地址转成 webview 可加载的 asset:// 地址。
@@ -442,6 +461,7 @@ async function mount() {
         blockUploadPlaceholderText: "或粘贴图片链接",
         // 本地图片（相对/绝对路径）转 asset:// 显示；http(s) 原样
         proxyDomURL: resolveImageUrl,
+        onUpload: uploadImage,
       },
       [Crepe.Feature.CodeMirror]: {
         // 配色换成项目自己的低饱和色板（不显示行号）

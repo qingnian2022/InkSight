@@ -81,6 +81,7 @@ pub fn run() {
             node::node_move,
             node::node_trash,
             asset::asset_import,
+            asset::asset_import_bytes,
             app_paths::app_info,
             app_paths::data_dir,
             app_paths::open_data_dir,
@@ -120,6 +121,8 @@ pub fn run() {
             localfs::local_list,
             localfs::local_mkdir,
             localfs::local_remove,
+            localfs::local_read_text,
+            localfs::local_write_text,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
