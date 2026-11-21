@@ -110,6 +110,18 @@ function clearColContent(view: any, rect: any, colIndex: number): boolean {
   return true;
 }
 
+/** 数一下有几条表头行：正常只有 1 条，多余的是历史误操作留下的 */
+function countHeaderRows(view: any): number {
+  const rect = selectedRect(view.state);
+  const table = view.state.doc.nodeAt(rect.tableStart - 1);
+  if (!table) return 0;
+  let count = 0;
+  table.forEach((row: any) => {
+    if (row.type.name === "table_header_row") count += 1;
+  });
+  return count;
+}
+
 export function runTableCmd(name: TableCmd): boolean {
   const ctx = getPmCtx();
   if (!ctx) return false;
@@ -138,7 +150,8 @@ export function runTableCmd(name: TableCmd): boolean {
     // GFM 表头行（第 0 行）不可删：删掉后下一数据行会被顶成表头。
     case "delRow":
       // 表头行不可删；数据行可以一路删到只剩表头（schema 已放宽为 table_row*）
-      if (rect.top === 0) return false;
+      // 历史误操作可能在表头上方插出多条表头，这种情况允许删掉多余的
+      if (rect.top === 0 && countHeaderRows(view) <= 1) return false;
       return deleteRowAt(view, rect);
     case "delCol":
       // 只剩一列时不再删表：清空该列内容
