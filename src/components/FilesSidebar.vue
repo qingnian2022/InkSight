@@ -32,6 +32,13 @@ function pick(profile: SftpProfile) {
 }
 
 function newConnection() {
+  // 已经有一条没填完的新连接时沿用它的内容：切到别的模块/窗口再回来，输入不该丢
+  const pending = sftpStore.draft;
+  const keep = !!pending && !sftpStore.profiles.some((item) => item.id === pending.id);
+  if (keep) {
+    sftpStore.activeId = 0;
+    return;
+  }
   sftpStore.draft = {
     id: `sftp-${Date.now()}`,
     name: "",

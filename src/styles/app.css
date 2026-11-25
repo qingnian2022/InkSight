@@ -665,11 +665,12 @@ body.term-resizing {
   width: 40px;
   height: 21px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.14);
+  background: #303136;
   flex: none;
-  transition: background 120ms ease;
+  transition: background 0.4s;
 }
 
+/* 关态：普通实心滑块，不画太阳 */
 .as-slider::before {
   content: "";
   position: absolute;
@@ -678,14 +679,17 @@ body.term-resizing {
   width: 17px;
   height: 17px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
-  transition: transform 120ms ease, background 120ms ease;
+  background: rgba(255, 255, 255, 0.62);
+  transition: transform 0.4s, background 0.4s;
 }
 
+/* 开态：月亮 —— 暗面上留紫色边缘光和蓝色新月 */
 .as-slider.on::before {
-  background: var(--titlebar-fg);
+  background: #303136;
   transform: translateX(19px);
-  box-shadow: none;
+  box-shadow:
+    inset -3px -2px 5px -2px #8983f7,
+    inset -7px -3px 0 0 #a3dafb;
 }
 
 .win-btn {

@@ -17,6 +17,7 @@ import TerminalSidebar from "./components/TerminalSidebar.vue";
 import EditorPane from "./components/EditorPane.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import NamePrompt from "./components/NamePrompt.vue";
+import { openNamePrompt } from "./ui/namePrompt";
 import ConfirmPrompt from "./components/ConfirmPrompt.vue";
 import SyncConflictPrompt from "./components/SyncConflictPrompt.vue";
 import AccountDialog from "./components/AccountDialog.vue";
@@ -32,6 +33,10 @@ import TitleBar from "./components/TitleBar.vue";
 import { openContextMenu, type CtxItem } from "./ui/contextMenu";
 import {
   beginRename as beginRemoteRename,
+  connOf,
+  connect as connectProfile,
+  disconnect as disconnectProfile,
+  upsertProfile,
   downloadPath,
   list as loadRemote,
   initSftpEvents,
@@ -451,6 +456,50 @@ function onContextMenu(e: MouseEvent) {
   const editable = target.closest<HTMLElement>(
     ".ProseMirror, .cm-content, input, textarea, [contenteditable='true']",
   );
+  // 0) SFTP 连接行：必须排在终端分支之前 —— 连接列表复用了 .term-row / .term-list 的样式
+  const sftpProfileRow = target.closest<HTMLElement>(".term-row[data-profile-id]");
+  if (sftpProfileRow) {
+    const profileId = sftpProfileRow.dataset.profileId ?? "";
+    const profile = sftpStore.profiles.find((item) => item.id === profileId);
+    if (profile) {
+      const conn = connOf(profile.id);
+      openContextMenu(e.clientX, e.clientY, [
+        {
+          label: conn ? "重新连接" : "连接",
+          action: () => void connectProfile(profile),
+        },
+        {
+          label: "断开连接",
+          disabled: !conn,
+          action: () => {
+            if (conn) void disconnectProfile(conn.id);
+          },
+        },
+        { separator: true, label: "" },
+        {
+          label: "重命名",
+          action: async () => {
+            const next = await openNamePrompt({
+              title: "重命名连接",
+              initial: profile.name,
+              confirmText: "保存",
+            });
+            const name = next?.trim();
+            if (!name) return;
+            upsertProfile({ ...profile, name });
+            // 已连接的会话名称同步改掉，侧栏不必重连才更新
+            if (conn) {
+              sftpStore.conns = sftpStore.conns.map((item) =>
+                item.id === conn.id ? { ...item, name } : item,
+              );
+            }
+          },
+        },
+      ]);
+      return;
+    }
+  }
+
   // 0) 终端侧栏：会话行 / 列表空白处各有自己的动作，不落到应用菜单
   const termRow = target.closest<HTMLElement>(".term-row[data-term-id]");
   if (termRow) {

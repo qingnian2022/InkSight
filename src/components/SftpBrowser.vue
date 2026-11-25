@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { open } from "@tauri-apps/plugin-dialog";
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import {
   activeConn,
   beginRename,
@@ -63,6 +63,14 @@ const crumbs = computed(() => {
     return { name: part, path: acc };
   });
 });
+
+/** 端口只用文本框：数字类型的上下箭头在小尺寸下很挤，还容易被误点 */
+function onPortInput(event: Event) {
+  const el = event.target as HTMLInputElement;
+  const digits = el.value.replace(/\D/g, "").slice(0, 5);
+  if (el.value !== digits) el.value = digits;
+  form.port = digits ? Math.min(65535, Number(digits)) : 0;
+}
 
 async function submit() {
   if (!form.host.trim() || sftpStore.loading) return;
@@ -200,6 +208,32 @@ function onRowDouble(entry: SftpEntry) {
 }
 
 /** 重命名 / 新建文件夹输入框：函数式 ref 每次都跑，已聚焦就别再 select */
+const createInput = ref<HTMLInputElement | null>(null);
+let createStartedAt = 0;
+
+// 右键菜单关闭时会把焦点还给原来的元素，抢走输入框的焦点：
+// 等一帧再聚焦，并给刚出现的输入框 300ms 的「防误提交」窗口
+watch(
+  () => sftpStore.creating,
+  async (kind) => {
+    if (!kind) return;
+    createStartedAt = Date.now();
+    await nextTick();
+    requestAnimationFrame(() => {
+      createInput.value?.focus();
+      createInput.value?.select();
+    });
+  },
+);
+
+function onCreateBlur() {
+  if (Date.now() - createStartedAt < 300) {
+    createInput.value?.focus();
+    return;
+  }
+  void commitCreateFolder();
+}
+
 function focusRename(el: unknown) {
   if (!(el instanceof HTMLInputElement)) return;
   if (document.activeElement === el) return;
@@ -349,13 +383,13 @@ function onDrop(event: DragEvent, dir: string) {
             <span class="c-name">
               <Icon name="folder" :size="14" />
               <input
-                :ref="focusRename"
+                ref="createInput"
                 v-model="sftpStore.newFolder"
                 class="term-rename"
                 placeholder="新建文件夹"
                 @keydown.enter.prevent="commitCreateFolder"
                 @keydown.esc.prevent="cancelCreateFolder"
-                @blur="commitCreateFolder"
+                @blur="onCreateBlur"
               />
             </span>
           </div>
@@ -430,13 +464,13 @@ function onDrop(event: DragEvent, dir: string) {
             <span class="c-name">
               <Icon name="folder" :size="14" />
               <input
-                :ref="focusRename"
+                ref="createInput"
                 v-model="sftpStore.newFolder"
                 class="term-rename"
                 placeholder="新建文件夹"
                 @keydown.enter.prevent="commitCreateFolder"
                 @keydown.esc.prevent="cancelCreateFolder"
-                @blur="commitCreateFolder"
+                @blur="onCreateBlur"
               />
             </span>
           </div>
@@ -543,7 +577,14 @@ function onDrop(event: DragEvent, dir: string) {
           </label>
           <label class="field port">
             <span>端口</span>
-            <input v-model.number="form.port" type="number" min="1" max="65535" />
+            <input
+              :value="form.port || ''"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="22"
+              @input="onPortInput"
+            />
           </label>
         </div>
 
