@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { openConfirm } from "../ui/confirmPrompt";
 import {
   ACCENT_THEMES,
   accentSwatch,
+  notify,
   openAccountDialog,
   setAccent,
   setSkin,
@@ -13,6 +16,36 @@ import {
 import { closeSettings, setFeature, settingsStore, type FeatureKey } from "../settings";
 import Icon from "./Icon.vue";
 import SyncMenu from "./SyncMenu.vue";
+
+/** 把笔记里引用本地小图的地址转成内嵌 base64：同步到别的机器也能显示 */
+async function repairImages() {
+  if (!state.root) {
+    notify("先打开一个知识库");
+    return;
+  }
+  const ok = await openConfirm({
+    title: "修复图片引用",
+    message: "把小图内嵌进 Markdown？",
+    detail: "小于 512 KB 的图片会转换成 base64 写入 .md 本身，git 同步到其他机器一定能显示；大图保持不变。会修改笔记文件。",
+    okText: "开始修复",
+  });
+  if (!ok) return;
+  try {
+    const report = await invoke<{
+      filesScanned: number;
+      imagesFound: number;
+      inlined: number;
+      skippedLarge: number;
+      missing: number;
+      filesChanged: number;
+    }>("repair_images", { vault: state.root, maxBytes: 512 * 1024 });
+    notify(
+      `已内嵌 ${report.inlined} 张 · 跳过 ${report.skippedLarge} 张大图 · 缺失 ${report.missing} 张`,
+    );
+  } catch (err) {
+    notify(String(err));
+  }
+}
 
 /**
  * 设置：功能开放 / 同步 / 账号。
@@ -104,6 +137,17 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
               {{ skin.label }}
             </button>
           </div>
+        </div>
+      </section>
+
+      <section class="settings-sec">
+        <h3>维护</h3>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <span>图片引用修复</span>
+            <small>把笔记里的小图内嵌进 .md，避免同步后不显示</small>
+          </div>
+          <button class="settings-btn" @click="repairImages">开始修复</button>
         </div>
       </section>
 

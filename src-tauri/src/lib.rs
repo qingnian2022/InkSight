@@ -82,6 +82,7 @@ pub fn run() {
             node::node_trash,
             asset::asset_import,
             asset::asset_import_bytes,
+            asset::repair_images,
             app_paths::app_info,
             app_paths::data_dir,
             app_paths::open_data_dir,

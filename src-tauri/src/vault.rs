@@ -44,6 +44,10 @@ fn scan(dir: &Path, depth: usize) -> Vec<FsNode> {
             if SKIP_DIRS.contains(&name.as_str()) {
                 continue;
             }
+            // 知识库根下的 assets 是图片仓库，属于实现细节，不进笔记树
+            if depth == 0 && name == "assets" {
+                continue;
+            }
             dirs.push(FsNode {
                 name,
                 path: path.to_string_lossy().into_owned(),

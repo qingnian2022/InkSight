@@ -6896,3 +6896,30 @@ button.sync-host:hover {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+
+/* 亮色主题：开启态是太阳（暗色主题保持月亮） */
+:root[data-theme="light"] .as-slider {
+  background: #dfe3e1;
+}
+
+:root[data-theme="light"] .as-slider::before {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 20, 18, 0.18);
+}
+
+:root[data-theme="light"] .as-slider.on {
+  background: #ffe2ab;
+}
+
+:root[data-theme="light"] .as-slider.on::before {
+  background: radial-gradient(circle at 35% 30%, #ffd98a 0%, #ffb340 55%, #ff9a1f 100%);
+  box-shadow: 0 0 0 1px rgba(180, 120, 0, 0.16);
+}
+
+.editor-scroll-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--canvas);
+  pointer-events: none;
+}

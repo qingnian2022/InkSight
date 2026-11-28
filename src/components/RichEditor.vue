@@ -35,7 +35,23 @@ import TableToolbar from "./TableToolbar.vue";
  * 拖拽 / 粘贴图片：落盘进知识库。默认实现会把 blob: 写进 Markdown，
  * 重启和换机器都会失效。
  */
+/** 小于这个体积的图片直接内嵌成 data URL：字节就在 .md 里，跟着 git 走到哪都能显示 */
+const INLINE_IMAGE_MAX = 512 * 1024;
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("读取图片失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function uploadImage(file: File): Promise<string> {
+  // 截图、示意图这类小图内嵌，彻底摆脱「assets 目录没同步过来」的问题
+  if (file.size <= INLINE_IMAGE_MAX) {
+    return readAsDataUrl(file);
+  }
   const root = state.root;
   const docPath = state.activePath;
   if (!root || !docPath || isUntitledPath(docPath)) {
@@ -287,6 +303,8 @@ function slashFoldBlock(ctx: any) {
 
 /** 就地重载时用来还原阅读位置与光标 */
 let snapshot: { scrollTop: number; pos: number } | null = null;
+/** 还原滚动位置时盖一层，避免先显示文档顶部再跳下去 */
+const scrollMask = ref(false);
 
 function scrollerOf(view: EditorView): HTMLElement | null {
   let el: HTMLElement | null = view.dom as HTMLElement;
@@ -544,6 +562,42 @@ async function mount() {
     pmView.value = view;
     setPmView(view);
     setPmCtx(ctx);
+
+    // 阅读位置：按文档路径记在本地，再次打开时回到上次离开的地方
+    if (!isReload) {
+      const scroller = scrollerOf(view);
+      if (scroller) {
+        const key = "md-rust.scroll:" + path;
+        const saved = Number(localStorage.getItem(key) ?? "0");
+        if (saved > 0) {
+          // 先盖住，避免看到"文档从顶部跳到中间"的中间态
+          scrollMask.value = true;
+          // 等一帧排版稳定再设，否则图片还没占位会把位置夹小
+          window.setTimeout(() => {
+            scroller.scrollTop = Math.min(saved, Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+            requestAnimationFrame(() => {
+              scrollMask.value = false;
+            });
+          }, 120);
+        }
+        let saveTimer = 0;
+        scroller.addEventListener(
+          "scroll",
+          () => {
+            if (saveTimer) window.clearTimeout(saveTimer);
+            saveTimer = window.setTimeout(() => {
+              try {
+                localStorage.setItem(key, String(Math.round(scroller.scrollTop)));
+              } catch {
+                // 存不下不影响阅读
+              }
+            }, 200);
+          },
+          { passive: true },
+        );
+      }
+    }
+
     attachDeleteGuard(view);
     // 原生滚动条会占掉右缘、让 sticky 工具栏露出空白，改用悬浮滚动条
     if (host.value) {
@@ -601,6 +655,7 @@ watch(
 <template>
   <div class="rich-editor" @click="onHostClick" @mouseup="onCellMouseUp" @keydown="onEditorKeydown">
     <div ref="host" class="rich-editor-body" data-rich-editor />
+    <div v-if="scrollMask" class="editor-scroll-mask" aria-hidden="true" />
     <ColorPalette />
     <TableToolbar :view="pmView" />
   </div>
